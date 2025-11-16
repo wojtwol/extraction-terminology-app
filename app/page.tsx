@@ -71,7 +71,7 @@ export default function Home() {
 
   // Parametry ekstrakcji
   const [minTerms, setMinTerms] = useState(10)
-  const [maxTerms, setMaxTerms] = useState(100)
+  const [maxTerms, setMaxTerms] = useState(30)
   const [minLength, setMinLength] = useState(3)
   const [minOccurrences, setMinOccurrences] = useState(1)
 
@@ -317,7 +317,7 @@ export default function Home() {
                         value={minTerms}
                         onChange={(e) => setMinTerms(Math.max(1, parseInt(e.target.value) || 1))}
                         min="1"
-                        max={maxTerms}
+                        max="500"
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
@@ -329,8 +329,8 @@ export default function Home() {
                       <input
                         type="number"
                         value={maxTerms}
-                        onChange={(e) => setMaxTerms(Math.max(minTerms, parseInt(e.target.value) || 10))}
-                        min={minTerms}
+                        onChange={(e) => setMaxTerms(parseInt(e.target.value) || 0)}
+                        min="1"
                         max="500"
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
@@ -365,6 +365,12 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {maxTerms < minTerms && (
+                    <p className="text-xs text-red-600 font-semibold mt-2">
+                      ⚠️ Maksymalna liczba terminów nie może być mniejsza niż minimalna!
+                    </p>
+                  )}
+
                   <p className="text-xs text-gray-600 mt-2">
                     Aplikacja będzie dążyć do maksymalnej liczby terminów spełniających kryteria.
                   </p>
@@ -372,7 +378,8 @@ export default function Home() {
 
                 <button
                   onClick={handleStartExtraction}
-                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md"
+                  disabled={maxTerms < minTerms}
+                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   Utwórz glosariusz
                 </button>
