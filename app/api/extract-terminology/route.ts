@@ -90,13 +90,15 @@ export async function POST(request: NextRequest) {
       promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the English text below.
 
 CRITICAL RULES - READ CAREFULLY:
-1. Extract terms in their ORIGINAL ENGLISH form EXACTLY as they appear in the document
-2. DO NOT translate terms to Polish, German, or any other language
-3. Each term MUST exist verbatim in the source text (case-insensitive)
-4. Focus on specialized/technical/legal/domain-specific terms only
-5. Avoid common words like "the", "and", "or", "is", etc.
-6. ONLY extract ENGLISH terms - if the document contains Polish/German/French terms, SKIP them entirely
-7. If a term appears in multiple languages (e.g., "cooperation" and "współpraca"), ONLY extract the ENGLISH version
+1. ANALYZE THE ENTIRE DOCUMENT from beginning to end - do NOT focus only on the initial sections
+2. Extract terms distributed throughout the FULL text, not just from the start
+3. Extract terms in their ORIGINAL ENGLISH form EXACTLY as they appear in the document
+4. DO NOT translate terms to Polish, German, or any other language
+5. Each term MUST exist verbatim in the source text (case-insensitive)
+6. Focus on specialized/technical/legal/domain-specific terms only
+7. Avoid common words like "the", "and", "or", "is", etc.
+8. ONLY extract ENGLISH terms - if the document contains Polish/German/French terms, SKIP them entirely
+9. If a term appears in multiple languages (e.g., "cooperation" and "współpraca"), ONLY extract the ENGLISH version
 
 EXAMPLES OF CORRECT EXTRACTION:
 - Document: "criminal investigation" → extract "criminal investigation" ✓ (full multi-word term)
@@ -126,18 +128,22 @@ Return ONLY valid JSON (no markdown, no explanation):
   ]
 }
 
+IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.
+
 TEXT TO ANALYZE:`
     } else if (languageDetectionResult.language === 'Polski' || languageDetectionResult.languageCode === 'pol') {
       promptInstructions = `Jesteś ekspertem w ekstrakcji terminologii. Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych SPECJALISTYCZNYCH terminów z poniższego polskiego tekstu.
 
 KRYTYCZNE ZASADY - PRZECZYTAJ UWAŻNIE:
-1. Wyekstrahuj terminy w ich ORYGINALNEJ POLSKIEJ formie DOKŁADNIE tak jak występują w dokumencie
-2. NIE tłumacz terminów na angielski, niemiecki ani żaden inny język
-3. Każdy termin MUSI występować dosłownie w tekście źródłowym (wielkość liter nieistotna)
-4. Skup się tylko na terminach specjalistycznych/technicznych/prawnych/domenowych
-5. Unikaj zwykłych słów jak "oraz", "który", "jest", itp.
-6. TYLKO ekstrahuj terminy POLSKIE - jeśli dokument zawiera terminy angielskie/niemieckie/francuskie, POMIŃ je całkowicie
-7. Jeśli termin występuje w wielu językach (np. "współpraca" i "cooperation"), ekstrahuj TYLKO wersję POLSKĄ
+1. PRZEANALIZUJ CAŁY DOKUMENT od początku do końca - NIE skupiaj się tylko na początkowych sekcjach
+2. Ekstrahuj terminy rozmieszczone w całym tekście, nie tylko z początku
+3. Wyekstrahuj terminy w ich ORYGINALNEJ POLSKIEJ formie DOKŁADNIE tak jak występują w dokumencie
+4. NIE tłumacz terminów na angielski, niemiecki ani żaden inny język
+5. Każdy termin MUSI występować dosłownie w tekście źródłowym (wielkość liter nieistotna)
+6. Skup się tylko na terminach specjalistycznych/technicznych/prawnych/domenowych
+7. Unikaj zwykłych słów jak "oraz", "który", "jest", itp.
+8. TYLKO ekstrahuj terminy POLSKIE - jeśli dokument zawiera terminy angielskie/niemieckie/francuskie, POMIŃ je całkowicie
+9. Jeśli termin występuje w wielu językach (np. "współpraca" i "cooperation"), ekstrahuj TYLKO wersję POLSKĄ
 
 PRZYKŁADY PRAWIDŁOWEJ EKSTRAKCJI:
 - Dokument: "postępowanie karne" → ekstrahuj "postępowanie karne" ✓ (pełny wielowyrazowy termin)
@@ -167,6 +173,8 @@ Zwróć TYLKO poprawny JSON (bez markdown, bez wyjaśnień):
   ]
 }
 
+WAŻNE PRZYPOMNIENIE: Przeanalizuj CAŁY dokument poniżej. Nawet jeśli ekstraktujesz tylko ${minTerms}-${maxTerms} terminów, przeczytaj wszystkie sekcje od początku do końca, aby zidentyfikować najważniejsze terminy w CAŁYM tekście.
+
 TEKST DO ANALIZY:`
     } else {
       // Fallback dla innych języków UE
@@ -174,13 +182,15 @@ TEKST DO ANALIZY:`
       promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the text in ${langName}.
 
 CRITICAL RULES:
-1. Extract terms in their ORIGINAL ${langName} form EXACTLY as they appear
-2. DO NOT translate to English, Polish, or any other language
-3. Each term MUST exist in the source text (case-insensitive)
-4. Focus on specialized/technical/legal/domain-specific terms only
-5. Avoid common words
-6. ONLY extract terms in ${langName} - if the document contains terms in other languages, SKIP them entirely
-7. If a term appears in multiple languages, ONLY extract the ${langName} version
+1. ANALYZE THE ENTIRE DOCUMENT from beginning to end - do NOT focus only on the initial sections
+2. Extract terms distributed throughout the FULL text, not just from the start
+3. Extract terms in their ORIGINAL ${langName} form EXACTLY as they appear
+4. DO NOT translate to English, Polish, or any other language
+5. Each term MUST exist in the source text (case-insensitive)
+6. Focus on specialized/technical/legal/domain-specific terms only
+7. Avoid common words
+8. ONLY extract terms in ${langName} - if the document contains terms in other languages, SKIP them entirely
+9. If a term appears in multiple languages, ONLY extract the ${langName} version
 
 IMPORTANT: Many terms are multi-word phrases - extract the FULL specialized term, not individual words!
 For example:
@@ -200,6 +210,8 @@ Return ONLY valid JSON:
     {"term": "exact term in ${langName}", "context": "context in ${langName}", "occurrences": number}
   ]
 }
+
+IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.
 
 TEXT:`
     }
