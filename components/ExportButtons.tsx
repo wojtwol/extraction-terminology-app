@@ -135,6 +135,10 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       background: #d1ecf1;
       color: #0c5460;
     }
+    .source-edited {
+      background: #fff3cd;
+      color: #856404;
+    }
     .context {
       font-size: 0.85em;
       color: #6c757d;
@@ -188,8 +192,20 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
             <td>
               ${term.definition ? `
                 <div class="definition">${term.definition}</div>
-                <div class="source-badge ${term.definitionSource === 'document' ? 'source-document' : 'source-ai'}">
-                  ${term.definitionSource === 'document' ? 'Z dokumentu' : 'Wygenerowane AI'}
+                <div class="source-badge ${
+                  term.definitionSource === 'document'
+                    ? 'source-document'
+                    : term.definitionSource === 'edited'
+                    ? 'source-edited'
+                    : 'source-ai'
+                }">
+                  ${
+                    term.definitionSource === 'document'
+                      ? 'Z dokumentu'
+                      : term.definitionSource === 'edited'
+                      ? 'Edytowano'
+                      : 'Wygenerowane AI'
+                  }
                 </div>
               ` : '<span style="color: #adb5bd;">-</span>'}
             </td>
@@ -237,6 +253,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         term.occurrences.toString(),
         term.definition || '',
         term.definitionSource === 'document' ? 'Z dokumentu' :
+         term.definitionSource === 'edited' ? 'Edytowano' :
          term.definitionSource === 'ai' ? 'Wygenerowane AI' : '',
         term.context || ''
       ])
@@ -382,6 +399,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       term.occurrences.toString(),
       term.definition || '-',
       term.definitionSource === 'document' ? 'Z dokumentu' :
+       term.definitionSource === 'edited' ? 'Edytowano' :
        term.definitionSource === 'ai' ? 'AI' : '-',
       term.context || '-'
     ])

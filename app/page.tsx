@@ -18,7 +18,7 @@ export interface Term {
   occurrences: number
   positions: number[]
   definition?: string
-  definitionSource?: 'document' | 'ai' | null
+  definitionSource?: 'document' | 'ai' | 'edited' | null
 }
 
 // Funkcja do wykrywania języka (wywołuje API z franc-min)

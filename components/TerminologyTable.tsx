@@ -220,13 +220,16 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
   const handleSaveDefinition = () => {
     if (!editingDefinition) return
 
+    const term = terms.find(t => t.id === editingDefinition.id)
+    const wasEdited = term && term.definition && term.definition.length > 0
+
     onUpdate(
       terms.map(t =>
         t.id === editingDefinition.id
           ? {
               ...t,
               definition: editingDefinition.value,
-              definitionSource: 'document' as const
+              definitionSource: wasEdited ? ('edited' as const) : ('document' as const)
             }
           : t
       )
@@ -374,9 +377,15 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                         <span className={`text-xs inline-block px-2 py-1 rounded ${
                           term.definitionSource === 'document'
                             ? 'bg-green-100 text-green-800'
+                            : term.definitionSource === 'edited'
+                            ? 'bg-orange-100 text-orange-800'
                             : 'bg-purple-100 text-purple-800'
                         }`}>
-                          {term.definitionSource === 'document' ? t.fromDocument : t.generatedAI}
+                          {term.definitionSource === 'document'
+                            ? t.fromDocument
+                            : term.definitionSource === 'edited'
+                            ? (language === 'pl' ? 'Edytowano' : 'Edited')
+                            : t.generatedAI}
                         </span>
                         <button
                           onClick={() => handleManualDefinition(term.id)}
@@ -387,17 +396,17 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1">
+                    <div className="flex gap-1">
                       <button
                         onClick={() => handleGenerateDefinitionClick(term.id, term.term)}
                         disabled={loadingDefinitions.has(term.id)}
-                        className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 w-full"
+                        className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400"
                       >
                         {loadingDefinitions.has(term.id) ? t.generating : t.generateAI}
                       </button>
                       <button
                         onClick={() => handleManualDefinition(term.id)}
-                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 w-full"
+                        className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                       >
                         {t.addManually}
                       </button>
