@@ -40,13 +40,17 @@ export interface Term {
 // Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście
 function findTermOccurrences(text: string, term: string): { positions: number[], context: string, occurrences: number } {
   const positions: number[] = []
-  const normalizedText = text.toLowerCase()
-  const normalizedTerm = term.toLowerCase()
+  const lowerText = text.toLowerCase()
+  const lowerTerm = term.toLowerCase()
 
-  let index = 0
-  while ((index = normalizedText.indexOf(normalizedTerm, index)) !== -1) {
+  // Używamy regex dla dokładnego wyszukiwania całych słów
+  let startIndex = 0
+  while (startIndex < text.length) {
+    const index = lowerText.indexOf(lowerTerm, startIndex)
+    if (index === -1) break
+
     positions.push(index)
-    index += normalizedTerm.length
+    startIndex = index + term.length
   }
 
   // Wyciągnij kontekst z pierwszego wystąpienia (150-200 znaków, uwzględnij tekst przed i po)
@@ -894,7 +898,7 @@ export default function Home() {
                   <button
                     onClick={handleSaveProject}
                     disabled={terms.length === 0}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
+                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center justify-center gap-2"
                   >
                     {language === 'pl'
                       ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')

@@ -263,14 +263,20 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
 
     const ws = XLSX.utils.aoa_to_sheet(data)
 
+    // Scalanie komórek dla nazwy aplikacji (wiersze 1-2, wszystkie kolumny)
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }, // Wiersz 1: IURIDICO EJ GTEXTT
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }  // Wiersz 2: Glossary and Terminology...
+    ]
+
     // Szerokości kolumn - dostosowane wg wymagań
     ws['!cols'] = [
-      { wch: 10 },   // Nr (+30%)
-      { wch: 35 },  // Termin
-      { wch: 11 },  // Wystąpienia (-25%)
-      { wch: 70 },  // Definicja
-      { wch: 22 },  // Źródło
-      { wch: 80 }   // Kontekst
+      { wch: 20 },   // Kolumna A - zwiększona dla etykiet metadanych ("Dokument źródłowy:", "Data utworzenia:" itp.) oraz Nr
+      { wch: 35 },   // Kolumna B - Termin
+      { wch: 15 },   // Kolumna C - Wystąpienia (zwiększona aby pomieścić "Wystąpienia")
+      { wch: 70 },   // Kolumna D - Definicja
+      { wch: 18 },   // Kolumna E - Źródło (-20% z 22 = 17.6, zaokrąglone do 18)
+      { wch: 80 }    // Kolumna F - Kontekst
     ]
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
@@ -427,50 +433,66 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
 
   const exportToPDF = () => {
     const doc = new jsPDF({
-      orientation: 'portrait',
+      orientation: 'landscape',
       unit: 'mm',
       format: 'a4',
       compress: true
     })
 
     const pageWidth = doc.internal.pageSize.getWidth()
-    const margin = 15
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 12
 
-    // Nagłówek strony z gradientem (symulacja)
-    doc.setFillColor(91, 71, 168) // Fioletowy
-    doc.rect(0, 0, pageWidth, 35, 'F')
+    // Elegancki nagłówek w odcieniach szarości
+    doc.setFillColor(45, 45, 45) // Ciemny szary
+    doc.rect(0, 0, pageWidth, 25, 'F')
 
-    // Tytuł
-    doc.setFontSize(22)
+    // Tytuł aplikacji
+    doc.setFontSize(18)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(255, 255, 255)
-    doc.text('IURIDICO EJ GTEXTT', margin, 15)
+    doc.text('IURIDICO EJ GTEXTT', margin, 10)
 
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(230, 230, 230)
-    doc.text('Glossary and Terminology Extraction Tool', margin, 22)
-
-    // Metadane w białym bloku
-    doc.setFillColor(255, 255, 255)
-    doc.setDrawColor(220, 220, 220)
-    doc.setLineWidth(0.1)
-    doc.roundedRect(margin, 28, pageWidth - 2 * margin, 2, 0, 0, 'FD')
-
+    // Podtytuł
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(80, 80, 80)
-    doc.text(`Dokument: ${fileName}`, margin + 3, 29)
-    doc.setTextColor(100, 100, 100)
-    doc.text(`|`, margin + 70, 29)
-    doc.text(`Data: ${new Date().toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, margin + 72, 29)
-    doc.text(`|`, margin + 120, 29)
-    doc.text(`Terminów: ${terms.length}`, margin + 122, 29)
+    doc.setTextColor(200, 200, 200)
+    doc.text('Glossary and Terminology Extraction Tool', margin, 16)
+
+    // Metadane w jasnej ramce
+    doc.setFillColor(240, 240, 240)
+    doc.setDrawColor(180, 180, 180)
+    doc.setLineWidth(0.3)
+    doc.roundedRect(margin, 20, pageWidth - 2 * margin, 8, 1, 1, 'FD')
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(60, 60, 60)
+    doc.text(`Dokument:`, margin + 2, 24)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`${fileName}`, margin + 25, 24)
+
+    const dateStr = new Date().toLocaleDateString('pl-PL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Data:`, pageWidth / 2 - 20, 24)
+    doc.setFont('helvetica', 'normal')
+    doc.text(dateStr, pageWidth / 2 - 10, 24)
+
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Terminów:`, pageWidth - margin - 40, 24)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`${terms.length}`, pageWidth - margin - 25, 24)
 
     // Przygotuj dane tabeli
     const tableData = terms.map((term, index) => {
-      const sourceText = term.definitionSource === 'document' ? 'Dok.' :
-                        term.definitionSource === 'edited' ? 'Ed.' :
+      const sourceText = term.definitionSource === 'document' ? 'Dokument' :
+                        term.definitionSource === 'edited' ? 'Edytowano' :
                         term.definitionSource === 'ai' ? 'AI' : '-'
 
       return [
@@ -483,71 +505,82 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       ]
     })
 
-    // Tabela z nowoczesnym designem
+    // Profesjonalna tabela w odcieniach szarości
     autoTable(doc, {
-      startY: 38,
-      head: [['Nr', 'Termin', 'Wyst.', 'Definicja', 'Źr.', 'Kontekst']],
+      startY: 32,
+      head: [['Nr', 'Termin', 'Wyst.', 'Definicja', 'Źródło', 'Kontekst']],
       body: tableData,
-      theme: 'grid',
+      theme: 'striped',
       styles: {
-        fontSize: 9,
-        cellPadding: 3.5,
+        fontSize: 8,
+        cellPadding: 3,
         font: 'helvetica',
         overflow: 'linebreak',
         cellWidth: 'wrap',
-        lineColor: [220, 220, 220],
+        lineColor: [200, 200, 200],
         lineWidth: 0.1,
-        textColor: [50, 50, 50],
+        textColor: [40, 40, 40],
         valign: 'top',
         halign: 'left'
       },
       headStyles: {
-        fillColor: [43, 87, 154],
+        fillColor: [80, 80, 80],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 10,
+        fontSize: 9,
         halign: 'center',
         valign: 'middle',
-        cellPadding: 4,
+        cellPadding: 3.5,
         lineWidth: 0.2,
-        lineColor: [30, 60, 120]
+        lineColor: [60, 60, 60]
       },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [100, 100, 100] },
-        1: { cellWidth: 35, fontStyle: 'bold', textColor: [30, 60, 95] },
-        2: { cellWidth: 12, halign: 'center', valign: 'middle' },
-        3: { cellWidth: 50 },
-        4: { cellWidth: 11, halign: 'center', fontSize: 8, textColor: [100, 100, 100] },
-        5: { cellWidth: 62 }
+        0: { cellWidth: 12, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [80, 80, 80] },
+        1: { cellWidth: 45, fontStyle: 'bold', textColor: [20, 20, 20] },
+        2: { cellWidth: 15, halign: 'center', valign: 'middle' },
+        3: { cellWidth: 70, fontSize: 7.5 },
+        4: { cellWidth: 22, halign: 'center', fontSize: 7.5, textColor: [80, 80, 80] },
+        5: { cellWidth: 95, fontSize: 7.5 }
       },
       alternateRowStyles: {
-        fillColor: [250, 250, 252]
+        fillColor: [245, 245, 245]
       },
-      margin: { left: margin, right: margin, top: 35, bottom: 20 },
+      bodyStyles: {
+        fillColor: [255, 255, 255]
+      },
+      margin: { left: margin, right: margin, top: 30, bottom: 15 },
       didDrawPage: function (data) {
-        // Nagłówek na każdej stronie (poza pierwszą)
+        // Mini nagłówek na kolejnych stronach
         if (data.pageNumber > 1) {
-          doc.setFillColor(91, 71, 168)
-          doc.rect(0, 0, pageWidth, 12, 'F')
-          doc.setFontSize(10)
+          doc.setFillColor(45, 45, 45)
+          doc.rect(0, 0, pageWidth, 10, 'F')
+          doc.setFontSize(9)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(255, 255, 255)
-          doc.text('IURIDICO EJ GTEXTT', margin, 8)
+          doc.text('IURIDICO EJ GTEXTT', margin, 6.5)
           doc.setFontSize(7)
           doc.setFont('helvetica', 'normal')
-          doc.text(fileName, pageWidth - margin, 8, { align: 'right' })
+          doc.setTextColor(200, 200, 200)
+          doc.text(`${fileName}`, pageWidth - margin, 6.5, { align: 'right' })
         }
 
-        // Stopka
-        doc.setFontSize(8)
-        doc.setTextColor(150, 150, 150)
-        doc.setFont('helvetica', 'normal')
-        const pageText = `Strona ${data.pageNumber}`
-        doc.text(pageText, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' })
+        // Profesjonalna stopka
+        const footerY = pageHeight - 8
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.2)
+        doc.line(margin, footerY - 2, pageWidth - margin, footerY - 2)
 
-        // Dodatkowa informacja w stopce
         doc.setFontSize(7)
-        doc.text('Wygenerowano przez IURIDICO EJ GTEXTT', margin, doc.internal.pageSize.getHeight() - 10)
+        doc.setTextColor(120, 120, 120)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Wygenerowano przez IURIDICO EJ GTEXTT', margin, footerY)
+
+        doc.setFont('helvetica', 'bold')
+        const pageText = `Strona ${data.pageNumber}`
+        doc.text(pageText, pageWidth / 2, footerY, { align: 'center' })
+
+        doc.setFont('helvetica', 'normal')
+        doc.text(dateStr, pageWidth - margin, footerY, { align: 'right' })
       }
     })
 
@@ -567,38 +600,38 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   }
 
   return (
-    <div className="flex flex-col gap-2 items-start">
+    <div className="flex flex-col gap-2">
       <button
         onClick={exportToXLSX}
-        className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2"
+        className="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
       >
         📊 Excel (XLSX)
       </button>
 
       <button
         onClick={exportToPDF}
-        className="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2"
+        className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
       >
         📄 PDF
       </button>
 
       <button
         onClick={exportToCSV}
-        className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2"
+        className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
       >
         📊 CSV
       </button>
 
       <button
         onClick={exportToHTML}
-        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
+        className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
       >
         🌐 HTML
       </button>
 
       <button
         onClick={exportToJSON}
-        className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2"
+        className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
       >
         📄 JSON
       </button>
