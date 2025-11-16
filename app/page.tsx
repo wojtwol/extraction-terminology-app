@@ -1279,6 +1279,8 @@ export default function Home() {
               apiKey={apiKey}
               onTermSelect={setSelectedTerm}
               selectedTermId={selectedTerm?.id}
+              glossaryMode={glossaryMode}
+              bilingualStage={bilingualStage}
             />
 
             {documentText && (

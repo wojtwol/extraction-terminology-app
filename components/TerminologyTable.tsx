@@ -11,9 +11,11 @@ interface TerminologyTableProps {
   apiKey: string
   onTermSelect?: (term: Term) => void
   selectedTermId?: string | null
+  glossaryMode?: 'monolingual' | 'bilingual' | null
+  bilingualStage?: 1 | 2
 }
 
-export default function TerminologyTable({ terms, onUpdate, documentText, apiKey, onTermSelect, selectedTermId }: TerminologyTableProps) {
+export default function TerminologyTable({ terms, onUpdate, documentText, apiKey, onTermSelect, selectedTermId, glossaryMode, bilingualStage }: TerminologyTableProps) {
   const { t, language } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences'>('alphabetical')
@@ -24,6 +26,7 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
   const [currentOccurrence, setCurrentOccurrence] = useState(0)
   const [languageDialogTerm, setLanguageDialogTerm] = useState<{id: string, term: string} | null>(null)
   const [editingDefinition, setEditingDefinition] = useState<{id: string, value: string} | null>(null)
+  const [editingTargetTerm, setEditingTargetTerm] = useState<{id: string, value: string} | null>(null)
 
   // Automatyczny scroll do pierwszego wystąpienia po otwarciu modalu
   useEffect(() => {
@@ -48,6 +51,45 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
 
   // Check if any term has a definition
   const hasDefinitions = terms.some(t => t.definition)
+
+  // Check if we're in bilingual mode
+  const isBilingual = glossaryMode === 'bilingual'
+  const hasTargetTerms = terms.some(t => t.targetTerm || t.targetSource === 'missing')
+
+  // Helper function for target source badge
+  const getTargetSourceBadge = (targetSource?: 'document' | 'ai' | 'manual' | 'missing') => {
+    if (!targetSource) return null
+
+    const badges = {
+      document: {
+        bg: 'bg-green-100',
+        text: 'text-green-800',
+        label: language === 'pl' ? 'Dokument' : 'Document'
+      },
+      ai: {
+        bg: 'bg-purple-100',
+        text: 'text-purple-800',
+        label: 'AI'
+      },
+      manual: {
+        bg: 'bg-blue-100',
+        text: 'text-blue-800',
+        label: language === 'pl' ? 'Ręcznie' : 'Manual'
+      },
+      missing: {
+        bg: 'bg-red-100',
+        text: 'text-red-800',
+        label: language === 'pl' ? 'Brak' : 'Missing'
+      }
+    }
+
+    const badge = badges[targetSource]
+    return (
+      <span className={`text-xs px-2 py-1 rounded ${badge.bg} ${badge.text}`}>
+        {badge.label}
+      </span>
+    )
+  }
 
   const handleDelete = (id: string) => {
     const confirmMessage = language === 'pl'
@@ -237,6 +279,27 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
     setEditingDefinition(null)
   }
 
+  const handleEditTargetTerm = (termId: string, currentValue: string) => {
+    setEditingTargetTerm({ id: termId, value: currentValue || '' })
+  }
+
+  const handleSaveTargetTerm = () => {
+    if (!editingTargetTerm) return
+
+    onUpdate(
+      terms.map(t =>
+        t.id === editingTargetTerm.id
+          ? {
+              ...t,
+              targetTerm: editingTargetTerm.value || undefined,
+              targetSource: editingTargetTerm.value ? ('manual' as const) : ('missing' as const)
+            }
+          : t
+      )
+    )
+    setEditingTargetTerm(null)
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-2xl font-semibold mb-4 text-gray-800">
@@ -281,11 +344,39 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
           <thead>
             <tr className="bg-gray-100 border-b-2 border-gray-300">
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '20%'}}>{t.definition}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '36%'}}>{t.context}</th>
-              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
+
+              {isBilingual && hasTargetTerms ? (
+                // Bilingual mode headers (Stage 2)
+                <>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '180px'}}>
+                    {language === 'pl' ? 'Termin źródłowy' : 'Source Term'}
+                  </th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '70px'}}>
+                    {language === 'pl' ? 'Wyst.' : 'Occ.'}
+                  </th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '180px'}}>
+                    {language === 'pl' ? 'Termin docelowy' : 'Target Term'}
+                  </th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '24%'}}>
+                    {language === 'pl' ? 'Kontekst źródłowy' : 'Source Context'}
+                  </th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '24%'}}>
+                    {language === 'pl' ? 'Kontekst docelowy' : 'Target Context'}
+                  </th>
+                  <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '100px'}}>
+                    {language === 'pl' ? 'Status' : 'Status'}
+                  </th>
+                </>
+              ) : (
+                // Monolingual mode headers (default)
+                <>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '20%'}}>{t.definition}</th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '36%'}}>{t.context}</th>
+                  <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -298,157 +389,269 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
               >
                 <td className="px-2 py-3 text-sm text-gray-600">{index + 1}</td>
 
-                {/* Termin */}
-                <td className={`px-3 py-3 ${term.term.split(' ').length >= 4 ? 'max-w-xs' : ''}`}>
-                  {editingId === term.id ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleSaveEdit(term.id)}
-                        className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <span
-                      onClick={() => onTermSelect?.(term)}
-                      className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
-                        term.term.split(' ').length >= 4 ? 'break-words' : ''
-                      } ${selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
-                      }`}
-                      title="Kliknij, aby wyświetlić w dokumencie"
-                      style={term.term.split(' ').length >= 4 ? { wordBreak: 'break-word', overflowWrap: 'break-word' } : {}}
-                    >
-                      {term.term}
-                    </span>
-                  )}
-                </td>
-
-                {/* Wystąpienia */}
-                <td className="px-2 py-3 text-sm text-gray-600 text-center">
-                  <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    {term.occurrences}
-                  </span>
-                </td>
-
-                {/* Definicja */}
-                <td className="px-2 py-3 text-sm break-words">
-                  {editingDefinition?.id === term.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={editingDefinition.value}
-                        onChange={(e) => setEditingDefinition({ id: term.id, value: e.target.value })}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded h-20 resize-none"
-                        placeholder={language === 'pl' ? 'Wprowadź definicję...' : 'Enter definition...'}
-                        autoFocus
-                      />
-                      <div className="flex gap-1">
-                        <button
-                          onClick={handleSaveDefinition}
-                          className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                {isBilingual && hasTargetTerms ? (
+                  // Bilingual mode columns
+                  <>
+                    {/* Source Term */}
+                    <td className="px-3 py-3">
+                      {editingId === term.id ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleSaveEdit(term.id)}
+                            className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <span
+                          onClick={() => onTermSelect?.(term)}
+                          className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors break-words ${
+                            selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
+                          }`}
+                          title={language === 'pl' ? 'Kliknij, aby wyświetlić w dokumencie' : 'Click to show in document'}
+                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                         >
-                          ✓ {t.save}
-                        </button>
-                        <button
-                          onClick={() => setEditingDefinition(null)}
-                          className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
-                        >
-                          ✕ {t.cancel}
-                        </button>
-                      </div>
-                    </div>
-                  ) : term.definition ? (
-                    <div className="group relative">
-                      <p className="text-gray-700 break-words">{term.definition}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs inline-block px-2 py-1 rounded ${
-                          term.definitionSource === 'document'
-                            ? 'bg-green-100 text-green-800'
-                            : term.definitionSource === 'edited'
-                            ? 'bg-orange-100 text-orange-800'
-                            : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {term.definitionSource === 'document'
-                            ? t.fromDocument
-                            : term.definitionSource === 'edited'
-                            ? (language === 'pl' ? 'Edytowano' : 'Edited')
-                            : t.generatedAI}
+                          {term.term}
                         </span>
-                        <button
-                          onClick={() => handleManualDefinition(term.id)}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                      )}
+                    </td>
+
+                    {/* Occurrences */}
+                    <td className="px-2 py-3 text-center">
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        {term.occurrences}
+                      </span>
+                    </td>
+
+                    {/* Target Term */}
+                    <td className="px-3 py-3">
+                      {editingTargetTerm?.id === term.id ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editingTargetTerm.value}
+                            onChange={(e) => setEditingTargetTerm({ id: term.id, value: e.target.value })}
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            placeholder={language === 'pl' ? 'Wpisz termin docelowy...' : 'Enter target term...'}
+                            autoFocus
+                          />
+                          <button
+                            onClick={handleSaveTargetTerm}
+                            className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => setEditingTargetTerm(null)}
+                            className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => handleEditTargetTerm(term.id, term.targetTerm || '')}
+                          className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1 transition-colors"
+                          title={language === 'pl' ? 'Kliknij, aby edytować' : 'Click to edit'}
                         >
-                          {t.edit}
+                          {term.targetTerm ? (
+                            <span className="font-semibold text-gray-800 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                              {term.targetTerm}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic text-sm">
+                              {language === 'pl' ? 'Brak ekwiwalentu' : 'No equivalent'}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Source Context */}
+                    <td className="px-2 py-3 text-sm text-gray-600 break-words">
+                      {term.context || '-'}
+                    </td>
+
+                    {/* Target Context */}
+                    <td className="px-2 py-3 text-sm text-gray-600 break-words">
+                      {term.targetContext || '-'}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-2 py-3 text-center">
+                      {getTargetSourceBadge(term.targetSource)}
+                    </td>
+                  </>
+                ) : (
+                  // Monolingual mode columns (original)
+                  <>
+                    {/* Termin */}
+                    <td className={`px-3 py-3 ${term.term.split(' ').length >= 4 ? 'max-w-xs' : ''}`}>
+                      {editingId === term.id ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleSaveEdit(term.id)}
+                            className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <span
+                          onClick={() => onTermSelect?.(term)}
+                          className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
+                            term.term.split(' ').length >= 4 ? 'break-words' : ''
+                          } ${selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
+                          }`}
+                          title="Kliknij, aby wyświetlić w dokumencie"
+                          style={term.term.split(' ').length >= 4 ? { wordBreak: 'break-word', overflowWrap: 'break-word' } : {}}
+                        >
+                          {term.term}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Wystąpienia */}
+                    <td className="px-2 py-3 text-sm text-gray-600 text-center">
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        {term.occurrences}
+                      </span>
+                    </td>
+
+                    {/* Definicja */}
+                    <td className="px-2 py-3 text-sm break-words">
+                      {editingDefinition?.id === term.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingDefinition.value}
+                            onChange={(e) => setEditingDefinition({ id: term.id, value: e.target.value })}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded h-20 resize-none"
+                            placeholder={language === 'pl' ? 'Wprowadź definicję...' : 'Enter definition...'}
+                            autoFocus
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              onClick={handleSaveDefinition}
+                              className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                            >
+                              ✓ {t.save}
+                            </button>
+                            <button
+                              onClick={() => setEditingDefinition(null)}
+                              className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                            >
+                              ✕ {t.cancel}
+                            </button>
+                          </div>
+                        </div>
+                      ) : term.definition ? (
+                        <div className="group relative">
+                          <p className="text-gray-700 break-words">{term.definition}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs inline-block px-2 py-1 rounded ${
+                              term.definitionSource === 'document'
+                                ? 'bg-green-100 text-green-800'
+                                : term.definitionSource === 'edited'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-purple-100 text-purple-800'
+                            }`}>
+                              {term.definitionSource === 'document'
+                                ? t.fromDocument
+                                : term.definitionSource === 'edited'
+                                ? (language === 'pl' ? 'Edytowano' : 'Edited')
+                                : t.generatedAI}
+                            </span>
+                            <button
+                              onClick={() => handleManualDefinition(term.id)}
+                              className="text-xs text-blue-600 hover:text-blue-800 underline"
+                            >
+                              {t.edit}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleGenerateDefinitionClick(term.id, term.term)}
+                            disabled={loadingDefinitions.has(term.id)}
+                            className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400"
+                          >
+                            {loadingDefinitions.has(term.id) ? t.generating : t.generateAI}
+                          </button>
+                          <button
+                            onClick={() => handleManualDefinition(term.id)}
+                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                          >
+                            {t.addManually}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Kontekst */}
+                    <td className="px-3 py-3 text-sm text-gray-600 break-words">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          {term.context}
+                        </div>
+                        <button
+                          onClick={() => handleOpenModal(term)}
+                          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 whitespace-nowrap"
+                          title="Pokaż w dokumencie"
+                        >
+                          🔍 Pokaż
                         </button>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => handleGenerateDefinitionClick(term.id, term.term)}
-                        disabled={loadingDefinitions.has(term.id)}
-                        className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400"
-                      >
-                        {loadingDefinitions.has(term.id) ? t.generating : t.generateAI}
-                      </button>
-                      <button
-                        onClick={() => handleManualDefinition(term.id)}
-                        className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                      >
-                        {t.addManually}
-                      </button>
-                    </div>
-                  )}
-                </td>
+                    </td>
 
-                {/* Kontekst */}
-                <td className="px-3 py-3 text-sm text-gray-600 break-words">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1">
-                      {term.context}
-                    </div>
-                    <button
-                      onClick={() => handleOpenModal(term)}
-                      className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 whitespace-nowrap"
-                      title="Pokaż w dokumencie"
-                    >
-                      🔍 Pokaż
-                    </button>
-                  </div>
-                </td>
-
-                {/* Akcje */}
-                <td className="px-2 py-3 text-center">
-                  <div className="flex justify-center gap-1">
-                    <button
-                      onClick={() => handleEdit(term)}
-                      className="p-1 text-gray-600 hover:text-blue-600"
-                      title="Edytuj"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      onClick={() => handleDelete(term.id)}
-                      className="p-1 text-gray-600 hover:text-red-600"
-                      title="Usuń"
-                    >
-                      🗑
-                    </button>
-                  </div>
-                </td>
+                    {/* Akcje */}
+                    <td className="px-2 py-3 text-center">
+                      <div className="flex justify-center gap-1">
+                        <button
+                          onClick={() => handleEdit(term)}
+                          className="p-1 text-gray-600 hover:text-blue-600"
+                          title="Edytuj"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          onClick={() => handleDelete(term.id)}
+                          className="p-1 text-gray-600 hover:text-red-600"
+                          title="Usuń"
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>
