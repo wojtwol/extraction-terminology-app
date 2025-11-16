@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { detectLanguage } from '@/utils/languageDetector'
+import { extractTermsHybrid } from '@/utils/nlpExtractor'
 
 interface Term {
   id: string
@@ -69,170 +71,61 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 Rozpoczynam ekstrakcję terminologii...')
     console.log(`📄 Długość tekstu: ${text.length} znaków`)
-    console.log(`🌍 Wykryty język: ${detectedLanguage}`)
+    console.log(`🌍 Wykryty język (z frontendu): ${detectedLanguage}`)
     console.log(`⚙️  Parametry: ${minTerms}-${maxTerms} terminów, min ${minLength} znaków, min ${minOccurrences} wystąpień`)
 
-    const anthropic = new Anthropic({ apiKey })
+    // KROK 1: Ponownie wykryj język używając franc-min (bardziej dokładne)
+    const languageDetectionResult = detectLanguage(text)
+    console.log(`🔬 Wykryty język (franc-min): ${languageDetectionResult.language} (${languageDetectionResult.languageCode})`)
+    console.log(`   Pewność: ${languageDetectionResult.confidence}`)
+    console.log(`   Metoda: ${languageDetectionResult.detectionMethod}`)
 
-    console.log('🤖 Wysyłam request do Claude API...')
+    // KROK 2: Ekstrakcja NLP (główna metoda - NIE TŁUMACZY!)
+    console.log('🧬 Rozpoczynam ekstrakcję NLP/POS tagging...')
+    const nlpTerms = extractTermsHybrid(
+      text,
+      minLength,
+      minOccurrences,
+      maxTerms,
+      languageDetectionResult.languageCode
+    )
 
-    // Tworzenie prompta w języku dokumentu dla lepszego efektu
-    let promptInstructions = ''
+    console.log(`📊 NLP wyekstrahowało ${nlpTerms.length} terminów`)
 
-    if (detectedLanguage === 'Angielski') {
-      promptInstructions = `Extract ${minTerms}-${maxTerms} most important specialized terms from the English text below.
+    // KROK 3: Konwersja do formatu Term
+    const processedTerms: Term[] = nlpTerms.map((nlpTerm, index) => ({
+      id: `term-${index}-${Date.now()}`,
+      term: nlpTerm.term,
+      context: nlpTerm.context,
+      occurrences: nlpTerm.occurrences,
+      positions: nlpTerm.positions
+    }))
 
-CRITICAL: Terms MUST be in ENGLISH only!
-- Extract terms in their ORIGINAL ENGLISH form from the document
-- DO NOT translate to Polish, German, or any other language
-- Example: "investigation" stays "investigation" (NOT "śledztwo")
-- Example: "cooperation" stays "cooperation" (NOT "współpraca")
+    // KROK 4: Walidacja - sprawdź czy terminy faktycznie występują w tekście
+    console.log('✅ Walidacja terminów...')
+    const validatedTerms = processedTerms.filter(term => {
+      // Sprawdź czy termin występuje w tekście (case-insensitive)
+      const regex = new RegExp(escapeRegex(term.term), 'i')
+      const exists = regex.test(text)
 
-CRITERIA:
-- Minimum ${minLength} characters
-- Minimum ${minOccurrences} occurrences in text
-- Base forms (singular for nouns)
-- Single and multi-word terms
+      if (!exists) {
+        console.log(`⚠️  Odrzucam termin "${term.term}" - nie występuje w dokumencie`)
+      }
 
-Return ONLY valid JSON:
-{
-  "terms": [
-    {"term": "english term in base form", "context": "context from text in English", "occurrences": number}
-  ]
-}
-
-TEXT TO ANALYZE:`
-    } else if (detectedLanguage === 'Polski') {
-      promptInstructions = `Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych terminów specjalistycznych z poniższego polskiego tekstu.
-
-KRYTYCZNE: Terminy MUSZĄ być po POLSKU!
-- Wyekstrahuj terminy w ich ORYGINALNEJ POLSKIEJ formie z dokumentu
-- NIE tłumacz na angielski, niemiecki ani żaden inny język
-- Przykład: "śledztwo" pozostaje "śledztwo" (NIE "investigation")
-- Przykład: "współpraca" pozostaje "współpraca" (NIE "cooperation")
-
-KRYTERIA:
-- Minimum ${minLength} znaków
-- Minimum ${minOccurrences} wystąpień w tekście
-- Formy podstawowe (mianownik liczby pojedynczej)
-- Terminy jedno i wielowyrazowe
-
-Zwróć TYLKO poprawny JSON:
-{
-  "terms": [
-    {"term": "polski termin w formie podstawowej", "context": "kontekst z tekstu po polsku", "occurrences": liczba}
-  ]
-}
-
-TEKST DO ANALIZY:`
-    } else {
-      // Fallback dla innych języków
-      promptInstructions = `Extract ${minTerms}-${maxTerms} specialized terms from the text in language: ${detectedLanguage}.
-
-CRITICAL: Extract terms in their ORIGINAL language (${detectedLanguage}) - DO NOT TRANSLATE!
-
-CRITERIA:
-- Minimum ${minLength} characters
-- Minimum ${minOccurrences} occurrences
-- Base forms
-- Keep original language: ${detectedLanguage}
-
-Return ONLY JSON:
-{
-  "terms": [
-    {"term": "term in ${detectedLanguage}", "context": "context in ${detectedLanguage}", "occurrences": number}
-  ]
-}
-
-TEXT:`
-    }
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: promptInstructions + '\n' + text
-        }
-      ]
+      return exists
     })
 
-    console.log('✅ Otrzymano odpowiedź z Claude API')
-
-    // Ekstrakcja JSON z odpowiedzi
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-
-    console.log('📝 Pierwszych 200 znaków odpowiedzi:', responseText.substring(0, 200))
-
-    // Usuń markdown jeśli jest
-    let cleanedResponse = responseText.trim()
-    if (cleanedResponse.startsWith('```json')) {
-      cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '')
-    } else if (cleanedResponse.startsWith('```')) {
-      cleanedResponse = cleanedResponse.replace(/```\n?/g, '')
-    }
-
-    // Znajdź JSON w odpowiedzi
-    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      console.error('❌ Nie znaleziono JSON w odpowiedzi')
-      console.error('Odpowiedź Claude:', responseText.substring(0, 500))
-      return NextResponse.json(
-        { terms: [], error: 'Claude nie zwrócił poprawnego JSON. Spróbuj ponownie.' },
-        { status: 500 }
-      )
-    }
-
-    let parsedResponse
-    try {
-      parsedResponse = JSON.parse(jsonMatch[0])
-    } catch (parseError) {
-      console.error('❌ Błąd parsowania JSON:', parseError)
-      console.error('JSON do parsowania:', jsonMatch[0].substring(0, 500))
-      return NextResponse.json(
-        { terms: [], error: 'Błąd parsowania odpowiedzi. Spróbuj ponownie.' },
-        { status: 500 }
-      )
-    }
-
-    if (!parsedResponse.terms || !Array.isArray(parsedResponse.terms)) {
-      console.error('❌ Odpowiedź nie zawiera tablicy terminów')
-      return NextResponse.json(
-        { terms: [], error: 'Nieprawidłowy format odpowiedzi. Spróbuj ponownie.' },
-        { status: 500 }
-      )
-    }
-
-    console.log(`📊 Znaleziono ${parsedResponse.terms.length} terminów z Claude`)
-
-    // Przetwórz terminy i znajdź ich pozycje w tekście
-    const allTerms = parsedResponse.terms
-      .filter((term: any) => term && term.term) // Filtruj puste terminy
-      .map((term: any, index: number) => {
-        const positions = findTermPositions(text, term.term)
-        return {
-          id: `term-${index}-${Date.now()}`,
-          term: term.term,
-          context: term.context || '',
-          occurrences: positions.length > 0 ? positions.length : (term.occurrences || 1),
-          positions: positions
-        }
-      })
-
-    console.log(`🔍 Przed filtrowaniem: ${allTerms.length} terminów`)
-
-    // Filtruj według minimalnej liczby wystąpień
-    const processedTerms: Term[] = allTerms.filter((term: Term) => term.occurrences >= minOccurrences)
-
-    console.log(`✂️  Po filtrowaniu (min ${minOccurrences} wystąpień): ${processedTerms.length} terminów`)
+    console.log(`🔍 Po walidacji: ${validatedTerms.length} terminów`)
 
     // Sortuj alfabetycznie
-    processedTerms.sort((a, b) => a.term.localeCompare(b.term, 'pl'))
+    validatedTerms.sort((a, b) => a.term.localeCompare(b.term, 'pl'))
 
-    console.log('✅ Ekstrakcja zakończona sukcesem')
+    console.log('✅ Ekstrakcja zakończona sukcesem (metoda NLP - bez tłumaczenia)')
+    console.log(`   Język dokumentu: ${languageDetectionResult.language}`)
+    console.log(`   Język terminów: ${languageDetectionResult.language}`)
+    console.log(`   Liczba terminów: ${validatedTerms.length}`)
 
-    return NextResponse.json({ terms: processedTerms })
+    return NextResponse.json({ terms: validatedTerms })
 
   } catch (error: any) {
     console.error('❌ Błąd podczas ekstrakcji:', error)
@@ -267,20 +160,7 @@ TEXT:`
   }
 }
 
-// Funkcja pomocnicza do znajdowania pozycji terminu w tekście
-function findTermPositions(text: string, term: string): number[] {
-  const positions: number[] = []
-  const lowerText = text.toLowerCase()
-  const lowerTerm = term.toLowerCase()
-  let position = lowerText.indexOf(lowerTerm)
-
-  while (position !== -1) {
-    positions.push(position)
-    position = lowerText.indexOf(lowerTerm, position + 1)
-
-    // Ogranicz do 50 wystąpień
-    if (positions.length >= 50) break
-  }
-
-  return positions
+// Funkcja pomocnicza do escape'owania znaków specjalnych w regex
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

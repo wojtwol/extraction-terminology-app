@@ -17,62 +17,34 @@ export interface Term {
   definitionSource?: 'document' | 'ai' | null
 }
 
-// Funkcja do wykrywania języka
-function detectLanguage(text: string): string {
-  const sample = text.slice(0, 3000).toLowerCase()
+// Funkcja do wykrywania języka (wywołuje API z franc-min)
+async function detectLanguageAPI(text: string): Promise<string> {
+  try {
+    console.log('🔍 Wykrywanie języka przez API...')
 
-  // Polskie znaki - silny wskaźnik
-  const polishChars = /[ąćęłńóśźż]/
-  const hasPolishChars = polishChars.test(sample)
+    const response = await fetch('/api/detect-language', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text })
+    })
 
-  // Specyficzne słowa dla każdego języka (bardziej unikalne)
-  const polishWords = /\b(oraz|przez|które|został|została|zostały|zgodnie|sposób|może|każdy|wszystkie|należy|powinien|niniejsz)\b/g
-  const englishWords = /\b(the|and|which|shall|should|may|must|however|therefore|any|such|between|including|under)\b/g
-  const germanWords = /\b(der|die|das|und|auch|oder|aber|werden|können|soll|alle|zwischen|sowie|gemäß)\b/g
-  const frenchWords = /\b(les|des|une|qui|sont|peut|tous|entre|selon|ainsi|donc|avec|dans|pour)\b/g
+    if (!response.ok) {
+      console.error('❌ Błąd API wykrywania języka')
+      return 'Nieznany'
+    }
 
-  // Licytowanie słów
-  const polishCount = (sample.match(polishWords) || []).length
-  const englishCount = (sample.match(englishWords) || []).length
-  const germanCount = (sample.match(germanWords) || []).length
-  const frenchCount = (sample.match(frenchWords) || []).length
+    const data = await response.json()
+    console.log(`✅ Wykryto język: ${data.language} (${data.languageCode})`)
+    console.log(`   Pewność: ${data.confidence}`)
+    console.log(`   Metoda: ${data.method}`)
 
-  console.log('🔍 Wykrywanie języka:')
-  console.log(`   Polski: ${polishCount} słów${hasPolishChars ? ' + polskie znaki ✓' : ''}`)
-  console.log(`   Angielski: ${englishCount} słów`)
-  console.log(`   Niemiecki: ${germanCount} słów`)
-  console.log(`   Francuski: ${frenchCount} słów`)
-
-  // Jeśli są polskie znaki, to prawie na pewno polski
-  if (hasPolishChars && polishCount >= 2) {
-    console.log('✅ Wykryto: Polski (polskie znaki + słowa)')
-    return 'Polski'
-  }
-
-  // Jeśli są polskie znaki ale mało polskich słów, może być błąd
-  if (hasPolishChars) {
-    console.log('⚠️  Polskie znaki ale mało polskich słów - możliwe tłumaczenie')
-  }
-
-  const scores = {
-    Polski: polishCount,
-    Angielski: englishCount,
-    Niemiecki: germanCount,
-    Francuski: frenchCount
-  }
-
-  const maxScore = Math.max(polishCount, englishCount, germanCount, frenchCount)
-
-  if (maxScore === 0) {
-    console.log('❌ Nie wykryto języka')
+    return data.language
+  } catch (error) {
+    console.error('❌ Błąd podczas wykrywania języka:', error)
     return 'Nieznany'
   }
-
-  // Znajdź język z najwyższym wynikiem
-  const detectedLang = Object.entries(scores).find(([_, score]) => score === maxScore)?.[0] || 'Nieznany'
-
-  console.log(`✅ Wykryto: ${detectedLang} (${maxScore} dopasowań)`)
-  return detectedLang
 }
 
 export default function Home() {
@@ -119,13 +91,13 @@ export default function Home() {
   }, [apiKey])
 
   // Obsługa załadowania pliku/tekstu (bez ekstrakcji)
-  const handleFileLoaded = (text: string, filename: string, key: string) => {
+  const handleFileLoaded = async (text: string, filename: string, key: string) => {
     setLoadedText(text)
     setLoadedFileName(filename)
     setApiKey(key)
 
-    // Wykryj język
-    const language = detectLanguage(text)
+    // Wykryj język przez API (franc-min - obsługuje wszystkie języki UE)
+    const language = await detectLanguageAPI(text)
     setDetectedLanguage(language)
 
     console.log(`📄 Załadowano: ${filename}, ${text.length} znaków, język: ${language}`)

@@ -5,7 +5,7 @@ import mammoth from 'mammoth'
 import * as XLSX from 'xlsx'
 
 interface FileUploadProps {
-  onExtract: (text: string, filename: string, apiKey: string) => void
+  onExtract: (text: string, filename: string, apiKey: string) => void | Promise<void>
   isLoading: boolean
   savedApiKey?: string
 }
@@ -73,7 +73,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
         return
       }
 
-      onExtract(text, file.name, apiKey)
+      await onExtract(text, file.name, apiKey)
     } catch (error) {
       console.error('Error processing file:', error)
       alert('Błąd podczas przetwarzania pliku: ' + (error as Error).message)
@@ -106,7 +106,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
     }
   }
 
-  const handleTextSubmit = () => {
+  const handleTextSubmit = async () => {
     if (!apiKey.trim()) {
       alert('Proszę podać klucz API Anthropic')
       return
@@ -127,7 +127,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
       return
     }
 
-    onExtract(pastedText, 'Wklejony tekst', apiKey)
+    await onExtract(pastedText, 'Wklejony tekst', apiKey)
   }
 
   return (
