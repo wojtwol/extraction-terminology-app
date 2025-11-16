@@ -35,6 +35,13 @@ export interface Term {
 
   definition?: string
   definitionSource?: 'document' | 'ai' | 'edited' | null
+
+  // Dla bilingual glossary mode (target language)
+  targetTerm?: string
+  targetContext?: string
+  targetOccurrences?: number
+  targetPositions?: number[]
+  targetSource?: 'document' | 'ai' | 'manual' | 'missing'
 }
 
 // Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście (case sensitive)

@@ -1,7 +1,9 @@
 import { franc } from 'franc-min'
 
-// Mapowanie kodów ISO 639-3 na pełne nazwy języków UE
-const EU_LANGUAGES: Record<string, string> = {
+// Mapowanie kodów ISO 639-3 na pełne nazwy języków
+// Obejmuje: 24 języki urzędowe UE + dodatkowe (RU, UKR, serbski, turecki)
+const SUPPORTED_LANGUAGES: Record<string, string> = {
+  // Języki UE (24)
   'bul': 'Bułgarski',
   'hrv': 'Chorwacki',
   'ces': 'Czeski',
@@ -25,11 +27,17 @@ const EU_LANGUAGES: Record<string, string> = {
   'slk': 'Słowacki',
   'slv': 'Słoweński',
   'spa': 'Hiszpański',
-  'swe': 'Szwedzki'
+  'swe': 'Szwedzki',
+  // Dodatkowe języki
+  'rus': 'Rosyjski',
+  'ukr': 'Ukraiński',
+  'srp': 'Serbski',
+  'tur': 'Turecki'
 }
 
 // Mapowanie nazw na kody ISO dla Claude
 const LANGUAGE_TO_ISO: Record<string, string> = {
+  // Języki UE
   'Bułgarski': 'bul',
   'Chorwacki': 'hrv',
   'Czeski': 'ces',
@@ -53,7 +61,12 @@ const LANGUAGE_TO_ISO: Record<string, string> = {
   'Słowacki': 'slk',
   'Słoweński': 'slv',
   'Hiszpański': 'spa',
-  'Szwedzki': 'swe'
+  'Szwedzki': 'swe',
+  // Dodatkowe języki
+  'Rosyjski': 'rus',
+  'Ukraiński': 'ukr',
+  'Serbski': 'srp',
+  'Turecki': 'tur'
 }
 
 export interface LanguageDetectionResult {
@@ -65,7 +78,7 @@ export interface LanguageDetectionResult {
 
 /**
  * Wykrywa język dokumentu używając franc-min (bazuje na n-gramach)
- * Obsługuje wszystkie 24 języki urzędowe UE
+ * Obsługuje 28 języków: 24 języki UE + RU, UKR, serbski, turecki
  */
 export function detectLanguage(text: string): LanguageDetectionResult {
   // Użyj większej próbki dla lepszej dokładności
@@ -79,7 +92,7 @@ export function detectLanguage(text: string): LanguageDetectionResult {
 
   console.log(`   Wykryty kod: ${detectedCode}`)
 
-  // Sprawdź czy to język UE
+  // Sprawdź czy to język obsługiwany
   if (detectedCode === 'und') {
     console.log('❌ Nie można wykryć języka')
     return {
@@ -90,7 +103,7 @@ export function detectLanguage(text: string): LanguageDetectionResult {
     }
   }
 
-  const languageName = EU_LANGUAGES[detectedCode]
+  const languageName = SUPPORTED_LANGUAGES[detectedCode]
 
   if (languageName) {
     console.log(`✅ Wykryto: ${languageName} (${detectedCode})`)
@@ -101,22 +114,22 @@ export function detectLanguage(text: string): LanguageDetectionResult {
       detectionMethod: 'franc-min (n-gram analysis)'
     }
   } else {
-    console.log(`⚠️  Wykryto język spoza UE: ${detectedCode}`)
-    // Zwróć oryginalny kod jeśli nie jest językiem UE
+    console.log(`⚠️  Wykryto język spoza listy obsługiwanych: ${detectedCode}`)
+    // Zwróć oryginalny kod jeśli nie jest obsługiwanym językiem
     return {
       language: `Inny (${detectedCode})`,
       languageCode: detectedCode,
       confidence: 'medium',
-      detectionMethod: 'franc-min (non-EU language)'
+      detectionMethod: 'franc-min (unsupported language)'
     }
   }
 }
 
 /**
- * Sprawdza czy wykryty język jest językiem urzędowym UE
+ * Sprawdza czy wykryty język jest obsługiwanym językiem
  */
-export function isEULanguage(languageCode: string): boolean {
-  return languageCode in EU_LANGUAGES
+export function isSupportedLanguage(languageCode: string): boolean {
+  return languageCode in SUPPORTED_LANGUAGES
 }
 
 /**
@@ -130,5 +143,12 @@ export function getLanguageCode(languageName: string): string | undefined {
  * Pobiera nazwę języka dla kodu ISO
  */
 export function getLanguageName(languageCode: string): string | undefined {
-  return EU_LANGUAGES[languageCode]
+  return SUPPORTED_LANGUAGES[languageCode]
+}
+
+/**
+ * Pobiera listę wszystkich obsługiwanych języków
+ */
+export function getSupportedLanguages(): { code: string; name: string }[] {
+  return Object.entries(SUPPORTED_LANGUAGES).map(([code, name]) => ({ code, name }))
 }
