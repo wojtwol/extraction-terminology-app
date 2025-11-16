@@ -26,6 +26,8 @@ export default function Home() {
     setTerms([]) // Wyczyść poprzednie wyniki
 
     try {
+      console.log(`📤 Wysyłam do API: ${text.length} znaków`)
+
       const response = await fetch('/api/extract-terminology', {
         method: 'POST',
         headers: {
@@ -41,11 +43,22 @@ export default function Home() {
         }),
       })
 
+      console.log(`📥 Status odpowiedzi: ${response.status}`)
+
+      // Sprawdź czy odpowiedź to JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text()
+        console.error('❌ Odpowiedź nie jest JSON:', textResponse.substring(0, 500))
+        throw new Error(`Serwer zwrócił błąd (status ${response.status}). Sprawdź logi Vercel lub konsolę.`)
+      }
+
       const data = await response.json()
 
       if (!response.ok) {
         // Wyświetl szczegółowy błąd z API
         const errorMessage = data.error || 'Nieznany błąd podczas ekstrakcji'
+        console.error('❌ Błąd API:', errorMessage)
         throw new Error(errorMessage)
       }
 

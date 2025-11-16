@@ -10,10 +10,23 @@ interface Term {
 }
 
 export const maxDuration = 60 // Timeout 60 sekund dla Vercel
+export const runtime = 'nodejs' // Użyj Node.js runtime (nie Edge)
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    console.log('🔵 Otrzymano request do /api/extract-terminology')
+
+    // Parsuj JSON z obsługą błędów
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      console.error('❌ Błąd parsowania body:', parseError)
+      return NextResponse.json(
+        { terms: [], error: 'Nieprawidłowe dane wejściowe (błąd parsowania JSON)' },
+        { status: 400 }
+      )
+    }
     const { text, apiKey, minTerms = 10, maxTerms = 100, minLength = 3 } = body
 
     // Walidacja
