@@ -525,6 +525,128 @@ export default function Home() {
     console.log(`   Target: ${targetFile} (${targetLang}), ${targetText.length} znaków`)
   }
 
+  // Handler dla znajdowania ekwiwalentów (Stage 2)
+  const handleFindAllEquivalents = async () => {
+    if (!currentProject || !currentVersion || !apiKey) {
+      alert(language === 'pl' ? 'Brak projektu lub klucza API' : 'No project or API key')
+      return
+    }
+
+    if (!sourceDocumentText || !targetDocumentText) {
+      alert(language === 'pl'
+        ? 'Brak dokumentów źródłowych. Załaduj oba dokumenty ponownie.'
+        : 'Source documents missing. Please reload both documents.')
+      return
+    }
+
+    setIsLoading(true)
+    setProgress(10)
+
+    try {
+      console.log(`🔍 Rozpoczynam wyszukiwanie ekwiwalentów dla ${terms.length} terminów...`)
+
+      // Przygotuj dane source terms
+      const sourceTerms = terms.map(term => ({
+        term: term.term,
+        context: term.context || '',
+        position: term.positions?.[0] || 0,
+        occurrences: term.occurrences
+      }))
+
+      setProgress(20)
+
+      const response = await fetch('/api/find-equivalents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiKey,
+          sourceTerms,
+          sourceDocument: sourceDocumentText,
+          targetDocument: targetDocumentText,
+          sourceLanguage,
+          targetLanguage,
+          mode: 'batch'
+        }),
+      })
+
+      setProgress(90)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to find equivalents')
+      }
+
+      const data = await response.json()
+
+      console.log(`✅ Znaleziono ${data.stats.found}/${data.stats.total} ekwiwalentów`)
+
+      // Aktualizuj terminy z ekwiwalentami
+      const updatedTerms = terms.map((term, index) => {
+        const result = data.results[index]
+
+        if (result && result.targetTerm) {
+          return {
+            ...term,
+            targetTerm: result.targetTerm,
+            targetContext: result.targetContext,
+            targetOccurrences: result.targetOccurrences,
+            targetPositions: result.targetPositions,
+            targetSource: result.targetSource
+          }
+        }
+
+        // Jeśli nie znaleziono, oznacz jako missing
+        return {
+          ...term,
+          targetTerm: undefined,
+          targetContext: undefined,
+          targetOccurrences: 0,
+          targetPositions: [],
+          targetSource: 'missing' as const
+        }
+      })
+
+      // Zapisz zaktualizowane terminy jako nową wersję
+      if (currentGlossary) {
+        const description = language === 'pl'
+          ? `Znaleziono ekwiwalenty: ${data.stats.found}/${data.stats.total}`
+          : `Found equivalents: ${data.stats.found}/${data.stats.total}`
+
+        projectStorage.addVersion(
+          currentProject.id,
+          currentGlossary.id,
+          updatedTerms,
+          description,
+          currentVersion?.extractionParams,
+          false  // Nie jest to snapshot
+        )
+
+        const updated = projectStorage.getById(currentProject.id)
+        if (updated) {
+          setCurrentProject(updated)
+          refreshGlossary()
+        }
+      }
+
+      setProgress(100)
+
+      alert(language === 'pl'
+        ? `Znaleziono ${data.stats.found} z ${data.stats.total} ekwiwalentów.\n\nBrak ekwiwalentów: ${data.stats.missing}`
+        : `Found ${data.stats.found} out of ${data.stats.total} equivalents.\n\nMissing: ${data.stats.missing}`)
+
+    } catch (error: any) {
+      console.error('❌ Błąd wyszukiwania ekwiwalentów:', error)
+      alert(language === 'pl'
+        ? `Błąd: ${error.message}`
+        : `Error: ${error.message}`)
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+    }
+  }
+
   // Ekran wyboru projektu - pokazuj jeśli nie ma wybranego projektu
   if (!currentProject) {
     const allProjects = projectStorage.getAll().sort((a, b) =>
@@ -868,15 +990,15 @@ export default function Home() {
                         {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 2' : 'Bilingual Glossary - Stage 2'}
                       </p>
                       <button
-                        onClick={() => {
-                          alert(language === 'pl'
-                            ? 'Wyszukiwanie ekwiwalentów - wkrótce dostępne!'
-                            : 'Finding equivalents - coming soon!')
-                        }}
-                        disabled={terms.length === 0}
+                        onClick={handleFindAllEquivalents}
+                        disabled={isLoading || terms.length === 0}
                         className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
                       >
-                        🔍 {language === 'pl' ? 'Znajdź wszystkie ekwiwalenty' : 'Find All Equivalents'}
+                        {isLoading ? (
+                          <>⏳ {language === 'pl' ? 'Wyszukiwanie...' : 'Finding...'}</>
+                        ) : (
+                          <>🔍 {language === 'pl' ? 'Znajdź wszystkie ekwiwalenty' : 'Find All Equivalents'}</>
+                        )}
                       </button>
                       <button
                         onClick={() => {
