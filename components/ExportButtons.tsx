@@ -286,7 +286,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     // Dynamiczne szerokości kolumn w zależności od obecności definicji
     const definitionColWidth = hasDefinitions ? 70 : 12   // Szerokość tytułu "Definicja" gdy brak danych
     const sourceColWidth = hasDefinitions ? 18 : 18       // Szerokość tytułu "Źródło definicji"
-    const contextColWidth = hasDefinitions ? 45 : 90      // Zwężona o 25% (60→45, 120→90)
+    const contextColWidth = hasDefinitions ? 36 : 72      // Zwężona o kolejne 20% (45→36, 90→72)
 
     ws['!cols'] = [
       { wch: 20 },                 // Kolumna A - Nr
