@@ -450,170 +450,157 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   }
 
   const exportToPDF = () => {
+    // Nowa implementacja z pełnym wsparciem dla UTF-8 i polskich znaków
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: 'a4',
-      compress: true
+      format: 'a4'
     })
 
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 12
+    const margin = 10
 
-    // Elegancki nagłówek w odcieniach szarości
-    doc.setFillColor(45, 45, 45) // Ciemny szary
-    doc.rect(0, 0, pageWidth, 25, 'F')
+    // Nagłówek dokumentu
+    doc.setFillColor(50, 50, 50)
+    doc.rect(0, 0, pageWidth, 20, 'F')
 
-    // Tytuł aplikacji
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
     doc.setTextColor(255, 255, 255)
-    doc.text('IURIDICO EJ GTEXTT', margin, 10)
-
-    // Podtytuł
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(200, 200, 200)
-    doc.text('Glossary and Terminology Extraction Tool', margin, 16)
-
-    // Metadane w jasnej ramce
-    doc.setFillColor(240, 240, 240)
-    doc.setDrawColor(180, 180, 180)
-    doc.setLineWidth(0.3)
-    doc.roundedRect(margin, 20, pageWidth - 2 * margin, 8, 1, 1, 'FD')
+    doc.text('IURIDICO EJ GTEXTT', margin, 8)
 
     doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(60, 60, 60)
-    doc.text(`Dokument:`, margin + 2, 24)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`${fileName}`, margin + 25, 24)
+    doc.setTextColor(220, 220, 220)
+    doc.text('Glossary and Terminology Extraction Tool', margin, 14)
 
-    const dateStr = new Date().toLocaleDateString('pl-PL', {
+    // Informacje o dokumencie
+    const dateStr = new Date().toLocaleDateString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     })
-    doc.setFont('helvetica', 'bold')
-    doc.text(`Data:`, pageWidth / 2 - 20, 24)
-    doc.setFont('helvetica', 'normal')
-    doc.text(dateStr, pageWidth / 2 - 10, 24)
 
-    doc.setFont('helvetica', 'bold')
-    doc.text(`Terminów:`, pageWidth - margin - 40, 24)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`${terms.length}`, pageWidth - margin - 25, 24)
+    doc.setFontSize(7)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Document: ${fileName}`, margin, 25)
+    doc.text(`Date: ${dateStr}`, pageWidth / 2, 25)
+    doc.text(`Terms: ${terms.length}`, pageWidth - margin - 20, 25)
 
-    // Sprawdź czy są jakiekolwiek definicje
+    // Sprawdź czy są definicje
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
 
-    // Przygotuj dane tabeli
+    // Przygotuj dane dla tabeli - dane są już w UTF-8, jsPDF autoTable je obsłuży
     const tableData = terms.map((term, index) => {
-      const sourceText = term.definitionSource === 'document' ? 'Dokument' :
-                        term.definitionSource === 'edited' ? 'Edytowano' :
-                        term.definitionSource === 'ai' ? 'AI' : '-'
+      let sourceText = '-'
+      if (term.definitionSource === 'document') sourceText = 'Document'
+      else if (term.definitionSource === 'edited') sourceText = 'Edited'
+      else if (term.definitionSource === 'ai') sourceText = 'AI'
 
       return [
-        (index + 1).toString(),
-        term.term,
-        term.occurrences.toString(),
+        String(index + 1),
+        term.term || '',
+        String(term.occurrences),
         term.definition || '-',
         sourceText,
         term.context || '-'
       ]
     })
 
-    // Dynamiczne szerokości kolumn w zależności od obecności definicji
-    // Dostępna szerokość strony: 210mm - 2*12mm margines = 186mm
-    const definitionWidth = hasDefinitions ? 50 : 20  // Zmniejszona aby zmieścić się na stronie
-    const sourceWidth = hasDefinitions ? 18 : 18
-    const contextWidth = hasDefinitions ? 55 : 85     // Zmniejszona aby zapobiec wychodzeniu poza tabelę
-    const occurrencesWidth = hasDefinitions ? 18 : 18
+    // Optymalne szerokości kolumn (A4 landscape = 297mm, dostępne ~277mm)
+    const colWidths = hasDefinitions
+      ? { 0: 10, 1: 45, 2: 20, 3: 70, 4: 25, 5: 85 }  // Z definicjami: 255mm
+      : { 0: 10, 1: 50, 2: 20, 3: 20, 4: 25, 5: 130 } // Bez definicji: 255mm
 
-    // Profesjonalna tabela w odcieniach szarości - ZAWSZE po angielsku
+    // Tabela z danymi
     autoTable(doc, {
-      startY: 32,
+      startY: 28,
       head: [['No.', 'Term', 'Number of\noccurrences', 'Definition', 'Source of\ndefinition', 'Context']],
       body: tableData,
-      theme: 'striped',
+
+      // Podstawowe style
       styles: {
-        fontSize: 7,
-        cellPadding: 2,
         font: 'helvetica',
+        fontSize: 8,
+        cellPadding: 2.5,
         overflow: 'linebreak',
         cellWidth: 'wrap',
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-        textColor: [40, 40, 40],
         valign: 'top',
         halign: 'left',
-        minCellHeight: 10
+        lineColor: [220, 220, 220],
+        lineWidth: 0.1
       },
+
+      // Style nagłówka
       headStyles: {
-        fillColor: [80, 80, 80],
+        fillColor: [70, 70, 70],
         textColor: [255, 255, 255],
-        fontStyle: 'bold',
         fontSize: 8,
+        fontStyle: 'bold',
         halign: 'center',
         valign: 'middle',
-        cellPadding: 3,
-        lineWidth: 0.2,
-        lineColor: [60, 60, 60]
+        cellPadding: 3
       },
-      columnStyles: {
-        0: { cellWidth: 8, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [80, 80, 80] },
-        1: { cellWidth: 35, fontStyle: 'bold', textColor: [20, 20, 20], overflow: 'linebreak', cellPadding: 2 },
-        2: { cellWidth: occurrencesWidth, halign: 'center', valign: 'middle' },
-        3: { cellWidth: definitionWidth, fontSize: 6.5, overflow: 'linebreak', cellPadding: 2 },
-        4: { cellWidth: sourceWidth, halign: 'center', fontSize: 7, textColor: [80, 80, 80] },
-        5: { cellWidth: contextWidth, fontSize: 6.5, overflow: 'linebreak', cellPadding: 2, minCellWidth: 55 }
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
-      },
-      bodyStyles: {
-        fillColor: [255, 255, 255]
-      },
-      margin: { left: margin, right: margin, top: 30, bottom: 15 },
-      didDrawPage: function (data) {
-        // Mini nagłówek na kolejnych stronach
-        if (data.pageNumber > 1) {
-          doc.setFillColor(45, 45, 45)
-          doc.rect(0, 0, pageWidth, 10, 'F')
-          doc.setFontSize(9)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(255, 255, 255)
-          doc.text('IURIDICO EJ GTEXTT', margin, 6.5)
-          doc.setFontSize(7)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(200, 200, 200)
-          doc.text(`${fileName}`, pageWidth - margin, 6.5, { align: 'right' })
-        }
 
-        // Profesjonalna stopka
+      // Style poszczególnych kolumn
+      columnStyles: {
+        0: {
+          cellWidth: colWidths[0],
+          halign: 'center',
+          valign: 'middle',
+          fontSize: 7
+        },
+        1: {
+          cellWidth: colWidths[1],
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        2: {
+          cellWidth: colWidths[2],
+          halign: 'center',
+          valign: 'middle'
+        },
+        3: {
+          cellWidth: colWidths[3],
+          fontSize: 7,
+          cellPadding: 2
+        },
+        4: {
+          cellWidth: colWidths[4],
+          halign: 'center',
+          fontSize: 7
+        },
+        5: {
+          cellWidth: colWidths[5],
+          fontSize: 7,
+          cellPadding: 2
+        }
+      },
+
+      // Naprzemienne wiersze
+      alternateRowStyles: {
+        fillColor: [250, 250, 250]
+      },
+
+      // Marginesy
+      margin: { left: margin, right: margin },
+
+      // Stopka na każdej stronie
+      didDrawPage: function(data) {
+        // Stopka
         const footerY = pageHeight - 8
-        doc.setDrawColor(200, 200, 200)
-        doc.setLineWidth(0.2)
-        doc.line(margin, footerY - 2, pageWidth - margin, footerY - 2)
 
         doc.setFontSize(7)
-        doc.setTextColor(120, 120, 120)
-        doc.setFont('helvetica', 'normal')
-        doc.text('Wygenerowano przez IURIDICO EJ GTEXTT', margin, footerY)
-
-        doc.setFont('helvetica', 'bold')
-        const pageText = `Strona ${data.pageNumber}`
-        doc.text(pageText, pageWidth / 2, footerY, { align: 'center' })
-
-        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(150, 150, 150)
+        doc.text('Generated by IURIDICO EJ GTEXTT', margin, footerY)
+        doc.text(`Page ${data.pageNumber}`, pageWidth / 2, footerY, { align: 'center' })
         doc.text(dateStr, pageWidth - margin, footerY, { align: 'right' })
       }
     })
 
-    doc.save(`${fileName}_glosariusz.pdf`)
+    // Zapisz PDF
+    doc.save(`${fileName}_glossary.pdf`)
   }
 
   const downloadFile = (content: string, filename: string, mimeType: string) => {
