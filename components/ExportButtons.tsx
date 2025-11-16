@@ -188,7 +188,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
           <th style="width: 200px;">Termin</th>
           <th style="width: 80px; text-align: center;">Liczba wystąpień</th>
           <th style="width: ${definitionWidth};">Definicja</th>
-          <th style="width: ${sourceWidth}; text-align: center;">Źródło</th>
+          <th style="width: ${sourceWidth}; text-align: center;">Źródło definicji</th>
           <th style="width: ${contextWidth};">Kontekst</th>
         </tr>
       </thead>
