@@ -620,35 +620,35 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     <div className="flex flex-col gap-2 items-start">
       <button
         onClick={exportToXLSX}
-        className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
+        className="w-[180px] px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         📊 Excel (XLSX)
       </button>
 
       <button
         onClick={exportToPDF}
-        className="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
+        className="w-[180px] px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         📄 PDF
       </button>
 
       <button
         onClick={exportToCSV}
-        className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
+        className="w-[180px] px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         📊 CSV
       </button>
 
       <button
         onClick={exportToHTML}
-        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
+        className="w-[180px] px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         🌐 HTML
       </button>
 
       <button
         onClick={exportToJSON}
-        className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
+        className="w-[180px] px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         📄 JSON
       </button>

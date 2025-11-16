@@ -20,9 +20,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔍 Szukam definicji dla terminu: ${term} (język: ${language})`)
 
+    // Model można skonfigurować przez zmienną środowiskową ANTHROPIC_MODEL
+    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
+
     // Najpierw sprawdź czy definicja jest w dokumencie
     const documentCheckMessage = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model,
       max_tokens: 1024,
       messages: [
         {
@@ -38,7 +41,7 @@ WAŻNE: Szukaj TYLKO następujących typów definicji:
 NIE wymyślaj definicji na podstawie kontekstu. Jeśli nie ma JAWNEJ definicji, odpowiedz "BRAK".
 
 Dokument:
-${documentText.slice(0, 50000)}
+${documentText.slice(0, 200000)}
 
 Zwróć TYLKO JSON:
 {
@@ -111,7 +114,7 @@ Wytyczne:
 - Nie używaj zwrotów typu "w tym dokumencie", "zgodnie z tekstem" - podaj samą definicję
 
 Dokument:
-${documentText.slice(0, 20000)}
+${documentText.slice(0, 50000)}
 
 Zwróć TYLKO tekst definicji po polsku, bez dodatkowych komentarzy.`
     : `Based on the document below, generate a short, precise definition of the term "${term}" in ${langName}.
@@ -123,12 +126,14 @@ Guidelines:
 - Do not use phrases like "in this document", "according to the text" - provide only the definition
 
 Document:
-${documentText.slice(0, 20000)}
+${documentText.slice(0, 50000)}
 
 Return ONLY the definition text in ${langName}, without additional comments.`
 
+  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
+
   const aiMessage = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model,
     max_tokens: 512,
     messages: [
       {

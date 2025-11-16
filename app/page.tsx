@@ -885,7 +885,7 @@ export default function Home() {
                   {documentText && (
                     <button
                       onClick={promptManualAddTerm}
-                      className="mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2 min-w-[160px]"
+                      className="w-[180px] mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
                       title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
                     >
                       <span>➕</span>
@@ -896,7 +896,7 @@ export default function Home() {
                   <button
                     onClick={handleSaveProject}
                     disabled={terms.length === 0}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2 min-w-[160px]"
+                    className="w-[180px] px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
                   >
                     {language === 'pl'
                       ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')

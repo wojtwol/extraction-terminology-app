@@ -19,6 +19,35 @@ Profesjonalne narzędzie webowe do ekstrakcji terminologii i tworzenia glosarius
 - Node.js 18+ (pobierz z https://nodejs.org)
 - Klucz API Anthropic (utwórz konto na https://console.anthropic.com)
 
+## Kompatybilność z API Anthropic
+
+Aplikacja działa z dowolnym kluczem API Anthropic i jest kompatybilna z następującymi modelami Claude:
+
+### Domyślny model
+- **claude-sonnet-4-20250514** (Claude Sonnet 4) - zalecany, najlepszy stosunek jakości do ceny
+
+### Inne wspierane modele
+- **claude-opus-4-20250514** (Claude Opus 4) - najwyższa jakość, wolniejszy i droższy
+- **claude-3-7-sonnet-20250219** (Claude 3.7 Sonnet) - szybki i dokładny
+- **claude-3-5-haiku-20241022** (Claude 3.5 Haiku) - najszybszy, najtańszy
+
+### Konfiguracja modelu (opcjonalnie)
+
+Domyślnie aplikacja używa Claude Sonnet 4. Aby zmienić model:
+
+1. Utwórz plik `.env.local` w głównym katalogu projektu
+2. Dodaj linię:
+```
+ANTHROPIC_MODEL=claude-opus-4-20250514
+```
+3. Zrestartuj serwer deweloperski lub przebuduj aplikację
+
+### Limity dokumentów
+
+- **Maksymalna długość tekstu:** 200,000 znaków (~100 stron A4)
+- **URL fetch:** do 1,000,000 znaków
+- **Zalecane:** dla dokumentów >100 stron użyj Vercel Pro plan (maxDuration: 300s)
+
 ## Instalacja i uruchomienie lokalnie
 
 1. **Zainstaluj zależności:**
