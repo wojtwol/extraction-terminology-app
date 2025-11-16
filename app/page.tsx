@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import FileUpload from '@/components/FileUpload'
-import TerminologyList from '@/components/TerminologyList'
+import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
 
 export interface Term {
@@ -11,6 +11,8 @@ export interface Term {
   context: string
   occurrences: number
   positions: number[]
+  definition?: string
+  definitionSource?: 'document' | 'ai' | null
 }
 
 // Funkcja do wykrywania języka
@@ -251,10 +253,11 @@ export default function Home() {
                 </div>
               </div>
             ) : terms.length > 0 ? (
-              <TerminologyList
+              <TerminologyTable
                 terms={terms}
                 onUpdate={handleTermUpdate}
                 documentText={documentText}
+                apiKey={apiKey}
               />
             ) : (
               <div className="bg-white rounded-lg shadow-lg p-8 text-center">

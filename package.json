@@ -14,7 +14,9 @@
     "next": "^14.0.4",
     "@anthropic-ai/sdk": "^0.27.0",
     "mammoth": "^1.6.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2"
   },
   "devDependencies": {
     "@types/node": "^20",
