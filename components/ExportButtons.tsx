@@ -269,14 +269,21 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }  // Wiersz 2: Glossary and Terminology...
     ]
 
-    // Szerokości kolumn - dostosowane wg wymagań
+    // Sprawdź czy są jakiekolwiek definicje
+    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+
+    // Dynamiczne szerokości kolumn w zależności od obecności definicji
+    const definitionColWidth = hasDefinitions ? 70 : 12   // Szerokość tytułu "Definicja" gdy brak danych
+    const sourceColWidth = hasDefinitions ? 18 : 18       // Szerokość tytułu "Źródło definicji"
+    const contextColWidth = hasDefinitions ? 80 : 150     // Rozszerzona gdy brak definicji
+
     ws['!cols'] = [
-      { wch: 20 },   // Kolumna A - zwiększona dla etykiet metadanych ("Dokument źródłowy:", "Data utworzenia:" itp.) oraz Nr
-      { wch: 35 },   // Kolumna B - Termin
-      { wch: 15 },   // Kolumna C - Wystąpienia (zwiększona aby pomieścić "Wystąpienia")
-      { wch: 70 },   // Kolumna D - Definicja
-      { wch: 18 },   // Kolumna E - Źródło (-20% z 22 = 17.6, zaokrąglone do 18)
-      { wch: 80 }    // Kolumna F - Kontekst
+      { wch: 20 },                 // Kolumna A - Nr
+      { wch: 35 },                 // Kolumna B - Termin
+      { wch: 15 },                 // Kolumna C - Wystąpienia
+      { wch: definitionColWidth }, // Kolumna D - Definicja (dynamiczna)
+      { wch: sourceColWidth },     // Kolumna E - Źródło (dynamiczna)
+      { wch: contextColWidth }     // Kolumna F - Kontekst (dynamiczna)
     ]
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
@@ -489,6 +496,9 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     doc.setFont('helvetica', 'normal')
     doc.text(`${terms.length}`, pageWidth - margin - 25, 24)
 
+    // Sprawdź czy są jakiekolwiek definicje
+    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+
     // Przygotuj dane tabeli
     const tableData = terms.map((term, index) => {
       const sourceText = term.definitionSource === 'document' ? 'Dokument' :
@@ -505,10 +515,16 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       ]
     })
 
+    // Dynamiczne szerokości kolumn w zależności od obecności definicji
+    const definitionWidth = hasDefinitions ? 70 : 35  // Zwężona o 50% gdy brak definicji
+    const sourceWidth = hasDefinitions ? 22 : 22
+    const contextWidth = hasDefinitions ? 95 : 130     // Rozszerzona gdy brak definicji
+    const occurrencesWidth = hasDefinitions ? 20 : 25  // Rozszerzona gdy brak definicji
+
     // Profesjonalna tabela w odcieniach szarości
     autoTable(doc, {
       startY: 32,
-      head: [['Nr', 'Termin', 'Wyst.', 'Definicja', 'Źródło', 'Kontekst']],
+      head: [['Nr', 'Termin', 'Liczba\nwystapien', 'Definicja', 'Zrodlo', 'Kontekst']],
       body: tableData,
       theme: 'striped',
       styles: {
@@ -521,26 +537,27 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         lineWidth: 0.1,
         textColor: [40, 40, 40],
         valign: 'top',
-        halign: 'left'
+        halign: 'left',
+        minCellHeight: 10
       },
       headStyles: {
         fillColor: [80, 80, 80],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 9,
+        fontSize: 8,
         halign: 'center',
         valign: 'middle',
-        cellPadding: 3.5,
+        cellPadding: 3,
         lineWidth: 0.2,
         lineColor: [60, 60, 60]
       },
       columnStyles: {
         0: { cellWidth: 12, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [80, 80, 80] },
         1: { cellWidth: 45, fontStyle: 'bold', textColor: [20, 20, 20] },
-        2: { cellWidth: 15, halign: 'center', valign: 'middle' },
-        3: { cellWidth: 70, fontSize: 7.5 },
-        4: { cellWidth: 22, halign: 'center', fontSize: 7.5, textColor: [80, 80, 80] },
-        5: { cellWidth: 95, fontSize: 7.5 }
+        2: { cellWidth: occurrencesWidth, halign: 'center', valign: 'middle' },
+        3: { cellWidth: definitionWidth, fontSize: 7.5, overflow: 'linebreak' },
+        4: { cellWidth: sourceWidth, halign: 'center', fontSize: 7.5, textColor: [80, 80, 80] },
+        5: { cellWidth: contextWidth, fontSize: 7.5, overflow: 'linebreak' }
       },
       alternateRowStyles: {
         fillColor: [245, 245, 245]
@@ -600,38 +617,38 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 items-start">
       <button
         onClick={exportToXLSX}
-        className="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+        className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
       >
         📊 Excel (XLSX)
       </button>
 
       <button
         onClick={exportToPDF}
-        className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+        className="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
       >
         📄 PDF
       </button>
 
       <button
         onClick={exportToCSV}
-        className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+        className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
       >
         📊 CSV
       </button>
 
       <button
         onClick={exportToHTML}
-        className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
       >
         🌐 HTML
       </button>
 
       <button
         onClick={exportToJSON}
-        className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+        className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2 min-w-[160px]"
       >
         📄 JSON
       </button>

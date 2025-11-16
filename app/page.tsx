@@ -37,16 +37,14 @@ export interface Term {
   definitionSource?: 'document' | 'ai' | 'edited' | null
 }
 
-// Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście
+// Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście (case sensitive)
 function findTermOccurrences(text: string, term: string): { positions: number[], context: string, occurrences: number } {
   const positions: number[] = []
-  const lowerText = text.toLowerCase()
-  const lowerTerm = term.toLowerCase()
 
-  // Używamy regex dla dokładnego wyszukiwania całych słów
+  // Case sensitive search - szukamy dokładnego dopasowania
   let startIndex = 0
   while (startIndex < text.length) {
-    const index = lowerText.indexOf(lowerTerm, startIndex)
+    const index = text.indexOf(term, startIndex)
     if (index === -1) break
 
     positions.push(index)
@@ -887,7 +885,7 @@ export default function Home() {
                   {documentText && (
                     <button
                       onClick={promptManualAddTerm}
-                      className="w-full mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
+                      className="mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2 min-w-[160px]"
                       title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
                     >
                       <span>➕</span>
@@ -898,7 +896,7 @@ export default function Home() {
                   <button
                     onClick={handleSaveProject}
                     disabled={terms.length === 0}
-                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center justify-center gap-2"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2 min-w-[160px]"
                   >
                     {language === 'pl'
                       ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')

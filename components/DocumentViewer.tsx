@@ -239,9 +239,16 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
       </div>
 
       {!selectedTerm && terms.length > 0 && (
-        <p className="text-sm text-gray-500 mb-4 italic">
-          Wszystkie terminy z glosariusza są podświetlone na czerwono. Kliknij na termin w tabeli, aby podświetlić jego wystąpienia na żółto.
-        </p>
+        <div className="mb-4 space-y-1">
+          <p className="text-sm text-gray-500 italic">
+            Wszystkie terminy z glosariusza są podświetlone na czerwono. Kliknij na termin w tabeli, aby podświetlić jego wystąpienia na żółto.
+          </p>
+          {onAddTermFromSelection && (
+            <p className="text-sm text-blue-600 font-medium">
+              💡 Zaznacz dowolny tekst w dokumencie, aby dodać go do glosariusza
+            </p>
+          )}
+        </div>
       )}
 
       <div

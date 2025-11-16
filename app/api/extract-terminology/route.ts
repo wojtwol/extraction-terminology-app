@@ -396,10 +396,10 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-// Funkcja pomocnicza do znajdowania pozycji terminu w tekście
+// Funkcja pomocnicza do znajdowania pozycji terminu w tekście (case sensitive)
 function findTermPositions(text: string, term: string): number[] {
   const positions: number[] = []
-  const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, 'gi')
+  const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, 'g')
   const matches = Array.from(text.matchAll(regex))
 
   matches.forEach(match => {
