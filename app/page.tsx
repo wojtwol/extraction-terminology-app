@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
-import ProjectManager from '@/components/ProjectManager'
 import { Project, projectStorage } from '@/utils/projectStorage'
 
 export interface Term {
@@ -252,17 +251,129 @@ export default function Home() {
     setLoadedFileName('')
   }
 
+  // Ekran wyboru projektu - pokazuj jeśli nie ma wybranego projektu
+  if (!currentProject) {
+    const allProjects = projectStorage.getAll().sort((a, b) =>
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )
+
+    return (
+      <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">
+              IURIDICO EJ GTEXTT
+            </h1>
+            <p className="text-gray-600 text-lg">
+              Glossary and Terminology Extraction Tool
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-xl p-8">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+              Wybierz projekt lub utwórz nowy
+            </h2>
+
+            {/* Przycisk nowego projektu */}
+            <button
+              onClick={() => {
+                const name = prompt('Nazwa nowego projektu:', 'Glosariusz ' + new Date().toLocaleDateString('pl-PL'))
+                if (name) {
+                  const newProject = projectStorage.save({
+                    name,
+                    fileName: '',
+                    documentText: '',
+                    detectedLanguage: '',
+                    terms: []
+                  })
+                  setCurrentProject(newProject)
+                  setProjectName(newProject.name)
+                }
+              }}
+              className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg mb-6"
+            >
+              + Utwórz nowy projekt
+            </button>
+
+            {/* Lista istniejących projektów */}
+            {allProjects.length > 0 && (
+              <>
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-semibold text-gray-700 mb-4">
+                    Lub wczytaj istniejący projekt ({allProjects.length})
+                  </h3>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {allProjects.map((project) => (
+                      <div
+                        key={project.id}
+                        className="p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer"
+                        onClick={() => handleLoadProject(project)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-800">{project.name}</p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {project.terms.length} terminów • {project.detectedLanguage || 'Brak dokumentu'}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Zmieniono: {new Date(project.updatedAt).toLocaleString('pl-PL')}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (confirm(`Czy na pewno chcesz usunąć projekt "${project.name}"?`)) {
+                                projectStorage.delete(project.id)
+                                window.location.reload()
+                              }
+                            }}
+                            className="ml-4 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                          >
+                            🗑 Usuń
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {allProjects.length === 0 && (
+              <p className="text-center text-gray-500 mt-8">
+                Brak zapisanych projektów. Utwórz pierwszy projekt, aby rozpocząć!
+              </p>
+            )}
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // Główny interfejs aplikacji - pokazuj gdy projekt jest wybrany
   return (
     <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
       <div className="max-w-[1600px] mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-1">
-            IURIDICO EJ GTEXTT
-          </h1>
-          <p className="text-gray-600 text-sm font-medium">
-            Glossary and Terminology Extraction Tool
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-1">
+              IURIDICO EJ GTEXTT
+            </h1>
+            <p className="text-gray-600 text-sm font-medium">
+              Glossary and Terminology Extraction Tool
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-semibold text-gray-700">Projekt: {currentProject.name}</p>
+            <button
+              onClick={handleNewProject}
+              className="text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Zmień projekt
+            </button>
+          </div>
         </div>
 
         {/* Top Section - Upload & Projects (left) + Export (right) */}
@@ -314,13 +425,18 @@ export default function Home() {
                       </label>
                       <input
                         type="number"
-                        value={minTerms}
+                        value={minTerms === 0 ? '' : minTerms}
                         onChange={(e) => {
-                          const num = parseInt(e.target.value, 10)
-                          setMinTerms(isNaN(num) ? 1 : Math.max(1, num))
+                          if (e.target.value === '') {
+                            setMinTerms(0)
+                          } else {
+                            const num = parseInt(e.target.value, 10)
+                            setMinTerms(isNaN(num) ? 0 : Math.max(1, num))
+                          }
                         }}
                         min="1"
                         max="500"
+                        placeholder="10"
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
@@ -331,13 +447,18 @@ export default function Home() {
                       </label>
                       <input
                         type="number"
-                        value={maxTerms}
+                        value={maxTerms === 0 ? '' : maxTerms}
                         onChange={(e) => {
-                          const num = parseInt(e.target.value, 10)
-                          setMaxTerms(isNaN(num) ? 0 : num)
+                          if (e.target.value === '') {
+                            setMaxTerms(0)
+                          } else {
+                            const num = parseInt(e.target.value, 10)
+                            setMaxTerms(isNaN(num) ? 0 : num)
+                          }
                         }}
                         min="1"
                         max="500"
+                        placeholder="30"
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
@@ -377,7 +498,12 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {maxTerms < minTerms && (
+                  {(minTerms === 0 || maxTerms === 0) && (
+                    <p className="text-xs text-red-600 font-semibold mt-2">
+                      ⚠️ Minimalna i maksymalna liczba terminów muszą być większe od zera!
+                    </p>
+                  )}
+                  {maxTerms > 0 && minTerms > 0 && maxTerms < minTerms && (
                     <p className="text-xs text-red-600 font-semibold mt-2">
                       ⚠️ Maksymalna liczba terminów nie może być mniejsza niż minimalna!
                     </p>
@@ -390,19 +516,13 @@ export default function Home() {
 
                 <button
                   onClick={handleStartExtraction}
-                  disabled={maxTerms < minTerms}
+                  disabled={minTerms === 0 || maxTerms === 0 || maxTerms < minTerms}
                   className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   Utwórz glosariusz
                 </button>
               </div>
             )}
-
-            <ProjectManager
-              currentProject={currentProject}
-              onLoadProject={handleLoadProject}
-              onNewProject={handleNewProject}
-            />
           </div>
 
           {/* Right side - Export (compact) */}
