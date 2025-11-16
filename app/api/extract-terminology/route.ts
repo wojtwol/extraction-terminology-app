@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { detectLanguage } from '@/utils/languageDetector'
-import { extractTermsHybrid } from '@/utils/nlpExtractor'
 
 interface Term {
   id: string
@@ -80,47 +79,197 @@ export async function POST(request: NextRequest) {
     console.log(`   Pewność: ${languageDetectionResult.confidence}`)
     console.log(`   Metoda: ${languageDetectionResult.detectionMethod}`)
 
-    // KROK 2: Ekstrakcja NLP (główna metoda - NIE TŁUMACZY!)
-    console.log('🧬 Rozpoczynam ekstrakcję NLP/POS tagging...')
-    const nlpTerms = extractTermsHybrid(
-      text,
-      minLength,
-      minOccurrences,
-      maxTerms,
-      languageDetectionResult.languageCode
-    )
+    const anthropic = new Anthropic({ apiKey })
 
-    console.log(`📊 NLP wyekstrahowało ${nlpTerms.length} terminów`)
+    console.log('🤖 Wysyłam request do Claude API...')
 
-    // KROK 3: Konwersja do formatu Term
-    const processedTerms: Term[] = nlpTerms.map((nlpTerm, index) => ({
-      id: `term-${index}-${Date.now()}`,
-      term: nlpTerm.term,
-      context: nlpTerm.context,
-      occurrences: nlpTerm.occurrences,
-      positions: nlpTerm.positions
-    }))
+    // KROK 2: Tworzenie prompta w języku dokumentu
+    let promptInstructions = ''
 
-    // KROK 4: Walidacja - sprawdź czy terminy faktycznie występują w tekście
-    console.log('✅ Walidacja terminów...')
-    const validatedTerms = processedTerms.filter(term => {
-      // Sprawdź czy termin występuje w tekście (case-insensitive)
-      const regex = new RegExp(escapeRegex(term.term), 'i')
-      const exists = regex.test(text)
+    if (languageDetectionResult.language === 'Angielski' || languageDetectionResult.languageCode === 'eng') {
+      promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the English text below.
 
-      if (!exists) {
-        console.log(`⚠️  Odrzucam termin "${term.term}" - nie występuje w dokumencie`)
-      }
+CRITICAL RULES - READ CAREFULLY:
+1. Extract terms in their ORIGINAL ENGLISH form EXACTLY as they appear in the document
+2. DO NOT translate terms to Polish, German, or any other language
+3. Each term MUST exist verbatim in the source text (case-insensitive)
+4. Focus on specialized/technical/legal/domain-specific terms only
+5. Avoid common words like "the", "and", "or", "is", etc.
 
-      return exists
+EXAMPLES OF CORRECT EXTRACTION:
+- If document contains "criminal investigation" → extract "investigation" (NOT "śledztwo")
+- If document contains "legal framework" → extract "framework" (NOT "ramy prawne")
+- If document contains "cooperation agreement" → extract "cooperation" (NOT "współpraca")
+
+CRITERIA:
+- Minimum ${minLength} characters per term
+- Minimum ${minOccurrences} occurrences in text
+- Base forms (singular for nouns, infinitive for verbs)
+- Single-word and multi-word terms allowed
+- Terms must be SPECIALIZED (not common words)
+
+Return ONLY valid JSON (no markdown, no explanation):
+{
+  "terms": [
+    {"term": "exact term from document in English", "context": "...surrounding text in English...", "occurrences": number}
+  ]
+}
+
+TEXT TO ANALYZE:`
+    } else if (languageDetectionResult.language === 'Polski' || languageDetectionResult.languageCode === 'pol') {
+      promptInstructions = `Jesteś ekspertem w ekstrakcji terminologii. Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych SPECJALISTYCZNYCH terminów z poniższego polskiego tekstu.
+
+KRYTYCZNE ZASADY - PRZECZYTAJ UWAŻNIE:
+1. Wyekstrahuj terminy w ich ORYGINALNEJ POLSKIEJ formie DOKŁADNIE tak jak występują w dokumencie
+2. NIE tłumacz terminów na angielski, niemiecki ani żaden inny język
+3. Każdy termin MUSI występować dosłownie w tekście źródłowym (wielkość liter nieistotna)
+4. Skup się tylko na terminach specjalistycznych/technicznych/prawnych/domenowych
+5. Unikaj zwykłych słów jak "oraz", "który", "jest", itp.
+
+PRZYKŁADY PRAWIDŁOWEJ EKSTRAKCJI:
+- Jeśli dokument zawiera "postępowanie karne" → ekstrahuj "postępowanie" (NIE "investigation")
+- Jeśli dokument zawiera "ramy prawne" → ekstrahuj "ramy prawne" (NIE "legal framework")
+- Jeśli dokument zawiera "umowa o współpracy" → ekstrahuj "współpraca" (NIE "cooperation")
+
+KRYTERIA:
+- Minimum ${minLength} znaków na termin
+- Minimum ${minOccurrences} wystąpień w tekście
+- Formy podstawowe (mianownik liczby pojedynczej, bezokolicznik)
+- Terminy jedno i wielowyrazowe dozwolone
+- Terminy muszą być SPECJALISTYCZNE (nie zwykłe słowa)
+
+Zwróć TYLKO poprawny JSON (bez markdown, bez wyjaśnień):
+{
+  "terms": [
+    {"term": "dokładny termin z dokumentu po polsku", "context": "...otaczający tekst po polsku...", "occurrences": liczba}
+  ]
+}
+
+TEKST DO ANALIZY:`
+    } else {
+      // Fallback dla innych języków UE
+      const langName = languageDetectionResult.language
+      promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the text in ${langName}.
+
+CRITICAL RULES:
+1. Extract terms in their ORIGINAL ${langName} form EXACTLY as they appear
+2. DO NOT translate to English, Polish, or any other language
+3. Each term MUST exist in the source text (case-insensitive)
+4. Focus on specialized/technical/legal/domain-specific terms only
+5. Avoid common words
+
+CRITERIA:
+- Minimum ${minLength} characters
+- Minimum ${minOccurrences} occurrences
+- Base forms
+- Terms must be SPECIALIZED
+
+Return ONLY valid JSON:
+{
+  "terms": [
+    {"term": "exact term in ${langName}", "context": "context in ${langName}", "occurrences": number}
+  ]
+}
+
+TEXT:`
+    }
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      messages: [
+        {
+          role: 'user',
+          content: promptInstructions + '\n\n' + text
+        }
+      ]
     })
 
-    console.log(`🔍 Po walidacji: ${validatedTerms.length} terminów`)
+    console.log('✅ Otrzymano odpowiedź z Claude API')
+
+    // KROK 3: Ekstrakcja JSON z odpowiedzi
+    const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    console.log('📝 Pierwszych 200 znaków odpowiedzi:', responseText.substring(0, 200))
+
+    // Usuń markdown jeśli jest
+    let cleanedResponse = responseText.trim()
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '')
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/```\n?/g, '')
+    }
+
+    // Znajdź JSON w odpowiedzi
+    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.error('❌ Nie znaleziono JSON w odpowiedzi')
+      console.error('Odpowiedź Claude:', responseText.substring(0, 500))
+      return NextResponse.json(
+        { terms: [], error: 'Claude nie zwrócił poprawnego JSON. Spróbuj ponownie.' },
+        { status: 500 }
+      )
+    }
+
+    let parsedResponse
+    try {
+      parsedResponse = JSON.parse(jsonMatch[0])
+    } catch (parseError) {
+      console.error('❌ Błąd parsowania JSON:', parseError)
+      console.error('JSON do parsowania:', jsonMatch[0].substring(0, 500))
+      return NextResponse.json(
+        { terms: [], error: 'Błąd parsowania odpowiedzi. Spróbuj ponownie.' },
+        { status: 500 }
+      )
+    }
+
+    if (!parsedResponse.terms || !Array.isArray(parsedResponse.terms)) {
+      console.error('❌ Odpowiedź nie zawiera tablicy terminów')
+      return NextResponse.json(
+        { terms: [], error: 'Nieprawidłowy format odpowiedzi. Spróbuj ponownie.' },
+        { status: 500 }
+      )
+    }
+
+    console.log(`📊 Claude zwrócił ${parsedResponse.terms.length} terminów`)
+
+    // KROK 4: Przetwórz terminy i znajdź ich pozycje w tekście
+    const allTerms = parsedResponse.terms
+      .filter((term: any) => term && term.term) // Filtruj puste terminy
+      .map((term: any, index: number) => {
+        // Znajdź wszystkie wystąpienia terminu w tekście
+        const positions = findTermPositions(text, term.term)
+
+        return {
+          id: `term-${index}-${Date.now()}`,
+          term: term.term,
+          context: term.context || '',
+          occurrences: positions.length > 0 ? positions.length : (term.occurrences || 1),
+          positions: positions
+        }
+      })
+
+    console.log(`🔍 Przed walidacją: ${allTerms.length} terminów`)
+
+    // KROK 5: WALIDACJA - odrzuć terminy które nie występują w dokumencie
+    const validatedTerms = allTerms.filter((term: Term) => {
+      // Sprawdź czy termin rzeczywiście występuje w tekście
+      const exists = term.positions.length > 0
+
+      if (!exists) {
+        console.log(`⚠️  ODRZUCAM termin "${term.term}" - nie występuje w dokumencie (prawdopodobnie tłumaczenie!)`)
+      }
+
+      return exists && term.occurrences >= minOccurrences
+    })
+
+    console.log(`✂️  Po walidacji: ${validatedTerms.length} terminów`)
+    console.log(`   Odrzucono ${allTerms.length - validatedTerms.length} terminów (nie znaleziono w dokumencie)`)
 
     // Sortuj alfabetycznie
-    validatedTerms.sort((a, b) => a.term.localeCompare(b.term, 'pl'))
+    validatedTerms.sort((a: Term, b: Term) => a.term.localeCompare(b.term, 'pl'))
 
-    console.log('✅ Ekstrakcja zakończona sukcesem (metoda NLP - bez tłumaczenia)')
+    console.log('✅ Ekstrakcja zakończona sukcesem (Anthropic API)')
     console.log(`   Język dokumentu: ${languageDetectionResult.language}`)
     console.log(`   Język terminów: ${languageDetectionResult.language}`)
     console.log(`   Liczba terminów: ${validatedTerms.length}`)
@@ -163,4 +312,20 @@ export async function POST(request: NextRequest) {
 // Funkcja pomocnicza do escape'owania znaków specjalnych w regex
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Funkcja pomocnicza do znajdowania pozycji terminu w tekście
+function findTermPositions(text: string, term: string): number[] {
+  const positions: number[] = []
+  const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, 'gi')
+  const matches = Array.from(text.matchAll(regex))
+
+  matches.forEach(match => {
+    if (match.index !== undefined) {
+      positions.push(match.index)
+    }
+  })
+
+  // Ogranicz do 100 wystąpień (dla wydajności)
+  return positions.slice(0, 100)
 }
