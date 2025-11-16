@@ -1069,6 +1069,11 @@ export default function Home() {
                       terms={terms}
                       fileName={fileName}
                       documentText={documentText}
+                      glossaryMode={glossaryMode}
+                      sourceLanguage={sourceLanguage}
+                      targetLanguage={targetLanguage}
+                      sourceFileName={sourceFileName}
+                      targetFileName={targetFileName}
                     />
                   </div>
                 </div>
