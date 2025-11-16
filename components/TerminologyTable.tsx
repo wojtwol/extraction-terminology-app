@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Term } from '@/app/page'
 
 interface TerminologyTableProps {
@@ -20,6 +20,16 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set())
   const [modalTerm, setModalTerm] = useState<Term | null>(null)
   const [currentOccurrence, setCurrentOccurrence] = useState(0)
+
+  // Automatyczny scroll do pierwszego wystąpienia po otwarciu modalu
+  useEffect(() => {
+    if (modalTerm && modalTerm.positions.length > 0) {
+      setTimeout(() => {
+        const element = document.getElementById('occurrence-0')
+        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }, [modalTerm])
 
   const filteredTerms = terms.filter(term =>
     term.term.toLowerCase().includes(searchQuery.toLowerCase())
@@ -244,7 +254,7 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 <td className="px-2 py-3 text-sm text-gray-600">{index + 1}</td>
 
                 {/* Termin */}
-                <td className="px-3 py-3">
+                <td className="px-3 py-3 max-w-xs">
                   {editingId === term.id ? (
                     <div className="flex gap-2">
                       <input
@@ -270,10 +280,11 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                   ) : (
                     <span
                       onClick={() => onTermSelect?.(term)}
-                      className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
+                      className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors break-words ${
                         selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
                       }`}
                       title="Kliknij, aby wyświetlić w dokumencie"
+                      style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                     >
                       {term.term}
                     </span>

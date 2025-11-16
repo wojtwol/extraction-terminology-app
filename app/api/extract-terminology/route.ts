@@ -95,11 +95,18 @@ CRITICAL RULES - READ CAREFULLY:
 3. Each term MUST exist verbatim in the source text (case-insensitive)
 4. Focus on specialized/technical/legal/domain-specific terms only
 5. Avoid common words like "the", "and", "or", "is", etc.
+6. ONLY extract ENGLISH terms - if the document contains Polish/German/French terms, SKIP them entirely
+7. If a term appears in multiple languages (e.g., "cooperation" and "współpraca"), ONLY extract the ENGLISH version
 
 EXAMPLES OF CORRECT EXTRACTION:
-- If document contains "criminal investigation" → extract "investigation" (NOT "śledztwo")
-- If document contains "legal framework" → extract "framework" (NOT "ramy prawne")
-- If document contains "cooperation agreement" → extract "cooperation" (NOT "współpraca")
+- Document: "criminal investigation" → extract "investigation" ✓
+- Document: "legal framework" → extract "framework" ✓
+- Document: "cooperation (współpraca)" → extract "cooperation" ONLY (NOT "współpraca") ✓
+- Document: "śledztwo (investigation)" → extract "investigation" ONLY (NOT "śledztwo") ✓
+
+EXAMPLES OF INCORRECT EXTRACTION (DO NOT DO THIS):
+- Document in English contains "śledztwo" → DO NOT extract "śledztwo" ✗
+- Document in English contains "ramy prawne" → DO NOT extract "ramy prawne" ✗
 
 CRITERIA:
 - Minimum ${minLength} characters per term
@@ -107,6 +114,7 @@ CRITERIA:
 - Base forms (singular for nouns, infinitive for verbs)
 - Single-word and multi-word terms allowed
 - Terms must be SPECIALIZED (not common words)
+- Terms must be in ENGLISH ONLY
 
 Return ONLY valid JSON (no markdown, no explanation):
 {
@@ -125,11 +133,18 @@ KRYTYCZNE ZASADY - PRZECZYTAJ UWAŻNIE:
 3. Każdy termin MUSI występować dosłownie w tekście źródłowym (wielkość liter nieistotna)
 4. Skup się tylko na terminach specjalistycznych/technicznych/prawnych/domenowych
 5. Unikaj zwykłych słów jak "oraz", "który", "jest", itp.
+6. TYLKO ekstrahuj terminy POLSKIE - jeśli dokument zawiera terminy angielskie/niemieckie/francuskie, POMIŃ je całkowicie
+7. Jeśli termin występuje w wielu językach (np. "współpraca" i "cooperation"), ekstrahuj TYLKO wersję POLSKĄ
 
 PRZYKŁADY PRAWIDŁOWEJ EKSTRAKCJI:
-- Jeśli dokument zawiera "postępowanie karne" → ekstrahuj "postępowanie" (NIE "investigation")
-- Jeśli dokument zawiera "ramy prawne" → ekstrahuj "ramy prawne" (NIE "legal framework")
-- Jeśli dokument zawiera "umowa o współpracy" → ekstrahuj "współpraca" (NIE "cooperation")
+- Dokument: "postępowanie karne" → ekstrahuj "postępowanie" ✓
+- Dokument: "ramy prawne" → ekstrahuj "ramy prawne" ✓
+- Dokument: "współpraca (cooperation)" → ekstrahuj "współpraca" TYLKO (NIE "cooperation") ✓
+- Dokument: "investigation (śledztwo)" → ekstrahuj "śledztwo" TYLKO (NIE "investigation") ✓
+
+PRZYKŁADY NIEPRAWIDŁOWEJ EKSTRAKCJI (NIE RÓB TEGO):
+- Dokument po polsku zawiera "investigation" → NIE ekstrahuj "investigation" ✗
+- Dokument po polsku zawiera "legal framework" → NIE ekstrahuj "legal framework" ✗
 
 KRYTERIA:
 - Minimum ${minLength} znaków na termin
@@ -137,6 +152,7 @@ KRYTERIA:
 - Formy podstawowe (mianownik liczby pojedynczej, bezokolicznik)
 - Terminy jedno i wielowyrazowe dozwolone
 - Terminy muszą być SPECJALISTYCZNE (nie zwykłe słowa)
+- Terminy muszą być TYLKO PO POLSKU
 
 Zwróć TYLKO poprawny JSON (bez markdown, bez wyjaśnień):
 {
@@ -157,12 +173,15 @@ CRITICAL RULES:
 3. Each term MUST exist in the source text (case-insensitive)
 4. Focus on specialized/technical/legal/domain-specific terms only
 5. Avoid common words
+6. ONLY extract terms in ${langName} - if the document contains terms in other languages, SKIP them entirely
+7. If a term appears in multiple languages, ONLY extract the ${langName} version
 
 CRITERIA:
 - Minimum ${minLength} characters
 - Minimum ${minOccurrences} occurrences
 - Base forms
 - Terms must be SPECIALIZED
+- Terms must be in ${langName} ONLY
 
 Return ONLY valid JSON:
 {
