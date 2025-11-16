@@ -76,48 +76,84 @@ export async function POST(request: NextRequest) {
 
     console.log('🤖 Wysyłam request do Claude API...')
 
+    // Tworzenie prompta w języku dokumentu dla lepszego efektu
+    let promptInstructions = ''
+
+    if (detectedLanguage === 'Angielski') {
+      promptInstructions = `Extract ${minTerms}-${maxTerms} most important specialized terms from the English text below.
+
+CRITICAL: Terms MUST be in ENGLISH only!
+- Extract terms in their ORIGINAL ENGLISH form from the document
+- DO NOT translate to Polish, German, or any other language
+- Example: "investigation" stays "investigation" (NOT "śledztwo")
+- Example: "cooperation" stays "cooperation" (NOT "współpraca")
+
+CRITERIA:
+- Minimum ${minLength} characters
+- Minimum ${minOccurrences} occurrences in text
+- Base forms (singular for nouns)
+- Single and multi-word terms
+
+Return ONLY valid JSON:
+{
+  "terms": [
+    {"term": "english term in base form", "context": "context from text in English", "occurrences": number}
+  ]
+}
+
+TEXT TO ANALYZE:`
+    } else if (detectedLanguage === 'Polski') {
+      promptInstructions = `Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych terminów specjalistycznych z poniższego polskiego tekstu.
+
+KRYTYCZNE: Terminy MUSZĄ być po POLSKU!
+- Wyekstrahuj terminy w ich ORYGINALNEJ POLSKIEJ formie z dokumentu
+- NIE tłumacz na angielski, niemiecki ani żaden inny język
+- Przykład: "śledztwo" pozostaje "śledztwo" (NIE "investigation")
+- Przykład: "współpraca" pozostaje "współpraca" (NIE "cooperation")
+
+KRYTERIA:
+- Minimum ${minLength} znaków
+- Minimum ${minOccurrences} wystąpień w tekście
+- Formy podstawowe (mianownik liczby pojedynczej)
+- Terminy jedno i wielowyrazowe
+
+Zwróć TYLKO poprawny JSON:
+{
+  "terms": [
+    {"term": "polski termin w formie podstawowej", "context": "kontekst z tekstu po polsku", "occurrences": liczba}
+  ]
+}
+
+TEKST DO ANALIZY:`
+    } else {
+      // Fallback dla innych języków
+      promptInstructions = `Extract ${minTerms}-${maxTerms} specialized terms from the text in language: ${detectedLanguage}.
+
+CRITICAL: Extract terms in their ORIGINAL language (${detectedLanguage}) - DO NOT TRANSLATE!
+
+CRITERIA:
+- Minimum ${minLength} characters
+- Minimum ${minOccurrences} occurrences
+- Base forms
+- Keep original language: ${detectedLanguage}
+
+Return ONLY JSON:
+{
+  "terms": [
+    {"term": "term in ${detectedLanguage}", "context": "context in ${detectedLanguage}", "occurrences": number}
+  ]
+}
+
+TEXT:`
+    }
+
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
       messages: [
         {
           role: 'user',
-          content: `IMPORTANT: Extract ${minTerms}-${maxTerms} specialized terms from the text below.
-
-DETECTED DOCUMENT LANGUAGE: ${detectedLanguage}
-
-CRITICAL INSTRUCTION - TERM LANGUAGE:
-YOU MUST extract terms in the EXACT SAME LANGUAGE as the source document (${detectedLanguage}).
-DO NOT translate terms to any other language.
-DO NOT use English if the document is in ${detectedLanguage}.
-DO NOT use Polish if the document is in ${detectedLanguage}.
-Use ONLY the language: ${detectedLanguage}
-
-EXTRACTION CRITERIA:
-- Minimum ${minLength} characters per term
-- Minimum ${minOccurrences} occurrences in text
-- Base forms (nominative singular for nouns in ${detectedLanguage})
-- Single and multi-word terms
-- Priority: frequent terms, key to content
-
-EXAMPLES FOR ${detectedLanguage}:
-${detectedLanguage === 'Angielski' ? '- If text mentions "investigation", term should be "investigation" (NOT "śledztwo", NOT "Untersuchung")\n- If text mentions "cooperation", term should be "cooperation" (NOT "współpraca")' : ''}
-${detectedLanguage === 'Polski' ? '- Jeśli tekst wspomina "śledztwo", termin powinien być "śledztwo" (NIE "investigation")\n- Jeśli tekst wspomina "współpraca", termin powinien być "współpraca" (NIE "cooperation")' : ''}
-${detectedLanguage === 'Niemiecki' ? '- Wenn der Text "Untersuchung" erwähnt, sollte der Begriff "Untersuchung" sein (NICHT "investigation")\n- Wenn der Text "Zusammenarbeit" erwähnt, sollte der Begriff "Zusammenarbeit" sein' : ''}
-
-Return ONLY valid JSON (no markdown, no explanations):
-{
-  "terms": [
-    {
-      "term": "term in ${detectedLanguage} language base form",
-      "context": "brief context in ${detectedLanguage} (1-2 sentences from the source text)",
-      "occurrences": number_of_occurrences
-    }
-  ]
-}
-
-SOURCE TEXT IN ${detectedLanguage}:
-${text}`
+          content: promptInstructions + '\n' + text
         }
       ]
     })

@@ -56,17 +56,21 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
     setEditValue('')
   }
 
-  const moveUp = (index: number) => {
-    if (index === 0) return
-    const newTerms = [...sortedTerms]
-    ;[newTerms[index - 1], newTerms[index]] = [newTerms[index], newTerms[index - 1]]
+  const moveUp = (termId: string) => {
+    const currentIndex = terms.findIndex(t => t.id === termId)
+    if (currentIndex <= 0) return
+
+    const newTerms = [...terms]
+    ;[newTerms[currentIndex - 1], newTerms[currentIndex]] = [newTerms[currentIndex], newTerms[currentIndex - 1]]
     onUpdate(newTerms)
   }
 
-  const moveDown = (index: number) => {
-    if (index === sortedTerms.length - 1) return
-    const newTerms = [...sortedTerms]
-    ;[newTerms[index], newTerms[index + 1]] = [newTerms[index + 1], newTerms[index]]
+  const moveDown = (termId: string) => {
+    const currentIndex = terms.findIndex(t => t.id === termId)
+    if (currentIndex === -1 || currentIndex === terms.length - 1) return
+
+    const newTerms = [...terms]
+    ;[newTerms[currentIndex], newTerms[currentIndex + 1]] = [newTerms[currentIndex + 1], newTerms[currentIndex]]
     onUpdate(newTerms)
   }
 
@@ -255,17 +259,17 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 <td className="px-4 py-3 text-center">
                   <div className="flex justify-center gap-1">
                     <button
-                      onClick={() => moveUp(index)}
-                      disabled={index === 0}
-                      className="p-1 text-gray-600 hover:text-blue-600 disabled:opacity-30"
+                      onClick={() => moveUp(term.id)}
+                      disabled={terms.findIndex(t => t.id === term.id) === 0}
+                      className="px-2 py-1 text-gray-700 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
                       title="Przesuń w górę"
                     >
                       ↑
                     </button>
                     <button
-                      onClick={() => moveDown(index)}
-                      disabled={index === sortedTerms.length - 1}
-                      className="p-1 text-gray-600 hover:text-blue-600 disabled:opacity-30"
+                      onClick={() => moveDown(term.id)}
+                      disabled={terms.findIndex(t => t.id === term.id) === terms.length - 1}
+                      className="px-2 py-1 text-gray-700 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
                       title="Przesuń w dół"
                     >
                       ↓
