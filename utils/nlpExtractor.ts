@@ -78,11 +78,13 @@ export function extractTermsWithNLP(
     const contextEnd = Math.min(text.length, positions[0] + candidate.length + 50)
     const context = text.slice(contextStart, contextEnd).replace(/\s+/g, ' ').trim()
 
-    // Dodaj lub aktualizuj termin
+    // Dodaj lub aktualizuj termin (unikaj duplikatów pozycji!)
     if (terms.has(normalized)) {
       const existing = terms.get(normalized)!
-      existing.occurrences += matches.length
-      existing.positions.push(...positions)
+      // Użyj Set do deduplikacji pozycji
+      const uniquePositions = new Set([...existing.positions, ...positions])
+      existing.positions = Array.from(uniquePositions).sort((a, b) => a - b)
+      existing.occurrences = existing.positions.length
     } else {
       terms.set(normalized, {
         term: candidate.toLowerCase(), // Zachowaj oryginalną formę (ale znormalizowaną)
@@ -165,7 +167,14 @@ export function extractTermsWithRegex(
     const contextEnd = Math.min(text.length, positions[0] + candidate.length + 50)
     const context = text.slice(contextStart, contextEnd).replace(/\s+/g, ' ').trim()
 
-    if (!terms.has(normalized)) {
+    // Dodaj lub aktualizuj termin (unikaj duplikatów pozycji!)
+    if (terms.has(normalized)) {
+      const existing = terms.get(normalized)!
+      // Użyj Set do deduplikacji pozycji
+      const uniquePositions = new Set([...existing.positions, ...positions])
+      existing.positions = Array.from(uniquePositions).sort((a, b) => a - b)
+      existing.occurrences = existing.positions.length
+    } else {
       terms.set(normalized, {
         term: candidate.toLowerCase(),
         positions,
