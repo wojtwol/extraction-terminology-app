@@ -1,5 +1,14 @@
 import { Term } from '@/app/page'
 
+// Dokument źródłowy
+export interface SourceDocument {
+  id: string
+  fileName: string
+  text: string
+  language: string
+  addedAt: string
+}
+
 // Wersja glosariusza z parametrami ekstrakcji
 export interface GlossaryVersion {
   id: string
@@ -33,9 +42,16 @@ export interface Project {
   name: string
   createdAt: string
   updatedAt: string
+
+  // Dla kompatybilności wstecznej (single-document mode)
   fileName: string
   documentText: string
   detectedLanguage: string
+
+  // Dla multi-document mode
+  isMultiDocument?: boolean
+  documents?: SourceDocument[]
+
   glossaries: Glossary[]
   currentGlossaryId: string | null
 }
@@ -197,6 +213,51 @@ export const projectStorage = {
   clear(): void {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(VERSION_KEY)
+  },
+
+  // === OPERACJE NA DOKUMENTACH ===
+
+  // Dodaj dokument do projektu (multi-document mode)
+  addDocument(projectId: string, fileName: string, text: string, language: string): SourceDocument | null {
+    const project = this.getById(projectId)
+    if (!project) return null
+
+    const newDocument: SourceDocument = {
+      id: `doc-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      fileName,
+      text,
+      language,
+      addedAt: new Date().toISOString()
+    }
+
+    if (!project.documents) {
+      project.documents = []
+    }
+
+    project.documents.push(newDocument)
+    project.isMultiDocument = true
+    this.update(projectId, { documents: project.documents, isMultiDocument: true })
+
+    return newDocument
+  },
+
+  // Usuń dokument z projektu
+  deleteDocument(projectId: string, documentId: string): boolean {
+    const project = this.getById(projectId)
+    if (!project || !project.documents) return false
+
+    const filtered = project.documents.filter(d => d.id !== documentId)
+    if (filtered.length === project.documents.length) return false
+
+    this.update(projectId, { documents: filtered })
+    return true
+  },
+
+  // Pobierz dokument po ID
+  getDocument(projectId: string, documentId: string): SourceDocument | null {
+    const project = this.getById(projectId)
+    if (!project || !project.documents) return null
+    return project.documents.find(d => d.id === documentId) || null
   },
 
   // === OPERACJE NA GLOSARIUSZACH ===

@@ -8,15 +8,31 @@ import DocumentViewer from '@/components/DocumentViewer'
 import GlossaryManager from '@/components/GlossaryManager'
 import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
-import { Project, Glossary, GlossaryVersion, projectStorage } from '@/utils/projectStorage'
+import DocumentManager from '@/components/DocumentManager'
+import { Project, Glossary, GlossaryVersion, projectStorage, SourceDocument } from '@/utils/projectStorage'
 import { useLanguage } from '@/contexts/LanguageContext'
+
+// Kontekst terminu w pojedynczym dokumencie
+export interface TermContext {
+  documentId: string
+  documentName: string
+  context: string
+  positions: number[]
+  occurrences: number
+}
 
 export interface Term {
   id: string
   term: string
+
+  // Dla kompatybilności wstecznej (single-document mode)
   context: string
   occurrences: number
   positions: number[]
+
+  // Dla multi-document mode
+  contexts?: TermContext[]
+
   definition?: string
   definitionSource?: 'document' | 'ai' | 'edited' | null
 }
@@ -137,15 +153,33 @@ export default function Home() {
 
   // Obsługa załadowania pliku/tekstu (bez ekstrakcji)
   const handleFileLoaded = async (text: string, filename: string, key: string) => {
-    setLoadedText(text)
-    setLoadedFileName(filename)
     setApiKey(key)
 
     // Wykryj język przez API (franc-min - obsługuje wszystkie języki UE)
     const language = await detectLanguageAPI(text)
-    setDetectedLanguage(language)
 
-    console.log(`📄 Załadowano: ${filename}, ${text.length} znaków, język: ${language}`)
+    // Jeśli projekt jest wielodokumentowy, dodaj dokument do listy
+    if (currentProject?.isMultiDocument) {
+      const doc = projectStorage.addDocument(currentProject.id, filename, text, language)
+      if (doc) {
+        console.log(`📄 Dodano dokument: ${filename}, ${text.length} znaków, język: ${language}`)
+        alert(
+          (language === 'pl' ? 'pl' : 'en') === 'pl'
+            ? `Dokument "${filename}" został dodany.\n\nDokumenty: ${(currentProject.documents?.length || 0) + 1}\nJęzyk: ${language}`
+            : `Document "${filename}" has been added.\n\nDocuments: ${(currentProject.documents?.length || 0) + 1}\nLanguage: ${language}`
+        )
+        const updatedProject = projectStorage.getById(currentProject.id)
+        if (updatedProject) {
+          setCurrentProject(updatedProject)
+        }
+      }
+    } else {
+      // Tryb pojedynczego dokumentu
+      setLoadedText(text)
+      setLoadedFileName(filename)
+      setDetectedLanguage(language)
+      console.log(`📄 Załadowano: ${filename}, ${text.length} znaków, język: ${language}`)
+    }
   }
 
   // Odśwież aktualny glosariusz i wersję
@@ -465,38 +499,78 @@ export default function Home() {
             </h2>
 
             {/* Przycisk nowego projektu */}
-            <button
-              onClick={() => {
-                // Generuj domyślną nazwę z numerem porządkowym
-                const today = new Date().toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-US')
-                const baseNamePrefix = language === 'pl' ? `Glosariusz ${today}` : `Glossary ${today}`
+            <div className="mb-6 space-y-3">
+              <button
+                onClick={() => {
+                  // Generuj domyślną nazwę z numerem porządkowym
+                  const today = new Date().toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-US')
+                  const baseNamePrefix = language === 'pl' ? `Glosariusz ${today}` : `Glossary ${today}`
 
-                // Znajdź wszystkie projekty z dzisiejszą datą
-                const todayProjects = allProjects.filter(p =>
-                  p.name.startsWith(baseNamePrefix)
-                )
+                  // Znajdź wszystkie projekty z dzisiejszą datą
+                  const todayProjects = allProjects.filter(p =>
+                    p.name.startsWith(baseNamePrefix)
+                  )
 
-                // Oblicz numer porządkowy (ilość projektów z dzisiejszą datą + 1)
-                const nextNumber = todayProjects.length + 1
-                const defaultName = `${baseNamePrefix}_${nextNumber}`
+                  // Oblicz numer porządkowy (ilość projektów z dzisiejszą datą + 1)
+                  const nextNumber = todayProjects.length + 1
+                  const defaultName = `${baseNamePrefix}_${nextNumber}`
 
-                const name = prompt(language === 'pl' ? 'Nazwa nowego projektu:' : 'New project name:', defaultName)
-                if (name) {
-                  const newProject = projectStorage.save({
-                    name,
-                    fileName: '',
-                    documentText: '',
-                    detectedLanguage: ''
-                  })
-                  setCurrentProject(newProject)
-                  setProjectName(newProject.name)
-                  refreshGlossary()
-                }
-              }}
-              className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg mb-6"
-            >
-              {language === 'pl' ? '+ Utwórz nowy projekt' : '+ Create New Project'}
-            </button>
+                  const name = prompt(language === 'pl' ? 'Nazwa nowego projektu (pojedynczy dokument):' : 'New project name (single document):', defaultName)
+                  if (name) {
+                    const newProject = projectStorage.save({
+                      name,
+                      fileName: '',
+                      documentText: '',
+                      detectedLanguage: ''
+                    })
+                    setCurrentProject(newProject)
+                    setProjectName(newProject.name)
+                    refreshGlossary()
+                  }
+                }}
+                className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
+              >
+                {language === 'pl' ? '+ Nowy projekt (1 dokument)' : '+ New Project (Single Document)'}
+              </button>
+
+              <button
+                onClick={() => {
+                  // Generuj domyślną nazwę z numerem porządkowym
+                  const today = new Date().toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-US')
+                  const baseNamePrefix = language === 'pl' ? `Glosariusz wielodokumentowy ${today}` : `Multi-doc Glossary ${today}`
+
+                  // Znajdź wszystkie projekty z dzisiejszą datą
+                  const todayProjects = allProjects.filter(p =>
+                    p.name.startsWith(baseNamePrefix)
+                  )
+
+                  // Oblicz numer porządkowy
+                  const nextNumber = todayProjects.length + 1
+                  const defaultName = `${baseNamePrefix}_${nextNumber}`
+
+                  const name = prompt(language === 'pl' ? 'Nazwa nowego projektu wielodokumentowego:' : 'New multi-document project name:', defaultName)
+                  if (name) {
+                    const newProject = projectStorage.save({
+                      name,
+                      fileName: '',
+                      documentText: '',
+                      detectedLanguage: ''
+                    })
+                    // Oznacz jako projekt wielodokumentowy
+                    projectStorage.update(newProject.id, { isMultiDocument: true, documents: [] })
+                    const updatedProject = projectStorage.getById(newProject.id)
+                    if (updatedProject) {
+                      setCurrentProject(updatedProject)
+                      setProjectName(updatedProject.name)
+                      refreshGlossary()
+                    }
+                  }
+                }}
+                className="w-full px-6 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-lg"
+              >
+                {language === 'pl' ? '+ Nowy projekt (wiele dokumentów)' : '+ New Project (Multiple Documents)'}
+              </button>
+            </div>
 
             {/* Lista istniejących projektów */}
             {allProjects.length > 0 && (
@@ -750,6 +824,19 @@ export default function Home() {
 
           {/* Right side - Glossary Manager & Export */}
           <div className="space-y-4">
+            {/* Zarządzanie dokumentami (tylko dla projektów wielodokumentowych) */}
+            {currentProject && currentProject.isMultiDocument && currentProject.documents && (
+              <DocumentManager
+                projectId={currentProject.id}
+                documents={currentProject.documents}
+                onRefresh={() => {
+                  const updated = projectStorage.getById(currentProject.id)
+                  if (updated) setCurrentProject(updated)
+                  setRefreshKey(prev => prev + 1)
+                }}
+              />
+            )}
+
             {/* Zarządzanie glosariuszami */}
             {currentProject && (
               <GlossaryManager
