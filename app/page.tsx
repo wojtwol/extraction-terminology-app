@@ -5,7 +5,9 @@ import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
 import DocumentViewer from '@/components/DocumentViewer'
-import { Project, projectStorage } from '@/utils/projectStorage'
+import GlossaryManager from '@/components/GlossaryManager'
+import SnapshotButton from '@/components/SnapshotButton'
+import { Project, Glossary, GlossaryVersion, projectStorage } from '@/utils/projectStorage'
 
 export interface Term {
   id: string
@@ -48,7 +50,6 @@ async function detectLanguageAPI(text: string): Promise<string> {
 }
 
 export default function Home() {
-  const [terms, setTerms] = useState<Term[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [documentText, setDocumentText] = useState('')
@@ -60,9 +61,12 @@ export default function Home() {
   const [loadedText, setLoadedText] = useState('')
   const [loadedFileName, setLoadedFileName] = useState('')
 
-  // Projekty
+  // Projekty i glosariusze
   const [currentProject, setCurrentProject] = useState<Project | null>(null)
   const [projectName, setProjectName] = useState('')
+  const [currentGlossary, setCurrentGlossary] = useState<Glossary | null>(null)
+  const [currentVersion, setCurrentVersion] = useState<GlossaryVersion | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0) // Wymuszenie odświeżenia
 
   // Parametry ekstrakcji
   const [minTerms, setMinTerms] = useState(10)
@@ -75,6 +79,9 @@ export default function Home() {
 
   // Sugestia dotycząca liczby terminów
   const [extractionSuggestion, setExtractionSuggestion] = useState<string | null>(null)
+
+  // Skrót do terminów z aktualnej wersji
+  const terms = currentVersion?.terms || []
 
   // Wczytaj zapisany klucz API przy starcie
   useEffect(() => {
@@ -106,14 +113,32 @@ export default function Home() {
     console.log(`📄 Załadowano: ${filename}, ${text.length} znaków, język: ${language}`)
   }
 
+  // Odśwież aktualny glosariusz i wersję
+  const refreshGlossary = () => {
+    if (!currentProject || !currentProject.currentGlossaryId) {
+      setCurrentGlossary(null)
+      setCurrentVersion(null)
+      return
+    }
+
+    const glossary = projectStorage.getCurrentGlossary(currentProject.id)
+    setCurrentGlossary(glossary)
+
+    if (glossary) {
+      const version = projectStorage.getCurrentVersion(currentProject.id, glossary.id)
+      setCurrentVersion(version)
+    } else {
+      setCurrentVersion(null)
+    }
+  }
+
   // Rozpocznij ekstrakcję (po kliknięciu przycisku)
   const handleStartExtraction = async () => {
-    if (!loadedText || !apiKey) return
+    if (!loadedText || !apiKey || !currentProject || !currentGlossary) return
 
     setIsLoading(true)
     setDocumentText(loadedText)
     setFileName(loadedFileName)
-    setTerms([]) // Wyczyść poprzednie wyniki
     setExtractionSuggestion(null) // Wyczyść poprzednią sugestię
     setProgress(0)
 
@@ -175,7 +200,26 @@ export default function Home() {
         return
       }
 
-      setTerms(data.terms)
+      // Zapisz wyniki jako nową wersję glosariusza
+      const extractionParams = { minTerms, maxTerms, minLength, minOccurrences }
+      const description = `Ekstrakcja: ${minTerms}-${maxTerms} terminów`
+
+      projectStorage.addVersion(
+        currentProject.id,
+        currentGlossary.id,
+        data.terms,
+        description,
+        extractionParams,
+        false // nie jest snapshotem
+      )
+
+      // Odśwież projekt
+      const updatedProject = projectStorage.getById(currentProject.id)
+      if (updatedProject) {
+        setCurrentProject(updatedProject)
+      }
+      refreshGlossary()
+
       setProgress(100)
       console.log(`✅ Wyekstrahowano ${data.terms.length} terminów`)
 
@@ -204,21 +248,42 @@ export default function Home() {
   }
 
   const handleTermUpdate = (updatedTerms: Term[]) => {
-    setTerms(updatedTerms)
+    if (!currentProject || !currentGlossary) return
+
+    // Zapisz jako nową wersję (auto-save)
+    projectStorage.addVersion(
+      currentProject.id,
+      currentGlossary.id,
+      updatedTerms,
+      'Auto-save (edycja)',
+      undefined,
+      false
+    )
+
+    // Odśwież projekt i glosariusz
+    const updatedProject = projectStorage.getById(currentProject.id)
+    if (updatedProject) {
+      setCurrentProject(updatedProject)
+    }
+    refreshGlossary()
   }
 
-  // Automatyczne zapisywanie projektu
+  // Odśwież glosariusz gdy projekt się zmieni
   useEffect(() => {
-    if (currentProject && terms.length > 0) {
+    refreshGlossary()
+  }, [currentProject, refreshKey])
+
+  // Automatyczne zapisywanie metadanych projektu
+  useEffect(() => {
+    if (currentProject && documentText) {
       projectStorage.update(currentProject.id, {
-        terms,
         name: projectName || currentProject.name,
         documentText,
         fileName,
         detectedLanguage
       })
     }
-  }, [terms, projectName])
+  }, [projectName, documentText, fileName, detectedLanguage])
 
   // Zapisz jako nowy projekt
   const handleSaveProject = () => {
@@ -229,12 +294,12 @@ export default function Home() {
       name,
       fileName,
       documentText,
-      detectedLanguage,
-      terms
+      detectedLanguage
     })
 
     setCurrentProject(project)
     setProjectName(name)
+    refreshGlossary()
     alert('Projekt został zapisany!')
   }
 
@@ -245,16 +310,17 @@ export default function Home() {
     setFileName(project.fileName)
     setDocumentText(project.documentText)
     setDetectedLanguage(project.detectedLanguage)
-    setTerms(project.terms)
     setLoadedText('')
     setLoadedFileName('')
+    refreshGlossary()
   }
 
   // Nowy projekt
   const handleNewProject = () => {
     setCurrentProject(null)
+    setCurrentGlossary(null)
+    setCurrentVersion(null)
     setProjectName('')
-    setTerms([])
     setDocumentText('')
     setFileName('')
     setDetectedLanguage('')
@@ -308,11 +374,11 @@ export default function Home() {
                     name,
                     fileName: '',
                     documentText: '',
-                    detectedLanguage: '',
-                    terms: []
+                    detectedLanguage: ''
                   })
                   setCurrentProject(newProject)
                   setProjectName(newProject.name)
+                  refreshGlossary()
                 }
               }}
               className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg mb-6"
@@ -338,7 +404,7 @@ export default function Home() {
                           <div className="flex-1">
                             <p className="font-semibold text-gray-800">{project.name}</p>
                             <p className="text-sm text-gray-600 mt-1">
-                              {project.terms.length} terminów • {project.detectedLanguage || 'Brak dokumentu'}
+                              {project.glossaries.length} {project.glossaries.length === 1 ? 'glosariusz' : 'glosariuszy'} • {project.detectedLanguage || 'Brak dokumentu'}
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
                               Zmieniono: {new Date(project.updatedAt).toLocaleString('pl-PL')}
@@ -549,18 +615,54 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right side - Export (compact) */}
+          {/* Right side - Glossary Manager & Export */}
           <div className="space-y-4">
+            {/* Zarządzanie glosariuszami */}
+            {currentProject && (
+              <GlossaryManager
+                projectId={currentProject.id}
+                glossaries={currentProject.glossaries}
+                currentGlossaryId={currentProject.currentGlossaryId}
+                onGlossaryChange={(glossaryId) => {
+                  projectStorage.setCurrentGlossary(currentProject.id, glossaryId)
+                  const updated = projectStorage.getById(currentProject.id)
+                  if (updated) setCurrentProject(updated)
+                  refreshGlossary()
+                }}
+                onRefresh={() => {
+                  const updated = projectStorage.getById(currentProject.id)
+                  if (updated) setCurrentProject(updated)
+                  setRefreshKey(prev => prev + 1)
+                }}
+              />
+            )}
+
             {terms.length > 0 && (
               <>
                 <div className="bg-white rounded-lg shadow-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">
                     Akcje
                   </h3>
+
+                  {/* Snapshot Button */}
+                  {currentProject && currentGlossary && (
+                    <div className="mb-2">
+                      <SnapshotButton
+                        projectId={currentProject.id}
+                        glossaryId={currentGlossary.id}
+                        onSnapshotCreated={() => {
+                          const updated = projectStorage.getById(currentProject.id)
+                          if (updated) setCurrentProject(updated)
+                          refreshGlossary()
+                        }}
+                      />
+                    </div>
+                  )}
+
                   <button
                     onClick={handleSaveProject}
                     disabled={terms.length === 0}
-                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 mb-2"
+                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400"
                   >
                     {currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt'}
                   </button>

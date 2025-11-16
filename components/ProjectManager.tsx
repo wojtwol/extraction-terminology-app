@@ -65,7 +65,7 @@ export default function ProjectManager({ currentProject, onLoadProject, onNewPro
             <div className="flex-1">
               <p className="text-sm font-semibold text-gray-800">{currentProject.name}</p>
               <p className="text-xs text-gray-600 mt-1">
-                {currentProject.terms.length} terminów • {currentProject.detectedLanguage}
+                {currentProject.glossaries.length} {currentProject.glossaries.length === 1 ? 'glosariusz' : 'glosariuszy'} • {currentProject.detectedLanguage}
               </p>
               <p className="text-xs text-gray-500">
                 Zmieniono: {formatDate(currentProject.updatedAt)}
@@ -97,7 +97,7 @@ export default function ProjectManager({ currentProject, onLoadProject, onNewPro
                       {project.name}
                     </p>
                     <p className="text-xs text-gray-600 mt-1">
-                      {project.terms.length} terminów • {project.detectedLanguage}
+                      {project.glossaries.length} {project.glossaries.length === 1 ? 'glosariusz' : 'glosariuszy'} • {project.detectedLanguage}
                     </p>
                     <p className="text-xs text-gray-500">
                       {formatDate(project.updatedAt)}
