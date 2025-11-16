@@ -14,7 +14,7 @@ interface ExportButtonsProps {
 export default function ExportButtons({ terms, fileName, documentText }: ExportButtonsProps) {
   const exportToCSV = () => {
     const csvContent = [
-      ['Termin', 'Wystąpienia', 'Kontekst'],
+      ['Termin', 'Liczba wystąpień', 'Kontekst'],
       ...terms.map(term => [
         term.term,
         term.occurrences.toString(),
@@ -178,7 +178,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         <tr>
           <th class="nr-col">Nr</th>
           <th style="width: 200px;">Termin</th>
-          <th style="width: 80px; text-align: center;">Wystąpienia</th>
+          <th style="width: 80px; text-align: center;">Liczba wystąpień</th>
           <th style="width: 35%;">Definicja</th>
           <th style="width: 35%;">Kontekst</th>
         </tr>
@@ -248,7 +248,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       ['Data utworzenia:', new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', ''],
       ['Liczba terminów:', terms.length.toString(), '', '', '', ''],
       [],
-      ['Nr', 'Termin', 'Wystąpienia', 'Definicja', 'Źródło definicji', 'Kontekst'],
+      ['Nr', 'Termin', 'Liczba wystąpień', 'Definicja', 'Źródło definicji', 'Kontekst'],
       ...terms.map((term, index) => [
         (index + 1).toString(),
         term.term,
@@ -280,7 +280,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     ws['!cols'] = [
       { wch: 20 },                 // Kolumna A - Nr
       { wch: 35 },                 // Kolumna B - Termin
-      { wch: 15 },                 // Kolumna C - Wystąpienia
+      { wch: 18 },                 // Kolumna C - Liczba wystąpień (zmieniono z 15 na 18)
       { wch: definitionColWidth }, // Kolumna D - Definicja (dynamiczna)
       { wch: sourceColWidth },     // Kolumna E - Źródło (dynamiczna)
       { wch: contextColWidth }     // Kolumna F - Kontekst (dynamiczna)
@@ -524,7 +524,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     // Profesjonalna tabela w odcieniach szarości
     autoTable(doc, {
       startY: 32,
-      head: [['Nr', 'Termin', 'Liczba\nwystapien', 'Definicja', 'Zrodlo', 'Kontekst']],
+      head: [['Nr', 'Termin', 'Liczba\nwystąpień', 'Definicja', 'Źródło', 'Kontekst']],
       body: tableData,
       theme: 'striped',
       styles: {
@@ -538,7 +538,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         textColor: [40, 40, 40],
         valign: 'top',
         halign: 'left',
-        minCellHeight: 10
+        minCellHeight: 12
       },
       headStyles: {
         fillColor: [80, 80, 80],
@@ -553,11 +553,11 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       },
       columnStyles: {
         0: { cellWidth: 12, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [80, 80, 80] },
-        1: { cellWidth: 45, fontStyle: 'bold', textColor: [20, 20, 20] },
+        1: { cellWidth: 45, fontStyle: 'bold', textColor: [20, 20, 20], overflow: 'linebreak' },
         2: { cellWidth: occurrencesWidth, halign: 'center', valign: 'middle' },
-        3: { cellWidth: definitionWidth, fontSize: 7.5, overflow: 'linebreak' },
+        3: { cellWidth: definitionWidth, fontSize: 7.5, overflow: 'linebreak', cellPadding: 2.5 },
         4: { cellWidth: sourceWidth, halign: 'center', fontSize: 7.5, textColor: [80, 80, 80] },
-        5: { cellWidth: contextWidth, fontSize: 7.5, overflow: 'linebreak' }
+        5: { cellWidth: contextWidth, fontSize: 7.5, overflow: 'linebreak', cellPadding: 2.5, minCellHeight: 15 }
       },
       alternateRowStyles: {
         fillColor: [245, 245, 245]

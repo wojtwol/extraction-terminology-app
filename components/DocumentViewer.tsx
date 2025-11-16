@@ -183,22 +183,6 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 relative">
-      {/* Floating "Add to Glossary" button */}
-      {showAddButton && onAddTermFromSelection && (
-        <button
-          onClick={handleAddSelectedTerm}
-          className="fixed z-50 px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2"
-          style={{
-            top: `${buttonPosition.top}px`,
-            left: `${buttonPosition.left}px`
-          }}
-          title="Dodaj zaznaczony tekst do glosariusza"
-        >
-          <span>➕</span>
-          <span>Dodaj "{selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText}"</span>
-        </button>
-      )}
-
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-xl font-semibold text-gray-800">Dokument źródłowy</h3>
@@ -250,9 +234,28 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
                   💡 Szybkie dodawanie terminów
                 </p>
                 <p className="text-xs text-blue-600 mt-0.5">
-                  Zaznacz dowolny fragment tekstu myszką - pojawi się przycisk do dodania terminu
+                  Zaznacz dowolny fragment tekstu w dokumencie poniżej, a następnie kliknij przycisk:
                 </p>
               </div>
+              <button
+                onClick={() => {
+                  if (selectedText) {
+                    handleAddSelectedTerm()
+                  } else {
+                    alert('Najpierw zaznacz fragment tekstu w dokumencie poniżej.')
+                  }
+                }}
+                disabled={!selectedText}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+                title={selectedText ? `Dodaj zaznaczony tekst: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"` : 'Zaznacz tekst w dokumencie'}
+              >
+                <span>➕</span>
+                <span>
+                  {selectedText
+                    ? `Dodaj "${selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText}"`
+                    : 'Dodaj zaznaczony tekst'}
+                </span>
+              </button>
             </div>
           )}
         </div>

@@ -119,7 +119,7 @@ export const translations: Record<Language, Translations> = {
     // Table headers
     number: '#',
     term: 'Termin',
-    occurrences: 'Wystąpienia',
+    occurrences: 'Liczba wystąpień',
     definition: 'Definicja',
     context: 'Kontekst',
     actions: 'Akcje',

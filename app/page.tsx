@@ -677,6 +677,67 @@ export default function Home() {
               savedApiKey={apiKey}
             />
 
+            {/* Akcje i Eksport pod FileUpload */}
+            {terms.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-lg shadow-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
+                    {language === 'pl' ? 'Akcje' : 'Actions'}
+                  </h3>
+
+                  {/* Snapshot Button */}
+                  {currentProject && currentGlossary && (
+                    <div className="mb-2">
+                      <SnapshotButton
+                        projectId={currentProject.id}
+                        glossaryId={currentGlossary.id}
+                        onSnapshotCreated={() => {
+                          const updated = projectStorage.getById(currentProject.id)
+                          if (updated) setCurrentProject(updated)
+                          refreshGlossary()
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Manual Add Term Button */}
+                  {documentText && (
+                    <button
+                      onClick={promptManualAddTerm}
+                      className="w-[180px] mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
+                    >
+                      <span>➕</span>
+                      <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleSaveProject}
+                    disabled={terms.length === 0}
+                    className="w-[180px] px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
+                  >
+                    {language === 'pl'
+                      ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
+                      : (currentProject ? 'Save changes' : 'Save as project')}
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
+                    {language === 'pl' ? 'Eksport' : 'Export'}
+                  </h3>
+                  <div className="space-y-2">
+                    <ExportButtons
+                      terms={terms}
+                      fileName={fileName}
+                      documentText={documentText}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Panel podglądu */}
             {loadedText && !isLoading && terms.length === 0 && (
               <div className="bg-white rounded-lg shadow-lg p-4">
@@ -857,66 +918,6 @@ export default function Home() {
                   setRefreshKey(prev => prev + 1)
                 }}
               />
-            )}
-
-            {terms.length > 0 && (
-              <>
-                <div className="bg-white rounded-lg shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Akcje' : 'Actions'}
-                  </h3>
-
-                  {/* Snapshot Button */}
-                  {currentProject && currentGlossary && (
-                    <div className="mb-2">
-                      <SnapshotButton
-                        projectId={currentProject.id}
-                        glossaryId={currentGlossary.id}
-                        onSnapshotCreated={() => {
-                          const updated = projectStorage.getById(currentProject.id)
-                          if (updated) setCurrentProject(updated)
-                          refreshGlossary()
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Manual Add Term Button */}
-                  {documentText && (
-                    <button
-                      onClick={promptManualAddTerm}
-                      className="w-[180px] mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
-                      title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
-                    >
-                      <span>➕</span>
-                      <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleSaveProject}
-                    disabled={terms.length === 0}
-                    className="w-[180px] px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
-                  >
-                    {language === 'pl'
-                      ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
-                      : (currentProject ? 'Save changes' : 'Save as project')}
-                  </button>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Eksport' : 'Export'}
-                  </h3>
-                  <div className="space-y-2">
-                    <ExportButtons
-                      terms={terms}
-                      fileName={fileName}
-                      documentText={documentText}
-                    />
-                  </div>
-                </div>
-              </>
             )}
 
             {isLoading && (
