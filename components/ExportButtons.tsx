@@ -75,7 +75,8 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   </style>
 </head>
 <body>
-  <h1>Glosariusz terminologiczny</h1>
+  <h1>IURIDICO EJ GTEXTT</h1>
+  <p style="color: #666; font-size: 0.9em; margin-top: -10px;">Glossary and Terminology Extraction Tool</p>
   <p><strong>Dokument źródłowy:</strong> ${fileName}</p>
   <p><strong>Liczba terminów:</strong> ${terms.length}</p>
   <p><strong>Data utworzenia:</strong> ${new Date().toLocaleDateString('pl-PL')}</p>
@@ -126,7 +127,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   const exportToXLSX = () => {
     // Przygotuj dane dla XLSX
     const data = [
-      ['Glosariusz terminologiczny', '', '', '', ''],
+      ['IURIDICO EJ GTEXTT - Glossary and Terminology Extraction Tool', '', '', '', ''],
       ['Dokument źródłowy:', fileName, '', '', ''],
       ['Data utworzenia:', new Date().toLocaleDateString('pl-PL'), '', '', ''],
       ['Liczba terminów:', terms.length.toString(), '', '', ''],
@@ -178,16 +179,20 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     })
 
     // Tytuł
-    doc.setFontSize(18)
+    doc.setFontSize(16)
     doc.setFont('helvetica', 'bold')
-    doc.text('Glosariusz terminologiczny', 14, 15)
+    doc.text('IURIDICO EJ GTEXTT', 14, 15)
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Glossary and Terminology Extraction Tool', 14, 21)
 
     // Metadane
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Dokument źródłowy: ${fileName}`, 14, 25)
-    doc.text(`Data utworzenia: ${new Date().toLocaleDateString('pl-PL')}`, 14, 30)
-    doc.text(`Liczba terminów: ${terms.length}`, 14, 35)
+    doc.text(`Dokument źródłowy: ${fileName}`, 14, 28)
+    doc.text(`Data utworzenia: ${new Date().toLocaleDateString('pl-PL')}`, 14, 33)
+    doc.text(`Liczba terminów: ${terms.length}`, 14, 38)
 
     // Tabela
     const tableData = terms.map((term, index) => [
@@ -201,7 +206,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     ])
 
     autoTable(doc, {
-      startY: 42,
+      startY: 45,
       head: [['Nr', 'Termin', 'Wyst.', 'Definicja', 'Źródło', 'Kontekst']],
       body: tableData,
       styles: {

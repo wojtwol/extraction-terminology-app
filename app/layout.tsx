@@ -2,8 +2,8 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Ekstraktor Terminologii',
-  description: 'Aplikacja do ekstrakcji terminologii i tworzenia glosariuszy',
+  title: 'IURIDICO EJ GTEXTT - Glossary and Terminology Extraction Tool',
+  description: 'Profesjonalne narzędzie do ekstrakcji terminologii i tworzenia glosariuszy z dokumentów prawnych i urzędowych',
 }
 
 export default function RootLayout({

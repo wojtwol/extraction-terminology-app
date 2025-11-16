@@ -1,6 +1,7 @@
-# Ekstraktor Terminologii
+# IURIDICO EJ GTEXTT
+## Glossary and Terminology Extraction Tool
 
-Aplikacja webowa do ekstrakcji terminologii i tworzenia glosariuszy z dokumentów prawnych i urzędowych.
+Profesjonalne narzędzie webowe do ekstrakcji terminologii i tworzenia glosariuszy z dokumentów prawnych i urzędowych.
 
 ## Funkcje (wersja testowa)
 

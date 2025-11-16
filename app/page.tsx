@@ -170,10 +170,13 @@ export default function Home() {
     <main className="min-h-screen p-8 bg-gradient-to-b from-gray-100 to-white">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-800 mb-2">
-          Ekstraktor Terminologii
+          IURIDICO EJ GTEXTT
         </h1>
-        <p className="text-gray-600 mb-8">
-          Twórz glosariusze z dokumentów prawnych i urzędowych
+        <p className="text-gray-600 mb-1 text-sm font-medium">
+          Glossary and Terminology Extraction Tool
+        </p>
+        <p className="text-gray-500 mb-8 text-sm">
+          Profesjonalne narzędzie do ekstrakcji terminologii i tworzenia glosariuszy
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
