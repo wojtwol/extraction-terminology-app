@@ -99,10 +99,13 @@ CRITICAL RULES - READ CAREFULLY:
 7. If a term appears in multiple languages (e.g., "cooperation" and "współpraca"), ONLY extract the ENGLISH version
 
 EXAMPLES OF CORRECT EXTRACTION:
-- Document: "criminal investigation" → extract "investigation" ✓
-- Document: "legal framework" → extract "framework" ✓
-- Document: "cooperation (współpraca)" → extract "cooperation" ONLY (NOT "współpraca") ✓
-- Document: "śledztwo (investigation)" → extract "investigation" ONLY (NOT "śledztwo") ✓
+- Document: "criminal investigation" → extract "criminal investigation" ✓ (full multi-word term)
+- Document: "legal framework" → extract "legal framework" ✓ (full multi-word term)
+- Document: "cooperation (współpraca)" → extract "cooperation" ONLY (NOT "współpraca") ✓ (language filtering)
+- Document: "śledztwo (investigation)" → extract "investigation" ONLY (NOT "śledztwo") ✓ (language filtering)
+- Document: "data protection" → extract "data protection" ✓ (NOT just "protection")
+
+IMPORTANT: Many terms are multi-word phrases - extract the FULL specialized term, not individual words!
 
 EXAMPLES OF INCORRECT EXTRACTION (DO NOT DO THIS):
 - Document in English contains "śledztwo" → DO NOT extract "śledztwo" ✗
@@ -137,10 +140,13 @@ KRYTYCZNE ZASADY - PRZECZYTAJ UWAŻNIE:
 7. Jeśli termin występuje w wielu językach (np. "współpraca" i "cooperation"), ekstrahuj TYLKO wersję POLSKĄ
 
 PRZYKŁADY PRAWIDŁOWEJ EKSTRAKCJI:
-- Dokument: "postępowanie karne" → ekstrahuj "postępowanie" ✓
-- Dokument: "ramy prawne" → ekstrahuj "ramy prawne" ✓
-- Dokument: "współpraca (cooperation)" → ekstrahuj "współpraca" TYLKO (NIE "cooperation") ✓
-- Dokument: "investigation (śledztwo)" → ekstrahuj "śledztwo" TYLKO (NIE "investigation") ✓
+- Dokument: "postępowanie karne" → ekstrahuj "postępowanie karne" ✓ (pełny wielowyrazowy termin)
+- Dokument: "ramy prawne" → ekstrahuj "ramy prawne" ✓ (pełny wielowyrazowy termin)
+- Dokument: "współpraca (cooperation)" → ekstrahuj "współpraca" TYLKO (NIE "cooperation") ✓ (filtrowanie języków)
+- Dokument: "investigation (śledztwo)" → ekstrahuj "śledztwo" TYLKO (NIE "investigation") ✓ (filtrowanie języków)
+- Dokument: "ochrona danych" → ekstrahuj "ochrona danych" ✓ (NIE tylko "ochrona")
+
+WAŻNE: Wiele terminów to frazy wielowyrazowe - ekstrahuj PEŁNY specjalistyczny termin, nie pojedyncze słowa!
 
 PRZYKŁADY NIEPRAWIDŁOWEJ EKSTRAKCJI (NIE RÓB TEGO):
 - Dokument po polsku zawiera "investigation" → NIE ekstrahuj "investigation" ✗
@@ -175,6 +181,11 @@ CRITICAL RULES:
 5. Avoid common words
 6. ONLY extract terms in ${langName} - if the document contains terms in other languages, SKIP them entirely
 7. If a term appears in multiple languages, ONLY extract the ${langName} version
+
+IMPORTANT: Many terms are multi-word phrases - extract the FULL specialized term, not individual words!
+For example:
+- "criminal investigation" → extract "criminal investigation" ✓ (NOT just "investigation")
+- "legal framework" → extract "legal framework" ✓ (NOT just "framework")
 
 CRITERIA:
 - Minimum ${minLength} characters
