@@ -13,8 +13,10 @@ interface FileUploadProps {
 export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUploadProps) {
   const [apiKey, setApiKey] = useState('')
   const [dragActive, setDragActive] = useState(false)
-  const [inputMode, setInputMode] = useState<'file' | 'text'>('file')
+  const [inputMode, setInputMode] = useState<'file' | 'text' | 'url'>('file')
   const [pastedText, setPastedText] = useState('')
+  const [urlInput, setUrlInput] = useState('')
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Ustaw zapisany klucz API jeśli jest dostępny
@@ -130,6 +132,69 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
     await onExtract(pastedText, 'Wklejony tekst', apiKey)
   }
 
+  const handleUrlSubmit = async () => {
+    if (!apiKey.trim()) {
+      alert('Proszę podać klucz API Anthropic')
+      return
+    }
+
+    if (!urlInput.trim()) {
+      alert('Proszę podać URL dokumentu')
+      return
+    }
+
+    // Podstawowa walidacja URL
+    try {
+      new URL(urlInput.trim())
+    } catch (e) {
+      alert('Nieprawidłowy format URL. Upewnij się, że URL zaczyna się od http:// lub https://')
+      return
+    }
+
+    setIsLoadingUrl(true)
+
+    try {
+      const response = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url: urlInput.trim() })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Błąd pobierania dokumentu')
+      }
+
+      const text = data.text
+
+      if (text.length < 100) {
+        alert('Pobrany dokument jest zbyt krótki do analizy')
+        return
+      }
+
+      if (text.length > 200000) {
+        alert(`Pobrany dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`)
+        return
+      }
+
+      // Wyciągnij nazwę pliku z URL
+      const urlObj = new URL(urlInput.trim())
+      const pathParts = urlObj.pathname.split('/')
+      const lastPart = pathParts[pathParts.length - 1] || urlObj.hostname
+      const fileName = lastPart || 'Dokument z URL'
+
+      await onExtract(text, fileName, apiKey)
+    } catch (error) {
+      console.error('Error fetching URL:', error)
+      alert('Błąd podczas pobierania dokumentu: ' + (error as Error).message)
+    } finally {
+      setIsLoadingUrl(false)
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-2xl font-semibold mb-4 text-gray-800">
@@ -175,7 +240,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
         </p>
       </div>
 
-      {/* Zakładki - przełącznik między plikiem a tekstem */}
+      {/* Zakładki - przełącznik między plikiem, URL i tekstem */}
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setInputMode('file')}
@@ -184,9 +249,20 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
               ? 'bg-blue-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
-          disabled={isLoading}
+          disabled={isLoading || isLoadingUrl}
         >
           Załaduj plik
+        </button>
+        <button
+          onClick={() => setInputMode('url')}
+          className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+            inputMode === 'url'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+          disabled={isLoading || isLoadingUrl}
+        >
+          HTML z URL
         </button>
         <button
           onClick={() => setInputMode('text')}
@@ -195,7 +271,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
               ? 'bg-blue-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
-          disabled={isLoading}
+          disabled={isLoading || isLoadingUrl}
         >
           Wklej tekst
         </button>
@@ -245,6 +321,42 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
           <p className="text-sm text-gray-500">
             Obsługiwane formaty: TXT, HTML, DOCX, XLSX, XML
           </p>
+        </div>
+      )}
+
+      {/* Tryb: URL */}
+      {inputMode === 'url' && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              URL dokumentu HTML/XML
+            </label>
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://eur-lex.europa.eu/legal-content/PL/TXT/HTML/..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isLoading || isLoadingUrl}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              <strong>Przykłady:</strong> dokumenty z EUR-Lex, strony HTML z aktami prawnymi, dokumenty XML
+            </p>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              <strong>ℹ️ Informacja:</strong> System automatycznie pobierze HTML, usunie tagi i wyekstrahuje czysty tekst do analizy.
+            </p>
+          </div>
+
+          <button
+            onClick={handleUrlSubmit}
+            disabled={isLoading || isLoadingUrl || !urlInput.trim()}
+            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isLoadingUrl ? 'Pobieranie dokumentu...' : isLoading ? 'Przetwarzanie...' : 'Pobierz i analizuj'}
+          </button>
         </div>
       )}
 
