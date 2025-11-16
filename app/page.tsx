@@ -315,7 +315,10 @@ export default function Home() {
                       <input
                         type="number"
                         value={minTerms}
-                        onChange={(e) => setMinTerms(Math.max(1, parseInt(e.target.value) || 1))}
+                        onChange={(e) => {
+                          const num = parseInt(e.target.value, 10)
+                          setMinTerms(isNaN(num) ? 1 : Math.max(1, num))
+                        }}
                         min="1"
                         max="500"
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -329,7 +332,10 @@ export default function Home() {
                       <input
                         type="number"
                         value={maxTerms}
-                        onChange={(e) => setMaxTerms(parseInt(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const num = parseInt(e.target.value, 10)
+                          setMaxTerms(isNaN(num) ? 0 : num)
+                        }}
                         min="1"
                         max="500"
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -343,7 +349,10 @@ export default function Home() {
                       <input
                         type="number"
                         value={minLength}
-                        onChange={(e) => setMinLength(Math.max(1, parseInt(e.target.value) || 3))}
+                        onChange={(e) => {
+                          const num = parseInt(e.target.value, 10)
+                          setMinLength(isNaN(num) ? 3 : Math.max(1, num))
+                        }}
                         min="1"
                         max="20"
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -357,7 +366,10 @@ export default function Home() {
                       <input
                         type="number"
                         value={minOccurrences}
-                        onChange={(e) => setMinOccurrences(Math.max(1, parseInt(e.target.value) || 1))}
+                        onChange={(e) => {
+                          const num = parseInt(e.target.value, 10)
+                          setMinOccurrences(isNaN(num) ? 1 : Math.max(1, num))
+                        }}
                         min="1"
                         max="10"
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
