@@ -54,10 +54,17 @@ export default function FileUpload({ onExtract, isLoading }: FileUploadProps) {
 
     try {
       const text = await extractTextFromFile(file)
+
       if (text.length < 100) {
         alert('Dokument jest zbyt krótki do analizy')
         return
       }
+
+      if (text.length > 200000) {
+        alert(`Dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`)
+        return
+      }
+
       onExtract(text, file.name, apiKey)
     } catch (error) {
       console.error('Error processing file:', error)
@@ -107,6 +114,11 @@ export default function FileUpload({ onExtract, isLoading }: FileUploadProps) {
       return
     }
 
+    if (pastedText.length > 200000) {
+      alert(`Tekst jest zbyt długi (${pastedText.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel tekst na mniejsze fragmenty i przetwarzaj je osobno.`)
+      return
+    }
+
     onExtract(pastedText, 'Wklejony tekst', apiKey)
   }
 
@@ -137,6 +149,10 @@ export default function FileUpload({ onExtract, isLoading }: FileUploadProps) {
           >
             console.anthropic.com
           </a>
+        </p>
+        <p className="text-xs text-gray-500 mt-2">
+          <strong>Limity:</strong> Maksymalnie 200,000 znaków (~100 stron).
+          Dla dokumentów {'>'}50 stron wymagany jest Vercel Pro plan (maxDuration: 300s).
         </p>
       </div>
 
@@ -226,21 +242,25 @@ export default function FileUpload({ onExtract, isLoading }: FileUploadProps) {
 
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span>
-              {pastedText.length} znaków
+              {pastedText.length.toLocaleString()} znaków
               {pastedText.length > 0 && pastedText.length < 50 && (
                 <span className="text-orange-600 ml-2">(minimum 50 znaków)</span>
               )}
+              {pastedText.length > 200000 && (
+                <span className="text-red-600 ml-2 font-semibold">(przekroczono limit!)</span>
+              )}
+              {pastedText.length > 100000 && pastedText.length <= 200000 && (
+                <span className="text-orange-600 ml-2">(duży dokument - może trwać dłużej)</span>
+              )}
             </span>
-            {pastedText.length > 100000 && (
-              <span className="text-orange-600">
-                Tekst zostanie skrócony do 100,000 znaków
-              </span>
-            )}
+            <span className="text-xs text-gray-500">
+              Maksymalnie 200,000 znaków (ok. 100 stron)
+            </span>
           </div>
 
           <button
             onClick={handleTextSubmit}
-            disabled={isLoading || !pastedText.trim() || pastedText.length < 50}
+            disabled={isLoading || !pastedText.trim() || pastedText.length < 50 || pastedText.length > 200000}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Przetwarzanie...' : 'Analizuj tekst'}

@@ -9,7 +9,7 @@ interface Term {
   positions: number[]
 }
 
-export const maxDuration = 60 // Timeout 60 sekund dla Vercel
+export const maxDuration = 300 // Timeout 300 sekund dla Vercel Pro (wymagane dla dużych dokumentów)
 export const runtime = 'nodejs' // Użyj Node.js runtime (nie Edge)
 
 export async function POST(request: NextRequest) {
@@ -58,16 +58,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Limit tekstu - 200,000 znaków (ok. 100 stron)
+    // Uwaga: dla dokumentów >100 stron zalecane jest podzielenie na mniejsze fragmenty
+    if (text.length > 200000) {
+      return NextResponse.json(
+        { terms: [], error: `Dokument jest zbyt długi (${text.length.toLocaleString()} znaków). Maksymalna długość: 200,000 znaków (ok. 100 stron). Podziel dokument na mniejsze fragmenty.` },
+        { status: 400 }
+      )
+    }
+
     console.log('🔍 Rozpoczynam ekstrakcję terminologii...')
     console.log(`📄 Długość tekstu: ${text.length} znaków`)
 
     const anthropic = new Anthropic({ apiKey })
-
-    // Ograniczenie długości tekstu do ~100k znaków dla Claude
-    const truncatedText = text.slice(0, 100000)
-    if (text.length > 100000) {
-      console.log(`⚠️  Tekst skrócony z ${text.length} do 100000 znaków`)
-    }
 
     console.log('🤖 Wysyłam request do Claude API...')
 
@@ -77,31 +80,21 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `Jesteś ekspertem w analizie dokumentów prawnych i urzędowych. Przeanalizuj poniższy tekst i wyekstrahuj najważniejsze terminy specjalistyczne.
+          content: `Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych terminów specjalistycznych z tekstu (min ${minLength} znaki, formy podstawowe, jedno i wielowyrazowe).
 
-WYMAGANIA:
-- Wyekstrahuj między ${minTerms} a ${maxTerms} najważniejszych terminów
-- Terminy muszą mieć minimum ${minLength} znaki
-- Uwzględnij terminy jedno- i wielowyrazowe
-- Znajdź wszystkie formy gramatyczne (deklinacja, koniugacja)
-- Priorytet: rzeczowniki, przymiotniki, czasowniki specjalistyczne
-- Dla każdego terminu podaj kontekst (1-2 zdania, w których występuje)
-
-Format odpowiedzi - zwróć TYLKO poprawny JSON w tym formacie (bez markdown, bez \`\`\`json):
+Zwróć TYLKO JSON (bez markdown):
 {
   "terms": [
     {
-      "term": "nazwa terminu w formie podstawowej",
-      "context": "fragment tekstu z kontekstem",
+      "term": "termin w formie podstawowej",
+      "context": "krótki kontekst",
       "occurrences": 1
     }
   ]
 }
 
-TEKST DO ANALIZY:
-${truncatedText}
-
-WAŻNE: Zwróć TYLKO poprawny JSON bez żadnych dodatkowych komentarzy, wyjaśnień ani znaczników markdown.`
+TEKST:
+${text}`
         }
       ]
     })
