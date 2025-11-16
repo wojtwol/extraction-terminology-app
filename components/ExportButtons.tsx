@@ -28,6 +28,14 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   }
 
   const exportToHTML = () => {
+    // Sprawdź czy są definicje
+    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+
+    // Dynamiczne szerokości kolumn
+    const definitionWidth = hasDefinitions ? '30%' : '15%'  // 50% mniej gdy brak definicji
+    const sourceWidth = '100px'
+    const contextWidth = hasDefinitions ? '30%' : '45%'     // Rozszerzona gdy brak definicji
+
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="pl">
@@ -179,8 +187,9 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
           <th class="nr-col">Nr</th>
           <th style="width: 200px;">Termin</th>
           <th style="width: 80px; text-align: center;">Liczba wystąpień</th>
-          <th style="width: 35%;">Definicja</th>
-          <th style="width: 35%;">Kontekst</th>
+          <th style="width: ${definitionWidth};">Definicja</th>
+          <th style="width: ${sourceWidth}; text-align: center;">Źródło</th>
+          <th style="width: ${contextWidth};">Kontekst</th>
         </tr>
       </thead>
       <tbody>
@@ -189,9 +198,11 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
             <td class="nr-col">${index + 1}</td>
             <td class="term">${term.term}</td>
             <td class="occurrences">${term.occurrences}</td>
-            <td>
+            <td class="definition">
+              ${term.definition || '<span style="color: #adb5bd;">-</span>'}
+            </td>
+            <td style="text-align: center;">
               ${term.definition ? `
-                <div class="definition">${term.definition}</div>
                 <div class="source-badge ${
                   term.definitionSource === 'document'
                     ? 'source-document'
@@ -201,10 +212,10 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
                 }">
                   ${
                     term.definitionSource === 'document'
-                      ? 'Z dokumentu'
+                      ? 'Dokument'
                       : term.definitionSource === 'edited'
                       ? 'Edytowano'
-                      : 'Wygenerowane AI'
+                      : 'AI'
                   }
                 </div>
               ` : '<span style="color: #adb5bd;">-</span>'}
@@ -275,15 +286,15 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     // Dynamiczne szerokości kolumn w zależności od obecności definicji
     const definitionColWidth = hasDefinitions ? 70 : 12   // Szerokość tytułu "Definicja" gdy brak danych
     const sourceColWidth = hasDefinitions ? 18 : 18       // Szerokość tytułu "Źródło definicji"
-    const contextColWidth = hasDefinitions ? 80 : 150     // Rozszerzona gdy brak definicji
+    const contextColWidth = hasDefinitions ? 60 : 120     // Zwężona do 60 gdy są definicje, rozszerzona gdy brak
 
     ws['!cols'] = [
       { wch: 20 },                 // Kolumna A - Nr
       { wch: 35 },                 // Kolumna B - Termin
-      { wch: 18 },                 // Kolumna C - Liczba wystąpień (zmieniono z 15 na 18)
+      { wch: 18 },                 // Kolumna C - Liczba wystąpień
       { wch: definitionColWidth }, // Kolumna D - Definicja (dynamiczna)
       { wch: sourceColWidth },     // Kolumna E - Źródło (dynamiczna)
-      { wch: contextColWidth }     // Kolumna F - Kontekst (dynamiczna)
+      { wch: contextColWidth }     // Kolumna F - Kontekst (zwężona, z zawijaniem)
     ]
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
@@ -521,15 +532,15 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     const contextWidth = hasDefinitions ? 95 : 130     // Rozszerzona gdy brak definicji
     const occurrencesWidth = hasDefinitions ? 20 : 25  // Rozszerzona gdy brak definicji
 
-    // Profesjonalna tabela w odcieniach szarości
+    // Profesjonalna tabela w odcieniach szarości - ZAWSZE po angielsku
     autoTable(doc, {
       startY: 32,
-      head: [['Nr', 'Termin', 'Liczba\nwystąpień', 'Definicja', 'Źródło', 'Kontekst']],
+      head: [['No.', 'Term', 'Count', 'Definition', 'Source', 'Context']],
       body: tableData,
       theme: 'striped',
       styles: {
-        fontSize: 8,
-        cellPadding: 3,
+        fontSize: 7.5,
+        cellPadding: 2.5,
         font: 'helvetica',
         overflow: 'linebreak',
         cellWidth: 'wrap',
@@ -538,7 +549,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         textColor: [40, 40, 40],
         valign: 'top',
         halign: 'left',
-        minCellHeight: 12
+        minCellHeight: 10
       },
       headStyles: {
         fillColor: [80, 80, 80],
@@ -552,12 +563,12 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         lineColor: [60, 60, 60]
       },
       columnStyles: {
-        0: { cellWidth: 12, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [80, 80, 80] },
-        1: { cellWidth: 45, fontStyle: 'bold', textColor: [20, 20, 20], overflow: 'linebreak' },
+        0: { cellWidth: 10, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [80, 80, 80] },
+        1: { cellWidth: 42, fontStyle: 'bold', textColor: [20, 20, 20], overflow: 'linebreak', cellPadding: 2 },
         2: { cellWidth: occurrencesWidth, halign: 'center', valign: 'middle' },
-        3: { cellWidth: definitionWidth, fontSize: 7.5, overflow: 'linebreak', cellPadding: 2.5 },
-        4: { cellWidth: sourceWidth, halign: 'center', fontSize: 7.5, textColor: [80, 80, 80] },
-        5: { cellWidth: contextWidth, fontSize: 7.5, overflow: 'linebreak', cellPadding: 2.5, minCellHeight: 15 }
+        3: { cellWidth: definitionWidth, fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
+        4: { cellWidth: sourceWidth, halign: 'center', fontSize: 7, textColor: [80, 80, 80] },
+        5: { cellWidth: contextWidth, fontSize: 7, overflow: 'linebreak', cellPadding: 2 }
       },
       alternateRowStyles: {
         fillColor: [245, 245, 245]

@@ -92,6 +92,28 @@ export interface Translations {
   // Extraction params labels
   extractionParamsTitle: string
   extractionParamsDescription: string
+
+  // FileUpload
+  loadDocument: string
+  apiKeyRequired: string
+  apiKeyHint: string
+  getApiKey: string
+  limitsInfo: string
+  uploadFile: string
+  pasteText: string
+  enterUrl: string
+  dragDropFile: string
+  supportedFormats: string
+  analyzeText: string
+  analyzing: string
+  pastedTextLabel: string
+  maxCharacters: string
+  minCharacters: string
+  limitExceeded: string
+  largeDocumentWarning: string
+  urlPlaceholder: string
+  fetchDocument: string
+  fetching: string
 }
 
 export const translations: Record<Language, Translations> = {
@@ -186,7 +208,29 @@ export const translations: Record<Language, Translations> = {
 
     // Extraction params labels
     extractionParamsTitle: 'Parametry ekstrakcji',
-    extractionParamsDescription: 'Ustaw zakres liczby terminów do wyekstraktowania'
+    extractionParamsDescription: 'Ustaw zakres liczby terminów do wyekstraktowania',
+
+    // FileUpload
+    loadDocument: 'Załaduj dokument',
+    apiKeyRequired: 'Klucz API Anthropic (wymagany)',
+    apiKeyHint: 'Pobierz klucz z',
+    getApiKey: 'Pobierz klucz API',
+    limitsInfo: 'Maksymalnie 200,000 znaków (~100 stron).',
+    uploadFile: 'Załaduj plik',
+    pasteText: 'Wklej tekst',
+    enterUrl: 'Podaj URL',
+    dragDropFile: 'Przeciągnij i upuść plik tutaj lub kliknij, aby wybrać',
+    supportedFormats: 'Obsługiwane formaty: TXT, HTML, DOCX, XLSX, XML',
+    analyzeText: 'Analizuj tekst',
+    analyzing: 'Przetwarzanie...',
+    pastedTextLabel: 'znaków',
+    maxCharacters: 'Maksymalnie 200,000 znaków (ok. 100 stron)',
+    minCharacters: 'minimum 50 znaków',
+    limitExceeded: 'przekroczono limit!',
+    largeDocumentWarning: 'duży dokument - może trwać dłużej',
+    urlPlaceholder: 'https://example.com/document.html',
+    fetchDocument: 'Pobierz dokument',
+    fetching: 'Pobieranie...'
   },
   en: {
     // Main page
@@ -279,6 +323,28 @@ export const translations: Record<Language, Translations> = {
 
     // Extraction params labels
     extractionParamsTitle: 'Extraction Parameters',
-    extractionParamsDescription: 'Set the range of terms to extract'
+    extractionParamsDescription: 'Set the range of terms to extract',
+
+    // FileUpload
+    loadDocument: 'Load Document',
+    apiKeyRequired: 'Anthropic API Key (required)',
+    apiKeyHint: 'Get your key from',
+    getApiKey: 'Get API Key',
+    limitsInfo: 'Maximum 200,000 characters (~100 pages).',
+    uploadFile: 'Upload File',
+    pasteText: 'Paste Text',
+    enterUrl: 'Enter URL',
+    dragDropFile: 'Drag and drop file here or click to select',
+    supportedFormats: 'Supported formats: TXT, HTML, DOCX, XLSX, XML',
+    analyzeText: 'Analyze Text',
+    analyzing: 'Processing...',
+    pastedTextLabel: 'characters',
+    maxCharacters: 'Maximum 200,000 characters (~100 pages)',
+    minCharacters: 'minimum 50 characters',
+    limitExceeded: 'limit exceeded!',
+    largeDocumentWarning: 'large document - may take longer',
+    urlPlaceholder: 'https://example.com/document.html',
+    fetchDocument: 'Fetch Document',
+    fetching: 'Fetching...'
   }
 }

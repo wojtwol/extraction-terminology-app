@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import mammoth from 'mammoth'
 import * as XLSX from 'xlsx'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface FileUploadProps {
   onExtract: (text: string, filename: string, apiKey: string) => void | Promise<void>
@@ -11,6 +12,7 @@ interface FileUploadProps {
 }
 
 export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUploadProps) {
+  const { language, t } = useLanguage()
   const [apiKey, setApiKey] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [inputMode, setInputMode] = useState<'file' | 'text' | 'url'>('file')
@@ -52,13 +54,13 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
         return xlsxText
 
       default:
-        throw new Error(`Nieobsługiwany format pliku: ${extension}`)
+        throw new Error(language === 'pl' ? `Nieobsługiwany format pliku: ${extension}` : `Unsupported file format: ${extension}`)
     }
   }
 
   const handleFile = async (file: File) => {
     if (!apiKey.trim()) {
-      alert('Proszę podać klucz API Anthropic')
+      alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
       return
     }
 
@@ -66,19 +68,21 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
       const text = await extractTextFromFile(file)
 
       if (text.length < 100) {
-        alert('Dokument jest zbyt krótki do analizy')
+        alert(language === 'pl' ? 'Dokument jest zbyt krótki do analizy' : 'Document is too short for analysis')
         return
       }
 
       if (text.length > 200000) {
-        alert(`Dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`)
+        alert(language === 'pl'
+          ? `Dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
+          : `Document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 200,000 characters (~100 pages).\n\nSplit the document into smaller parts and process them separately.`)
         return
       }
 
       await onExtract(text, file.name, apiKey)
     } catch (error) {
       console.error('Error processing file:', error)
-      alert('Błąd podczas przetwarzania pliku: ' + (error as Error).message)
+      alert((language === 'pl' ? 'Błąd podczas przetwarzania pliku: ' : 'Error processing file: ') + (error as Error).message)
     }
   }
 
@@ -110,36 +114,38 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
 
   const handleTextSubmit = async () => {
     if (!apiKey.trim()) {
-      alert('Proszę podać klucz API Anthropic')
+      alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
       return
     }
 
     if (!pastedText.trim()) {
-      alert('Proszę wkleić tekst do analizy')
+      alert(language === 'pl' ? 'Proszę wkleić tekst do analizy' : 'Please paste text for analysis')
       return
     }
 
     if (pastedText.length < 50) {
-      alert('Tekst jest zbyt krótki do analizy (minimum 50 znaków)')
+      alert(language === 'pl' ? 'Tekst jest zbyt krótki do analizy (minimum 50 znaków)' : 'Text is too short for analysis (minimum 50 characters)')
       return
     }
 
     if (pastedText.length > 200000) {
-      alert(`Tekst jest zbyt długi (${pastedText.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel tekst na mniejsze fragmenty i przetwarzaj je osobno.`)
+      alert(language === 'pl'
+        ? `Tekst jest zbyt długi (${pastedText.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel tekst na mniejsze fragmenty i przetwarzaj je osobno.`
+        : `Text is too long (${pastedText.length.toLocaleString()} characters).\n\nMaximum length: 200,000 characters (~100 pages).\n\nSplit the text into smaller parts and process them separately.`)
       return
     }
 
-    await onExtract(pastedText, 'Wklejony tekst', apiKey)
+    await onExtract(pastedText, language === 'pl' ? 'Wklejony tekst' : 'Pasted text', apiKey)
   }
 
   const handleUrlSubmit = async () => {
     if (!apiKey.trim()) {
-      alert('Proszę podać klucz API Anthropic')
+      alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
       return
     }
 
     if (!urlInput.trim()) {
-      alert('Proszę podać URL dokumentu')
+      alert(language === 'pl' ? 'Proszę podać URL dokumentu' : 'Please provide document URL')
       return
     }
 
@@ -147,7 +153,9 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
     try {
       new URL(urlInput.trim())
     } catch (e) {
-      alert('Nieprawidłowy format URL. Upewnij się, że URL zaczyna się od http:// lub https://')
+      alert(language === 'pl'
+        ? 'Nieprawidłowy format URL. Upewnij się, że URL zaczyna się od http:// lub https://'
+        : 'Invalid URL format. Make sure URL starts with http:// or https://')
       return
     }
 
@@ -165,18 +173,20 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Błąd pobierania dokumentu')
+        throw new Error(data.error || (language === 'pl' ? 'Błąd pobierania dokumentu' : 'Error fetching document'))
       }
 
       const text = data.text
 
       if (text.length < 100) {
-        alert('Pobrany dokument jest zbyt krótki do analizy')
+        alert(language === 'pl' ? 'Pobrany dokument jest zbyt krótki do analizy' : 'Fetched document is too short for analysis')
         return
       }
 
       if (text.length > 200000) {
-        alert(`Pobrany dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`)
+        alert(language === 'pl'
+          ? `Pobrany dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
+          : `Fetched document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 200,000 characters (~100 pages).\n\nSplit the document into smaller parts and process them separately.`)
         return
       }
 
@@ -184,12 +194,12 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
       const urlObj = new URL(urlInput.trim())
       const pathParts = urlObj.pathname.split('/')
       const lastPart = pathParts[pathParts.length - 1] || urlObj.hostname
-      const fileName = lastPart || 'Dokument z URL'
+      const fileName = lastPart || (language === 'pl' ? 'Dokument z URL' : 'Document from URL')
 
       await onExtract(text, fileName, apiKey)
     } catch (error) {
       console.error('Error fetching URL:', error)
-      alert('Błąd podczas pobierania dokumentu: ' + (error as Error).message)
+      alert((language === 'pl' ? 'Błąd podczas pobierania dokumentu: ' : 'Error fetching document: ') + (error as Error).message)
     } finally {
       setIsLoadingUrl(false)
     }
@@ -198,20 +208,20 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-        1. Załaduj dokument
+        1. {t.loadDocument}
       </h2>
 
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium text-gray-700">
-            Klucz API Anthropic
+            {t.apiKeyRequired}
           </label>
           {savedApiKey && (
             <span className="text-xs text-green-600 flex items-center gap-1">
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              Zapisany
+              {language === 'pl' ? 'Zapisany' : 'Saved'}
             </span>
           )}
         </div>
@@ -223,7 +233,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <p className="text-xs text-gray-500 mt-1">
-          Pobierz klucz z{' '}
+          {t.apiKeyHint}{' '}
           <a
             href="https://console.anthropic.com/"
             target="_blank"
@@ -232,11 +242,13 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
           >
             console.anthropic.com
           </a>
-          {' • '}Klucz jest automatycznie zapisywany lokalnie
+          {' • '}{language === 'pl' ? 'Klucz jest automatycznie zapisywany lokalnie' : 'Key is automatically saved locally'}
         </p>
         <p className="text-xs text-gray-500 mt-2">
-          <strong>Limity:</strong> Maksymalnie 200,000 znaków (~100 stron).
-          Dla dokumentów {'>'}50 stron wymagany jest Vercel Pro plan (maxDuration: 300s).
+          <strong>{language === 'pl' ? 'Limity:' : 'Limits:'}</strong> {t.limitsInfo}
+          {language === 'pl'
+            ? ' Dla dokumentów >50 stron wymagany jest Vercel Pro plan (maxDuration: 300s).'
+            : ' For documents >50 pages, Vercel Pro plan is required (maxDuration: 300s).'}
         </p>
       </div>
 
@@ -251,7 +263,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
           }`}
           disabled={isLoading || isLoadingUrl}
         >
-          Załaduj plik
+          {t.uploadFile}
         </button>
         <button
           onClick={() => setInputMode('url')}
@@ -262,7 +274,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
           }`}
           disabled={isLoading || isLoadingUrl}
         >
-          HTML z URL
+          {t.enterUrl}
         </button>
         <button
           onClick={() => setInputMode('text')}
@@ -273,7 +285,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
           }`}
           disabled={isLoading || isLoadingUrl}
         >
-          Wklej tekst
+          {t.pasteText}
         </button>
       </div>
 
@@ -315,11 +327,11 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
           </svg>
 
           <p className="text-lg text-gray-700 mb-2">
-            {isLoading ? 'Przetwarzanie...' : 'Przeciągnij plik tutaj lub kliknij, aby wybrać'}
+            {isLoading ? t.analyzing : t.dragDropFile}
           </p>
 
           <p className="text-sm text-gray-500">
-            Obsługiwane formaty: TXT, HTML, DOCX, XLSX, XML
+            {t.supportedFormats}
           </p>
         </div>
       )}
@@ -329,27 +341,31 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              URL dokumentu HTML/XML
+              {language === 'pl' ? 'URL dokumentu HTML/XML' : 'HTML/XML Document URL'}
             </label>
             <input
               type="url"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="https://eur-lex.europa.eu/legal-content/PL/TXT/HTML/..."
+              placeholder={t.urlPlaceholder}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isLoading || isLoadingUrl}
             />
             <p className="text-xs text-gray-500 mt-2">
-              <strong>Przykłady:</strong> EUR-Lex, HUDOC (ECHR), akty prawne, dokumenty XML
+              <strong>{language === 'pl' ? 'Przykłady:' : 'Examples:'}</strong> EUR-Lex, HUDOC (ECHR){language === 'pl' ? ', akty prawne, dokumenty XML' : ', legal documents, XML files'}
             </p>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800 mb-2">
-              <strong>ℹ️ Informacja:</strong> System automatycznie pobierze HTML, usunie tagi i wyekstrahuje czysty tekst do analizy.
+              <strong>ℹ️ {language === 'pl' ? 'Informacja:' : 'Information:'}</strong> {language === 'pl'
+                ? 'System automatycznie pobierze HTML, usunie tagi i wyekstrahuje czysty tekst do analizy.'
+                : 'System will automatically fetch HTML, remove tags and extract clean text for analysis.'}
             </p>
             <p className="text-xs text-blue-700">
-              <strong>Uwaga:</strong> Najlepiej działa ze statycznymi stronami HTML. Strony generowane dynamicznie przez JavaScript mogą nie załadować się poprawnie.
+              <strong>{language === 'pl' ? 'Uwaga:' : 'Note:'}</strong> {language === 'pl'
+                ? 'Najlepiej działa ze statycznymi stronami HTML. Strony generowane dynamicznie przez JavaScript mogą nie załadować się poprawnie.'
+                : 'Works best with static HTML pages. JavaScript-generated dynamic pages may not load correctly.'}
             </p>
           </div>
 
@@ -358,7 +374,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
             disabled={isLoading || isLoadingUrl || !urlInput.trim()}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {isLoadingUrl ? 'Pobieranie dokumentu...' : isLoading ? 'Przetwarzanie...' : 'Pobierz i analizuj'}
+            {isLoadingUrl ? t.fetching : isLoading ? t.analyzing : t.fetchDocument}
           </button>
         </div>
       )}
@@ -369,26 +385,28 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
           <textarea
             value={pastedText}
             onChange={(e) => setPastedText(e.target.value)}
-            placeholder="Wklej tutaj tekst do analizy...&#10;&#10;Przykład:&#10;Art. 1. Ustawa reguluje zasady ochrony danych osobowych.&#10;Każdy ma prawo do ochrony prywatności.&#10;Administrator danych jest zobowiązany do przetwarzania danych zgodnie z RODO."
+            placeholder={language === 'pl'
+              ? "Wklej tutaj tekst do analizy...\n\nPrzykład:\nArt. 1. Ustawa reguluje zasady ochrony danych osobowych.\nKażdy ma prawo do ochrony prywatności.\nAdministrator danych jest zobowiązany do przetwarzania danych zgodnie z RODO."
+              : "Paste text for analysis here...\n\nExample:\nArticle 1. This Act regulates the principles of personal data protection.\nEveryone has the right to privacy.\nThe data controller is obliged to process data in accordance with GDPR."}
             className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono text-sm"
             disabled={isLoading}
           />
 
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span>
-              {pastedText.length.toLocaleString()} znaków
+              {pastedText.length.toLocaleString()} {t.pastedTextLabel}
               {pastedText.length > 0 && pastedText.length < 50 && (
-                <span className="text-orange-600 ml-2">(minimum 50 znaków)</span>
+                <span className="text-orange-600 ml-2">({t.minCharacters})</span>
               )}
               {pastedText.length > 200000 && (
-                <span className="text-red-600 ml-2 font-semibold">(przekroczono limit!)</span>
+                <span className="text-red-600 ml-2 font-semibold">({t.limitExceeded})</span>
               )}
               {pastedText.length > 100000 && pastedText.length <= 200000 && (
-                <span className="text-orange-600 ml-2">(duży dokument - może trwać dłużej)</span>
+                <span className="text-orange-600 ml-2">({t.largeDocumentWarning})</span>
               )}
             </span>
             <span className="text-xs text-gray-500">
-              Maksymalnie 200,000 znaków (ok. 100 stron)
+              {t.maxCharacters}
             </span>
           </div>
 
@@ -397,7 +415,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
             disabled={isLoading || !pastedText.trim() || pastedText.length < 50 || pastedText.length > 200000}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Przetwarzanie...' : 'Analizuj tekst'}
+            {isLoading ? t.analyzing : t.analyzeText}
           </button>
         </div>
       )}
