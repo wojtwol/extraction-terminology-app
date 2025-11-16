@@ -32,12 +32,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`📥 Pobieranie dokumentu z URL: ${url}`)
+    // Usuń fragment z URL (część po #) - nie jest wysyłana do serwera przez przeglądarkę
+    const urlWithoutFragment = url.split('#')[0]
 
-    // Pobierz zawartość
-    const response = await fetch(url, {
+    console.log(`📥 Pobieranie dokumentu z URL: ${urlWithoutFragment}`)
+
+    // Pobierz zawartość z rozszerzonymi nagłówkami
+    const response = await fetch(urlWithoutFragment, {
       headers: {
-        'User-Agent': 'IURIDICO-EJ-GTEXTT/1.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pl,en-US;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache'
       }
     })
 
@@ -79,12 +86,21 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Pobrano ${text.length.toLocaleString()} znaków`)
 
-    // Podstawowe czyszczenie HTML - usuń tagi, zostaw tekst
+    // Zaawansowane czyszczenie HTML - usuń tagi, zostaw tekst
     let cleanedText = text
 
-    // Usuń skrypty i style
+    // Usuń komentarze HTML
+    cleanedText = cleanedText.replace(/<!--[\s\S]*?-->/g, '')
+
+    // Usuń skrypty, style i noscript
     cleanedText = cleanedText.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     cleanedText = cleanedText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    cleanedText = cleanedText.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '')
+
+    // Usuń meta tagi, header, footer, nav
+    cleanedText = cleanedText.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '')
+    cleanedText = cleanedText.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+    cleanedText = cleanedText.replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
 
     // Zamień <br>, <p>, <div> na nowe linie
     cleanedText = cleanedText.replace(/<br\s*\/?>/gi, '\n')
@@ -92,23 +108,49 @@ export async function POST(request: NextRequest) {
     cleanedText = cleanedText.replace(/<\/div>/gi, '\n')
     cleanedText = cleanedText.replace(/<\/h[1-6]>/gi, '\n\n')
     cleanedText = cleanedText.replace(/<\/li>/gi, '\n')
+    cleanedText = cleanedText.replace(/<\/tr>/gi, '\n')
+    cleanedText = cleanedText.replace(/<\/td>/gi, ' | ')
+    cleanedText = cleanedText.replace(/<\/th>/gi, ' | ')
 
     // Usuń wszystkie pozostałe tagi HTML
     cleanedText = cleanedText.replace(/<[^>]+>/g, ' ')
 
-    // Dekoduj HTML entities
-    cleanedText = cleanedText
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&apos;/g, "'")
+    // Dekoduj HTML entities (rozszerzona lista)
+    const htmlEntities: { [key: string]: string } = {
+      '&nbsp;': ' ',
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&apos;': "'",
+      '&ndash;': '–',
+      '&mdash;': '—',
+      '&euro;': '€',
+      '&pound;': '£',
+      '&copy;': '©',
+      '&reg;': '®',
+      '&trade;': '™',
+      '&hellip;': '...',
+      '&bull;': '•',
+      '&middot;': '·',
+      '&laquo;': '«',
+      '&raquo;': '»',
+      '&deg;': '°'
+    }
 
-    // Wyczyść wielokrotne spacje i nowe linie
+    for (const [entity, char] of Object.entries(htmlEntities)) {
+      cleanedText = cleanedText.replace(new RegExp(entity, 'g'), char)
+    }
+
+    // Dekoduj numeryczne HTML entities (&#123; i &#xAB;)
+    cleanedText = cleanedText.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+    cleanedText = cleanedText.replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+
+    // Wyczyść wielokrotne spacje, tabulatory i nowe linie
     cleanedText = cleanedText.replace(/[ \t]+/g, ' ')
-    cleanedText = cleanedText.replace(/\n\s*\n\s*\n/g, '\n\n')
+    cleanedText = cleanedText.replace(/\n\s*\n\s*\n+/g, '\n\n')
+    cleanedText = cleanedText.replace(/^\s+|\s+$/gm, '') // Trim każdej linii
     cleanedText = cleanedText.trim()
 
     if (cleanedText.length < 100) {

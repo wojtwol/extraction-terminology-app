@@ -340,13 +340,16 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
               disabled={isLoading || isLoadingUrl}
             />
             <p className="text-xs text-gray-500 mt-2">
-              <strong>Przykłady:</strong> dokumenty z EUR-Lex, strony HTML z aktami prawnymi, dokumenty XML
+              <strong>Przykłady:</strong> EUR-Lex, HUDOC (ECHR), akty prawne, dokumenty XML
             </p>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-800">
+            <p className="text-sm text-blue-800 mb-2">
               <strong>ℹ️ Informacja:</strong> System automatycznie pobierze HTML, usunie tagi i wyekstrahuje czysty tekst do analizy.
+            </p>
+            <p className="text-xs text-blue-700">
+              <strong>Uwaga:</strong> Najlepiej działa ze statycznymi stronami HTML. Strony generowane dynamicznie przez JavaScript mogą nie załadować się poprawnie.
             </p>
           </div>
 

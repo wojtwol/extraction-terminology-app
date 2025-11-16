@@ -475,41 +475,41 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     <>
       <button
         onClick={exportToXLSX}
-        className="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
       >
         📊 Excel (XLSX)
       </button>
 
       <button
         onClick={exportToPDF}
-        className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
       >
         📄 PDF
       </button>
 
       <button
         onClick={exportToCSV}
-        className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
       >
         📊 CSV
       </button>
 
       <button
         onClick={exportToHTML}
-        className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
       >
         🌐 HTML
       </button>
 
       <button
         onClick={exportToJSON}
-        className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
       >
         📄 JSON
       </button>
 
       <p className="text-xs text-gray-500 mt-2">
-        <strong>XLSX i PDF</strong> zawierają definicje
+        <strong>XLSX, PDF i HTML</strong> zawierają definicje
       </p>
     </>
   )
