@@ -123,6 +123,7 @@ export default function Home() {
           maxTerms,
           minLength,
           minOccurrences,
+          detectedLanguage, // Przekazuj wykryty język dokumentu
           caseSensitive: false
         }),
       })

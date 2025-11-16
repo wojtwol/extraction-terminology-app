@@ -11,11 +11,11 @@ interface ProjectManagerProps {
 
 export default function ProjectManager({ currentProject, onLoadProject, onNewProject }: ProjectManagerProps) {
   const [projects, setProjects] = useState<Project[]>([])
-  const [showList, setShowList] = useState(false)
+  const [showList, setShowList] = useState(true) // Domyślnie widoczne
 
   useEffect(() => {
     loadProjects()
-  }, [])
+  }, [currentProject]) // Odśwież listę gdy zmienia się currentProject
 
   const loadProjects = () => {
     const allProjects = projectStorage.getAll()
@@ -48,23 +48,15 @@ export default function ProjectManager({ currentProject, onLoadProject, onNewPro
     <div className="bg-white rounded-lg shadow-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-semibold text-gray-800">
-          Projekty ({projects.length})
+          Zapisane projekty ({projects.length})
         </h2>
-        <div className="flex gap-2">
-          <button
-            onClick={onNewProject}
-            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-            title="Nowy projekt"
-          >
-            + Nowy
-          </button>
-          <button
-            onClick={() => setShowList(!showList)}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-          >
-            {showList ? 'Ukryj' : 'Pokaż'}
-          </button>
-        </div>
+        <button
+          onClick={onNewProject}
+          className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+          title="Nowy projekt"
+        >
+          + Nowy projekt
+        </button>
       </div>
 
       {currentProject && (
@@ -84,14 +76,13 @@ export default function ProjectManager({ currentProject, onLoadProject, onNewPro
         </div>
       )}
 
-      {showList && (
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {projects.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">
-              Brak zapisanych projektów
-            </p>
-          ) : (
-            projects.map((project) => (
+      <div className="space-y-2 max-h-96 overflow-y-auto">
+        {projects.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-4">
+            Brak zapisanych projektów. Załaduj dokument i utwórz pierwszy glosariusz.
+          </p>
+        ) : (
+          projects.map((project) => (
               <div
                 key={project.id}
                 className={`p-3 rounded-lg border transition-colors ${
@@ -134,8 +125,7 @@ export default function ProjectManager({ currentProject, onLoadProject, onNewPro
               </div>
             ))
           )}
-        </div>
-      )}
+      </div>
     </div>
   )
 }

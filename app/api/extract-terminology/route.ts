@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    const { text, apiKey, minTerms = 10, maxTerms = 100, minLength = 3, minOccurrences = 1 } = body
+    const { text, apiKey, minTerms = 10, maxTerms = 100, minLength = 3, minOccurrences = 1, detectedLanguage = 'nieznany' } = body
 
     // Walidacja
     if (!text) {
@@ -69,6 +69,8 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 Rozpoczynam ekstrakcję terminologii...')
     console.log(`📄 Długość tekstu: ${text.length} znaków`)
+    console.log(`🌍 Wykryty język: ${detectedLanguage}`)
+    console.log(`⚙️  Parametry: ${minTerms}-${maxTerms} terminów, min ${minLength} znaków, min ${minOccurrences} wystąpień`)
 
     const anthropic = new Anthropic({ apiKey })
 
@@ -80,27 +82,35 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych terminów specjalistycznych z tekstu.
+          content: `Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych terminów specjalistycznych z poniższego tekstu.
 
-Kryteria:
+WYKRYTY JĘZYK DOKUMENTU: ${detectedLanguage}
+
+KRYTERIA EKSTRAKCJI:
 - Minimum ${minLength} znaków
 - Minimum ${minOccurrences} wystąpień w tekście
 - Formy podstawowe (mianownik l.p. dla rzeczowników)
 - Terminy jedno i wielowyrazowe
 - Priorytet: terminy częste, kluczowe dla treści
 
+WAŻNE - JĘZYK TERMINÓW:
+- Terminy MUSZĄ być w tym samym języku co dokument źródłowy (${detectedLanguage})
+- NIE tłumacz terminów na żaden inny język
+- Zachowaj oryginalne brzmienie terminów z dokumentu
+- Kontekst również w języku dokumentu
+
 Zwróć TYLKO JSON (bez markdown):
 {
   "terms": [
     {
-      "term": "termin w formie podstawowej",
-      "context": "krótki kontekst (1-2 zdania)",
+      "term": "termin w formie podstawowej w języku ${detectedLanguage}",
+      "context": "krótki kontekst w języku ${detectedLanguage} (1-2 zdania)",
       "occurrences": liczba_wystąpień
     }
   ]
 }
 
-TEKST:
+TEKST DO ANALIZY:
 ${text}`
         }
       ]
