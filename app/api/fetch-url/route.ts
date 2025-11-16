@@ -77,9 +77,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (text.length > 500000) {
+    if (text.length > 1000000) {
       return NextResponse.json(
-        { error: `Pobrana zawartość jest zbyt duża (${text.length.toLocaleString()} znaków). Maksymalnie 500,000 znaków.` },
+        { error: `Pobrana zawartość jest zbyt duża (${text.length.toLocaleString()} znaków). Maksymalnie 1,000,000 znaków.` },
         { status: 400 }
       )
     }
@@ -97,10 +97,12 @@ export async function POST(request: NextRequest) {
     cleanedText = cleanedText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     cleanedText = cleanedText.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '')
 
-    // Usuń meta tagi, header, footer, nav
+    // Usuń tylko head (bez całego contentu - może zawierać meta description)
     cleanedText = cleanedText.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '')
-    cleanedText = cleanedText.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
-    cleanedText = cleanedText.replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+
+    // NIE usuwamy nav i footer - mogą zawierać tekst
+    // cleanedText = cleanedText.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+    // cleanedText = cleanedText.replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
 
     // Zamień <br>, <p>, <div> na nowe linie
     cleanedText = cleanedText.replace(/<br\s*\/?>/gi, '\n')
@@ -153,9 +155,13 @@ export async function POST(request: NextRequest) {
     cleanedText = cleanedText.replace(/^\s+|\s+$/gm, '') // Trim każdej linii
     cleanedText = cleanedText.trim()
 
+    console.log(`📊 Długość po czyszczeniu: ${cleanedText.length.toLocaleString()} znaków`)
+
     if (cleanedText.length < 100) {
+      console.error(`❌ Tekst zbyt krótki: ${cleanedText.length} znaków`)
+      console.error(`Próbka tekstu (pierwsze 500 znaków): ${cleanedText.substring(0, 500)}`)
       return NextResponse.json(
-        { error: 'Po przetworzeniu HTML tekst jest zbyt krótki (mniej niż 100 znaków)' },
+        { error: `Po przetworzeniu HTML tekst jest zbyt krótki (${cleanedText.length} znaków). Możliwe że strona używa JavaScript do dynamicznego ładowania treści. Spróbuj skopiować tekst ze strony i wkleić go w zakładce "Wklej tekst".` },
         { status: 400 }
       )
     }

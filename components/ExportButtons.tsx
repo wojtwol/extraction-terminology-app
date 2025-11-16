@@ -1,7 +1,7 @@
 'use client'
 
 import { Term } from '@/app/page'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -261,15 +261,27 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
 
     const ws = XLSX.utils.aoa_to_sheet(data)
 
-    // Szerokości kolumn
+    // Szerokości kolumn - zwiększone dla lepszej czytelności
     ws['!cols'] = [
-      { wch: 6 },   // Nr
-      { wch: 30 },  // Termin
-      { wch: 12 },  // Wystąpienia
-      { wch: 60 },  // Definicja
-      { wch: 20 },  // Źródło
-      { wch: 70 }   // Kontekst
+      { wch: 8 },   // Nr
+      { wch: 35 },  // Termin
+      { wch: 14 },  // Wystąpienia
+      { wch: 70 },  // Definicja
+      { wch: 22 },  // Źródło
+      { wch: 80 }   // Kontekst
     ]
+
+    // Ustawienia wysokości wierszy dla lepszego formatowania
+    ws['!rows'] = []
+    for (let i = 0; i <= terms.length + 5; i++) {
+      if (i === 0) {
+        ws['!rows'][i] = { hpt: 30 } // Tytuł - wyższy wiersz
+      } else if (i === 5) {
+        ws['!rows'][i] = { hpt: 25 } // Nagłówek - wyższy wiersz
+      } else if (i >= 6) {
+        ws['!rows'][i] = { hpt: 60 } // Dane - bardzo wysokie wiersze dla zawijania
+      }
+    }
 
     // Stylowanie komórek
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
@@ -293,9 +305,15 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         // Tytuł (wiersz 1)
         if (R === 0) {
           ws[cellAddress].s = {
-            font: { bold: true, sz: 14, color: { rgb: '1F4E78' } },
-            fill: { fgColor: { rgb: 'E7E6F7' } },
-            alignment: { vertical: 'center', wrapText: true }
+            font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+            fill: { fgColor: { rgb: '5B47A8' } },
+            alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+            border: {
+              top: { style: 'thick', color: { rgb: '5B47A8' } },
+              bottom: { style: 'thick', color: { rgb: '5B47A8' } },
+              left: { style: 'thick', color: { rgb: '5B47A8' } },
+              right: { style: 'thick', color: { rgb: '5B47A8' } }
+            }
           }
         }
 
@@ -303,13 +321,26 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         if (R >= 1 && R <= 3) {
           if (C === 0) {
             ws[cellAddress].s = {
-              font: { bold: true, sz: 10 },
-              fill: { fgColor: { rgb: 'F2F2F2' } },
-              alignment: { vertical: 'center' }
+              font: { bold: true, sz: 11 },
+              fill: { fgColor: { rgb: 'E8E8E8' } },
+              alignment: { vertical: 'center' },
+              border: {
+                top: { style: 'thin', color: { rgb: 'CCCCCC' } },
+                bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+                left: { style: 'thin', color: { rgb: 'CCCCCC' } },
+                right: { style: 'thin', color: { rgb: 'CCCCCC' } }
+              }
             }
           } else {
             ws[cellAddress].s = {
-              alignment: { vertical: 'center', wrapText: true }
+              font: { sz: 11 },
+              alignment: { vertical: 'center', wrapText: true },
+              border: {
+                top: { style: 'thin', color: { rgb: 'CCCCCC' } },
+                bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+                left: { style: 'thin', color: { rgb: 'CCCCCC' } },
+                right: { style: 'thin', color: { rgb: 'CCCCCC' } }
+              }
             }
           }
         }
@@ -317,14 +348,14 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         // Nagłówek tabeli (wiersz 6)
         if (R === 5) {
           ws[cellAddress].s = {
-            font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
-            fill: { fgColor: { rgb: '4472C4' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
+            font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
+            fill: { fgColor: { rgb: '2B579A' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
             border: {
-              top: { style: 'medium', color: { rgb: '2E5C8A' } },
-              bottom: { style: 'medium', color: { rgb: '2E5C8A' } },
-              left: { style: 'thin', color: { rgb: '2E5C8A' } },
-              right: { style: 'thin', color: { rgb: '2E5C8A' } }
+              top: { style: 'medium', color: { rgb: '1E3A5F' } },
+              bottom: { style: 'medium', color: { rgb: '1E3A5F' } },
+              left: { style: 'medium', color: { rgb: '1E3A5F' } },
+              right: { style: 'medium', color: { rgb: '1E3A5F' } }
             }
           }
         }
@@ -333,23 +364,36 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         if (R >= 6) {
           const isEven = (R - 6) % 2 === 0
           ws[cellAddress].s = {
+            font: { sz: 11 },
             alignment: {
               vertical: 'top',
               wrapText: true,
               horizontal: C === 0 || C === 2 ? 'center' : 'left'
             },
-            fill: { fgColor: { rgb: isEven ? 'FFFFFF' : 'F8F9FA' } },
+            fill: { fgColor: { rgb: isEven ? 'FFFFFF' : 'F5F5F5' } },
             border: {
-              top: { style: 'thin', color: { rgb: 'E0E0E0' } },
-              bottom: { style: 'thin', color: { rgb: 'E0E0E0' } },
-              left: { style: 'thin', color: { rgb: 'E0E0E0' } },
-              right: { style: 'thin', color: { rgb: 'E0E0E0' } }
+              top: { style: 'thin', color: { rgb: 'D0D0D0' } },
+              bottom: { style: 'thin', color: { rgb: 'D0D0D0' } },
+              left: { style: 'thin', color: { rgb: 'D0D0D0' } },
+              right: { style: 'thin', color: { rgb: 'D0D0D0' } }
             }
           }
 
           // Pogrubienie terminów (kolumna B)
           if (C === 1) {
-            ws[cellAddress].s.font = { bold: true, sz: 10 }
+            ws[cellAddress].s.font = { bold: true, sz: 12, color: { rgb: '1E3A5F' } }
+          }
+
+          // Wyróżnienie źródła definicji (kolumna E)
+          if (C === 4 && ws[cellAddress].v) {
+            const source = ws[cellAddress].v.toString()
+            if (source === 'Z dokumentu') {
+              ws[cellAddress].s.font = { ...ws[cellAddress].s.font, color: { rgb: '28A745' }, bold: true }
+            } else if (source === 'Wygenerowane AI') {
+              ws[cellAddress].s.font = { ...ws[cellAddress].s.font, color: { rgb: '6F42C1' }, bold: true }
+            } else if (source === 'Edytowano') {
+              ws[cellAddress].s.font = { ...ws[cellAddress].s.font, color: { rgb: 'FD7E14' }, bold: true }
+            }
           }
         }
       }
@@ -410,43 +454,43 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       head: [['Nr', 'Termin', 'Wyst.', 'Definicja', 'Źródło', 'Kontekst']],
       body: tableData,
       styles: {
-        fontSize: 7,
-        cellPadding: 2.5,
+        fontSize: 8,
+        cellPadding: 3,
         font: 'helvetica',
         overflow: 'linebreak',
         cellWidth: 'wrap',
-        lineColor: [220, 220, 220],
-        lineWidth: 0.1,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.2,
         textColor: [40, 40, 40],
-        minCellHeight: 8
+        minCellHeight: 10
       },
       headStyles: {
-        fillColor: [41, 128, 185],
+        fillColor: [43, 87, 154],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 8,
+        fontSize: 9,
         halign: 'center',
         valign: 'middle',
-        cellPadding: 3
+        cellPadding: 4
       },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center', valign: 'middle' },  // Nr
-        1: { cellWidth: 40, fontStyle: 'bold', valign: 'top' },     // Termin
-        2: { cellWidth: 15, halign: 'center', valign: 'middle' },   // Wystąpienia
-        3: { cellWidth: 70, valign: 'top' },                        // Definicja
-        4: { cellWidth: 20, halign: 'center', fontSize: 6, valign: 'middle' }, // Źródło
-        5: { cellWidth: 105, valign: 'top' }                        // Kontekst
+        0: { cellWidth: 12, halign: 'center', valign: 'middle' },  // Nr
+        1: { cellWidth: 45, fontStyle: 'bold', valign: 'top', fontSize: 9 },     // Termin
+        2: { cellWidth: 18, halign: 'center', valign: 'middle' },   // Wystąpienia
+        3: { cellWidth: 75, valign: 'top' },                        // Definicja
+        4: { cellWidth: 25, halign: 'center', fontSize: 7, valign: 'middle' }, // Źródło
+        5: { cellWidth: 85, valign: 'top' }                        // Kontekst
       },
       alternateRowStyles: {
-        fillColor: [248, 249, 250]
+        fillColor: [245, 245, 245]
       },
       margin: { left: 14, right: 14 },
       tableWidth: 'auto',
       showHead: 'everyPage',
       didDrawPage: function (data) {
         // Stopka na każdej stronie
-        doc.setFontSize(7)
-        doc.setTextColor(150, 150, 150)
+        doc.setFontSize(8)
+        doc.setTextColor(120, 120, 120)
         doc.text(
           `Strona ${data.pageNumber}`,
           doc.internal.pageSize.getWidth() / 2,
@@ -472,38 +516,38 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <button
         onClick={exportToXLSX}
-        className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
+        className="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
       >
         📊 Excel (XLSX)
       </button>
 
       <button
         onClick={exportToPDF}
-        className="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+        className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
       >
         📄 PDF
       </button>
 
       <button
         onClick={exportToCSV}
-        className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+        className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
       >
         📊 CSV
       </button>
 
       <button
         onClick={exportToHTML}
-        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+        className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
       >
         🌐 HTML
       </button>
 
       <button
         onClick={exportToJSON}
-        className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
+        className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
       >
         📄 JSON
       </button>
@@ -511,6 +555,6 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       <p className="text-xs text-gray-500 mt-2">
         <strong>XLSX, PDF i HTML</strong> zawierają definicje
       </p>
-    </>
+    </div>
   )
 }
