@@ -786,6 +786,7 @@ export default function Home() {
                 documentText={documentText}
                 selectedTerm={selectedTerm}
                 fileName={fileName}
+                terms={terms}
               />
             )}
           </div>

@@ -46,6 +46,9 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
     return b.occurrences - a.occurrences
   })
 
+  // Check if any term has a definition
+  const hasDefinitions = terms.some(t => t.definition)
+
   const handleDelete = (id: string) => {
     const confirmMessage = language === 'pl'
       ? 'Czy na pewno chcesz usunąć ten termin?'
@@ -271,15 +274,15 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse table-fixed">
           <thead>
             <tr className="bg-gray-100 border-b-2 border-gray-300">
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-8">{t.number}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-48">{t.term}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-20">{t.occurrences}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-80">{t.definition}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-96">{t.context}</th>
-              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700 w-32">{t.actions}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '20%'}}>{t.definition}</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '36%'}}>{t.context}</th>
+              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
             </tr>
           </thead>
           <tbody>
@@ -339,7 +342,7 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 </td>
 
                 {/* Definicja */}
-                <td className="px-2 py-3 text-sm max-w-80">
+                <td className="px-2 py-3 text-sm break-words">
                   {editingDefinition?.id === term.id ? (
                     <div className="space-y-2">
                       <textarea
@@ -365,8 +368,8 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                       </div>
                     </div>
                   ) : term.definition ? (
-                    <div className="break-words group relative">
-                      <p className="text-gray-700">{term.definition}</p>
+                    <div className="group relative">
+                      <p className="text-gray-700 break-words">{term.definition}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-xs inline-block px-2 py-1 rounded ${
                           term.definitionSource === 'document'
@@ -403,9 +406,9 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 </td>
 
                 {/* Kontekst */}
-                <td className="px-3 py-3 text-sm text-gray-600">
+                <td className="px-3 py-3 text-sm text-gray-600 break-words">
                   <div className="flex items-center gap-2">
-                    <div className="truncate flex-1" title={term.context}>
+                    <div className="flex-1">
                       {term.context}
                     </div>
                     <button

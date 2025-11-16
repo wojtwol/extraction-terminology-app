@@ -7,9 +7,10 @@ interface DocumentViewerProps {
   documentText: string
   selectedTerm: Term | null
   fileName: string
+  terms: Term[]
 }
 
-export default function DocumentViewer({ documentText, selectedTerm, fileName }: DocumentViewerProps) {
+export default function DocumentViewer({ documentText, selectedTerm, fileName, terms }: DocumentViewerProps) {
   const [currentOccurrence, setCurrentOccurrence] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const highlightRefs = useRef<(HTMLSpanElement | null)[]>([])
@@ -43,48 +44,81 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName }:
   }
 
   const renderHighlightedText = () => {
-    if (!selectedTerm || selectedTerm.positions.length === 0) {
+    if (!terms || terms.length === 0) {
       return <p className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">{documentText}</p>
     }
 
-    const termLength = selectedTerm.term.length
+    // Create a list of all term occurrences with their metadata
+    type Occurrence = {
+      position: number
+      length: number
+      termId: string
+      termText: string
+      isSelected: boolean
+      selectedOccurrenceIndex?: number
+    }
+
+    const allOccurrences: Occurrence[] = []
+
+    terms.forEach(term => {
+      term.positions.forEach((position, occIdx) => {
+        allOccurrences.push({
+          position,
+          length: term.term.length,
+          termId: term.id,
+          termText: term.term,
+          isSelected: selectedTerm?.id === term.id,
+          selectedOccurrenceIndex: selectedTerm?.id === term.id ? occIdx : undefined
+        })
+      })
+    })
+
+    // Sort by position
+    allOccurrences.sort((a, b) => a.position - b.position)
+
     const segments: JSX.Element[] = []
     let lastIndex = 0
     let refIndex = 0
 
-    // Sort positions to process them in order
-    const sortedPositions = [...selectedTerm.positions].sort((a, b) => a - b)
+    allOccurrences.forEach((occ, idx) => {
+      // Skip overlapping occurrences
+      if (occ.position < lastIndex) {
+        return
+      }
 
-    sortedPositions.forEach((position, idx) => {
       // Add text before this occurrence
-      if (position > lastIndex) {
+      if (occ.position > lastIndex) {
         segments.push(
           <span key={`text-${idx}`}>
-            {documentText.substring(lastIndex, position)}
+            {documentText.substring(lastIndex, occ.position)}
           </span>
         )
       }
 
-      // Add highlighted occurrence
-      const isActive = idx === currentOccurrence
+      // Determine highlight color
+      const isActiveOccurrence = occ.isSelected && occ.selectedOccurrenceIndex === currentOccurrence
+      const isSelectedTerm = occ.isSelected
+
       segments.push(
         <span
           key={`highlight-${idx}`}
-          ref={(el) => {
-            highlightRefs.current[refIndex] = el
-            refIndex++
-          }}
+          ref={isSelectedTerm ? (el) => {
+            if (el) highlightRefs.current[refIndex++] = el
+          } : undefined}
           className={`${
-            isActive
+            isActiveOccurrence
               ? 'bg-yellow-300 font-bold border-2 border-yellow-600'
-              : 'bg-yellow-100'
+              : isSelectedTerm
+              ? 'bg-yellow-100'
+              : 'text-red-600 font-semibold'
           } px-0.5 rounded transition-all duration-200`}
+          title={occ.termText}
         >
-          {documentText.substring(position, position + termLength)}
+          {documentText.substring(occ.position, occ.position + occ.length)}
         </span>
       )
 
-      lastIndex = position + termLength
+      lastIndex = occ.position + occ.length
     })
 
     // Add remaining text
@@ -140,9 +174,9 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName }:
         )}
       </div>
 
-      {!selectedTerm && (
+      {!selectedTerm && terms.length > 0 && (
         <p className="text-sm text-gray-500 mb-4 italic">
-          Kliknij na termin w tabeli, aby podświetlić jego wystąpienia w dokumencie
+          Wszystkie terminy z glosariusza są podświetlone na czerwono. Kliknij na termin w tabeli, aby podświetlić jego wystąpienia na żółto.
         </p>
       )}
 
@@ -153,11 +187,23 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName }:
         {renderHighlightedText()}
       </div>
 
-      <div className="mt-3 text-xs text-gray-500">
-        <span className="inline-block bg-yellow-100 px-2 py-0.5 rounded mr-2">Żółty</span>
-        = wystąpienia terminu
-        <span className="inline-block bg-yellow-300 border-2 border-yellow-600 px-2 py-0.5 rounded mx-2">Żółty pogrubiony</span>
-        = aktualne wystąpienie
+      <div className="mt-3 text-xs text-gray-500 flex items-center gap-4">
+        <div className="flex items-center gap-1">
+          <span className="inline-block text-red-600 font-semibold px-2 py-0.5 rounded border border-red-300">Czerwony</span>
+          <span>= wszystkie terminy z glosariusza</span>
+        </div>
+        {selectedTerm && (
+          <>
+            <div className="flex items-center gap-1">
+              <span className="inline-block bg-yellow-100 px-2 py-0.5 rounded">Żółty</span>
+              <span>= wystąpienia wybranego terminu</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="inline-block bg-yellow-300 border-2 border-yellow-600 px-2 py-0.5 rounded">Żółty pogrubiony</span>
+              <span>= aktualne wystąpienie</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
