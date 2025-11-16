@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
+import BilingualFileUpload from '@/components/BilingualFileUpload'
+import ModeSelector from '@/components/ModeSelector'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
 import DocumentViewer from '@/components/DocumentViewer'
@@ -116,6 +118,16 @@ export default function Home() {
   const [fileName, setFileName] = useState('')
   const [detectedLanguage, setDetectedLanguage] = useState('')
   const [apiKey, setApiKey] = useState('')
+
+  // Bilingual mode state
+  const [glossaryMode, setGlossaryMode] = useState<'monolingual' | 'bilingual' | null>(null)
+  const [bilingualStage, setBilingualStage] = useState<1 | 2>(1)
+  const [sourceDocumentText, setSourceDocumentText] = useState('')
+  const [targetDocumentText, setTargetDocumentText] = useState('')
+  const [sourceLanguage, setSourceLanguage] = useState('')
+  const [targetLanguage, setTargetLanguage] = useState('')
+  const [sourceFileName, setSourceFileName] = useState('')
+  const [targetFileName, setTargetFileName] = useState('')
 
   // Nowy state - załadowany tekst przed ekstrakcją
   const [loadedText, setLoadedText] = useState('')
@@ -476,6 +488,41 @@ export default function Home() {
     setDetectedLanguage('')
     setLoadedText('')
     setLoadedFileName('')
+    setGlossaryMode(null)
+    setBilingualStage(1)
+    setSourceDocumentText('')
+    setTargetDocumentText('')
+    setSourceLanguage('')
+    setTargetLanguage('')
+    setSourceFileName('')
+    setTargetFileName('')
+  }
+
+  // Handler dla bilingual extraction
+  const handleBilingualExtract = async (
+    sourceText: string,
+    targetText: string,
+    sourceLang: string,
+    targetLang: string,
+    sourceFile: string,
+    targetFile: string
+  ) => {
+    // Zapisz oba dokumenty w state
+    setSourceDocumentText(sourceText)
+    setTargetDocumentText(targetText)
+    setSourceLanguage(sourceLang)
+    setTargetLanguage(targetLang)
+    setSourceFileName(sourceFile)
+    setTargetFileName(targetFile)
+
+    // Załaduj source document do main state (dla Stage 1 - bazowy glosariusz)
+    setLoadedText(sourceText)
+    setLoadedFileName(sourceFile)
+    setDetectedLanguage(sourceLang)
+
+    console.log(`📄 Załadowano dokumenty bilingual:`)
+    console.log(`   Source: ${sourceFile} (${sourceLang}), ${sourceText.length} znaków`)
+    console.log(`   Target: ${targetFile} (${targetLang}), ${targetText.length} znaków`)
   }
 
   // Ekran wyboru projektu - pokazuj jeśli nie ma wybranego projektu
@@ -483,6 +530,23 @@ export default function Home() {
     const allProjects = projectStorage.getAll().sort((a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
+
+    // Najpierw pokaż ModeSelector jeśli tryb nie został wybrany
+    if (glossaryMode === null) {
+      return (
+        <>
+          <LanguageSwitch />
+          <ModeSelector
+            onSelectMode={(mode) => {
+              setGlossaryMode(mode)
+              if (mode === 'bilingual') {
+                setBilingualStage(1)
+              }
+            }}
+          />
+        </>
+      )
+    }
 
     return (
       <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
@@ -496,9 +560,21 @@ export default function Home() {
               <p className="text-gray-600 text-lg">
                 {t.subtitle}
               </p>
+              <p className="text-sm text-gray-500 mt-2">
+                {language === 'pl' ? 'Tryb:' : 'Mode:'} {glossaryMode === 'monolingual' ? (language === 'pl' ? 'Jednojęzyczny' : 'Monolingual') : (language === 'pl' ? 'Dwujęzyczny' : 'Bilingual')}
+              </p>
             </div>
-            <div className="ml-4">
+            <div className="ml-4 flex flex-col gap-2">
               <LanguageSwitch />
+              <button
+                onClick={() => {
+                  setGlossaryMode(null)
+                  setBilingualStage(1)
+                }}
+                className="text-sm px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+              >
+                {language === 'pl' ? 'Zmień tryb' : 'Change mode'}
+              </button>
             </div>
           </div>
 
@@ -678,11 +754,19 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Left side - Upload & Projects */}
           <div className="lg:col-span-2 space-y-4">
-            <FileUpload
-              onExtract={handleFileLoaded}
-              isLoading={isLoading}
-              savedApiKey={apiKey}
-            />
+            {glossaryMode === 'bilingual' ? (
+              <BilingualFileUpload
+                onExtract={handleBilingualExtract}
+                isLoading={isLoading}
+                savedApiKey={apiKey}
+              />
+            ) : (
+              <FileUpload
+                onExtract={handleFileLoaded}
+                isLoading={isLoading}
+                savedApiKey={apiKey}
+              />
+            )}
 
             {/* Akcje i Eksport pod FileUpload */}
             {terms.length > 0 && (
