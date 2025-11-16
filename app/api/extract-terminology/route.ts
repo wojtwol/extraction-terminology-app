@@ -82,35 +82,41 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych terminów specjalistycznych z poniższego tekstu.
+          content: `IMPORTANT: Extract ${minTerms}-${maxTerms} specialized terms from the text below.
 
-WYKRYTY JĘZYK DOKUMENTU: ${detectedLanguage}
+DETECTED DOCUMENT LANGUAGE: ${detectedLanguage}
 
-KRYTERIA EKSTRAKCJI:
-- Minimum ${minLength} znaków
-- Minimum ${minOccurrences} wystąpień w tekście
-- Formy podstawowe (mianownik l.p. dla rzeczowników)
-- Terminy jedno i wielowyrazowe
-- Priorytet: terminy częste, kluczowe dla treści
+CRITICAL INSTRUCTION - TERM LANGUAGE:
+YOU MUST extract terms in the EXACT SAME LANGUAGE as the source document (${detectedLanguage}).
+DO NOT translate terms to any other language.
+DO NOT use English if the document is in ${detectedLanguage}.
+DO NOT use Polish if the document is in ${detectedLanguage}.
+Use ONLY the language: ${detectedLanguage}
 
-WAŻNE - JĘZYK TERMINÓW:
-- Terminy MUSZĄ być w tym samym języku co dokument źródłowy (${detectedLanguage})
-- NIE tłumacz terminów na żaden inny język
-- Zachowaj oryginalne brzmienie terminów z dokumentu
-- Kontekst również w języku dokumentu
+EXTRACTION CRITERIA:
+- Minimum ${minLength} characters per term
+- Minimum ${minOccurrences} occurrences in text
+- Base forms (nominative singular for nouns in ${detectedLanguage})
+- Single and multi-word terms
+- Priority: frequent terms, key to content
 
-Zwróć TYLKO JSON (bez markdown):
+EXAMPLES FOR ${detectedLanguage}:
+${detectedLanguage === 'Angielski' ? '- If text mentions "investigation", term should be "investigation" (NOT "śledztwo", NOT "Untersuchung")\n- If text mentions "cooperation", term should be "cooperation" (NOT "współpraca")' : ''}
+${detectedLanguage === 'Polski' ? '- Jeśli tekst wspomina "śledztwo", termin powinien być "śledztwo" (NIE "investigation")\n- Jeśli tekst wspomina "współpraca", termin powinien być "współpraca" (NIE "cooperation")' : ''}
+${detectedLanguage === 'Niemiecki' ? '- Wenn der Text "Untersuchung" erwähnt, sollte der Begriff "Untersuchung" sein (NICHT "investigation")\n- Wenn der Text "Zusammenarbeit" erwähnt, sollte der Begriff "Zusammenarbeit" sein' : ''}
+
+Return ONLY valid JSON (no markdown, no explanations):
 {
   "terms": [
     {
-      "term": "termin w formie podstawowej w języku ${detectedLanguage}",
-      "context": "krótki kontekst w języku ${detectedLanguage} (1-2 zdania)",
-      "occurrences": liczba_wystąpień
+      "term": "term in ${detectedLanguage} language base form",
+      "context": "brief context in ${detectedLanguage} (1-2 sentences from the source text)",
+      "occurrences": number_of_occurrences
     }
   ]
 }
 
-TEKST DO ANALIZY:
+SOURCE TEXT IN ${detectedLanguage}:
 ${text}`
         }
       ]

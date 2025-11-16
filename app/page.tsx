@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
+import DocumentViewer from '@/components/DocumentViewer'
 import { Project, projectStorage } from '@/utils/projectStorage'
 
 export interface Term {
@@ -73,6 +74,9 @@ export default function Home() {
   const [maxTerms, setMaxTerms] = useState(30)
   const [minLength, setMinLength] = useState(3)
   const [minOccurrences, setMinOccurrences] = useState(1)
+
+  // Wybrany termin do podświetlenia w dokumencie
+  const [selectedTerm, setSelectedTerm] = useState<Term | null>(null)
 
   // Wczytaj zapisany klucz API przy starcie
   useEffect(() => {
@@ -582,13 +586,23 @@ export default function Home() {
 
         {/* Bottom Section - Glossary Table (full width) */}
         {terms.length > 0 && !isLoading && (
-          <div className="w-full">
+          <div className="w-full space-y-4">
             <TerminologyTable
               terms={terms}
               onUpdate={handleTermUpdate}
               documentText={documentText}
               apiKey={apiKey}
+              onTermSelect={setSelectedTerm}
+              selectedTermId={selectedTerm?.id}
             />
+
+            {documentText && (
+              <DocumentViewer
+                documentText={documentText}
+                selectedTerm={selectedTerm}
+                fileName={fileName}
+              />
+            )}
           </div>
         )}
 

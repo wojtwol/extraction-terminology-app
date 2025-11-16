@@ -8,9 +8,11 @@ interface TerminologyTableProps {
   onUpdate: (terms: Term[]) => void
   documentText: string
   apiKey: string
+  onTermSelect?: (term: Term) => void
+  selectedTermId?: string | null
 }
 
-export default function TerminologyTable({ terms, onUpdate, documentText, apiKey }: TerminologyTableProps) {
+export default function TerminologyTable({ terms, onUpdate, documentText, apiKey, onTermSelect, selectedTermId }: TerminologyTableProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences'>('alphabetical')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -166,7 +168,12 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
           </thead>
           <tbody>
             {sortedTerms.map((term, index) => (
-              <tr key={term.id} className="border-b border-gray-200 hover:bg-gray-50">
+              <tr
+                key={term.id}
+                className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${
+                  selectedTermId === term.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                }`}
+              >
                 <td className="px-4 py-3 text-sm text-gray-600">{index + 1}</td>
 
                 {/* Termin */}
@@ -194,7 +201,15 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                       </button>
                     </div>
                   ) : (
-                    <span className="font-semibold text-gray-800">{term.term}</span>
+                    <span
+                      onClick={() => onTermSelect?.(term)}
+                      className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
+                        selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
+                      }`}
+                      title="Kliknij, aby wyświetlić w dokumencie"
+                    >
+                      {term.term}
+                    </span>
                   )}
                 </td>
 
