@@ -509,9 +509,10 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     })
 
     // Optymalne szerokości kolumn (A4 landscape = 297mm, dostępne ~277mm)
+    // Suma kolumn musi być < 277mm aby uniknąć wychodzenia poza stronę
     const colWidths = hasDefinitions
-      ? { 0: 10, 1: 45, 2: 20, 3: 70, 4: 25, 5: 85 }  // Z definicjami: 255mm
-      : { 0: 10, 1: 50, 2: 20, 3: 20, 4: 25, 5: 130 } // Bez definicji: 255mm
+      ? { 0: 10, 1: 42, 2: 18, 3: 60, 4: 22, 5: 70 }  // Z definicjami: 222mm
+      : { 0: 10, 1: 45, 2: 18, 3: 18, 4: 22, 5: 105 } // Bez definicji: 218mm
 
     // Tabela z danymi
     autoTable(doc, {
@@ -554,7 +555,8 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         1: {
           cellWidth: colWidths[1],
           fontStyle: 'bold',
-          fontSize: 9
+          fontSize: 9,
+          overflow: 'linebreak'
         },
         2: {
           cellWidth: colWidths[2],
@@ -563,8 +565,9 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         },
         3: {
           cellWidth: colWidths[3],
-          fontSize: 7,
-          cellPadding: 2
+          fontSize: 6.5,
+          cellPadding: 2,
+          overflow: 'linebreak'
         },
         4: {
           cellWidth: colWidths[4],
@@ -573,8 +576,10 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         },
         5: {
           cellWidth: colWidths[5],
-          fontSize: 7,
-          cellPadding: 2
+          fontSize: 6.5,
+          cellPadding: 2,
+          overflow: 'linebreak',
+          minCellWidth: 70
         }
       },
 
