@@ -304,7 +304,32 @@ TEXT:`
     console.log(`   Język terminów: ${languageDetectionResult.language}`)
     console.log(`   Liczba terminów: ${validatedTerms.length}`)
 
-    return NextResponse.json({ terms: validatedTerms })
+    // WERYFIKACJA: Sprawdź czy użytkownik ustawił zbyt niską liczbę terminów
+    let suggestion = null
+    const documentLength = text.length
+    const extractedCount = validatedTerms.length
+    const utilizationRate = extractedCount / maxTerms
+
+    // Sugestia jeśli:
+    // 1. Zwrócono >=90% maxTerms (prawdopodobnie było więcej do wyekstrahowania)
+    // 2. Długi dokument (>5000 znaków) a mało terminów (<30)
+    // 3. Bardzo długi dokument (>10000 znaków) a mało terminów (<50)
+    if (utilizationRate >= 0.9 && maxTerms < 100) {
+      suggestion = `Wyekstrahowano ${extractedCount} z maksymalnie ${maxTerms} terminów (${Math.round(utilizationRate * 100)}%). W dokumencie mogą znajdować się dodatkowe istotne terminy. Rozważ zwiększenie maksymalnej liczby terminów do ${Math.min(maxTerms + 30, 150)}-${Math.min(maxTerms + 50, 200)}.`
+    } else if (documentLength > 10000 && maxTerms < 50) {
+      suggestion = `Dokument zawiera ${documentLength} znaków - to stosunkowo długi tekst. Dla kompleksowego glosariusza sugerujemy zwiększenie maksymalnej liczby terminów do minimum 50-80.`
+    } else if (documentLength > 5000 && maxTerms < 30) {
+      suggestion = `Dokument zawiera ${documentLength} znaków. Dla bardziej kompleksowego glosariusza rozważ zwiększenie maksymalnej liczby terminów do 40-60.`
+    }
+
+    if (suggestion) {
+      console.log(`💡 Sugestia: ${suggestion}`)
+    }
+
+    return NextResponse.json({
+      terms: validatedTerms,
+      suggestion: suggestion
+    })
 
   } catch (error: any) {
     console.error('❌ Błąd podczas ekstrakcji:', error)
