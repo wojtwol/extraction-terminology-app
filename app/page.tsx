@@ -277,7 +277,20 @@ export default function Home() {
             {/* Przycisk nowego projektu */}
             <button
               onClick={() => {
-                const name = prompt('Nazwa nowego projektu:', 'Glosariusz ' + new Date().toLocaleDateString('pl-PL'))
+                // Generuj domyślną nazwę z numerem porządkowym
+                const today = new Date().toLocaleDateString('pl-PL')
+                const baseNamePrefix = `Glosariusz ${today}`
+
+                // Znajdź wszystkie projekty z dzisiejszą datą
+                const todayProjects = allProjects.filter(p =>
+                  p.name.startsWith(baseNamePrefix)
+                )
+
+                // Oblicz numer porządkowy (ilość projektów z dzisiejszą datą + 1)
+                const nextNumber = todayProjects.length + 1
+                const defaultName = `${baseNamePrefix}_${nextNumber}`
+
+                const name = prompt('Nazwa nowego projektu:', defaultName)
                 if (name) {
                   const newProject = projectStorage.save({
                     name,
