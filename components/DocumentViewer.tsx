@@ -8,10 +8,14 @@ interface DocumentViewerProps {
   selectedTerm: Term | null
   fileName: string
   terms: Term[]
+  onAddTermFromSelection?: (termText: string) => void
 }
 
-export default function DocumentViewer({ documentText, selectedTerm, fileName, terms }: DocumentViewerProps) {
+export default function DocumentViewer({ documentText, selectedTerm, fileName, terms, onAddTermFromSelection }: DocumentViewerProps) {
   const [currentOccurrence, setCurrentOccurrence] = useState(0)
+  const [selectedText, setSelectedText] = useState('')
+  const [showAddButton, setShowAddButton] = useState(false)
+  const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
   const highlightRefs = useRef<(HTMLSpanElement | null)[]>([])
 
@@ -20,6 +24,50 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
     setCurrentOccurrence(0)
     highlightRefs.current = []
   }, [selectedTerm])
+
+  // Obsługa zaznaczania tekstu
+  useEffect(() => {
+    const handleTextSelection = () => {
+      const selection = window.getSelection()
+      const text = selection?.toString().trim() || ''
+
+      if (text && text.length >= 2 && containerRef.current?.contains(selection?.anchorNode || null)) {
+        setSelectedText(text)
+
+        // Pobierz pozycję zaznaczenia
+        const range = selection?.getRangeAt(0)
+        if (range) {
+          const rect = range.getBoundingClientRect()
+          setButtonPosition({
+            top: rect.bottom + window.scrollY + 5,
+            left: rect.left + window.scrollX
+          })
+        }
+
+        setShowAddButton(true)
+      } else {
+        setShowAddButton(false)
+      }
+    }
+
+    document.addEventListener('mouseup', handleTextSelection)
+    document.addEventListener('keyup', handleTextSelection)
+
+    return () => {
+      document.removeEventListener('mouseup', handleTextSelection)
+      document.removeEventListener('keyup', handleTextSelection)
+    }
+  }, [])
+
+  // Dodaj zaznaczony tekst do glosariusza
+  const handleAddSelectedTerm = () => {
+    if (selectedText && onAddTermFromSelection) {
+      onAddTermFromSelection(selectedText)
+      setShowAddButton(false)
+      setSelectedText('')
+      window.getSelection()?.removeAllRanges()
+    }
+  }
 
   // Scroll to current occurrence
   useEffect(() => {
@@ -134,7 +182,23 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div className="bg-white rounded-lg shadow-lg p-6 relative">
+      {/* Floating "Add to Glossary" button */}
+      {showAddButton && onAddTermFromSelection && (
+        <button
+          onClick={handleAddSelectedTerm}
+          className="fixed z-50 px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2"
+          style={{
+            top: `${buttonPosition.top}px`,
+            left: `${buttonPosition.left}px`
+          }}
+          title="Dodaj zaznaczony tekst do glosariusza"
+        >
+          <span>➕</span>
+          <span>Dodaj "{selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText}"</span>
+        </button>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-xl font-semibold text-gray-800">Dokument źródłowy</h3>

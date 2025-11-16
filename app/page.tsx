@@ -21,6 +21,38 @@ export interface Term {
   definitionSource?: 'document' | 'ai' | 'edited' | null
 }
 
+// Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście
+function findTermOccurrences(text: string, term: string): { positions: number[], context: string, occurrences: number } {
+  const positions: number[] = []
+  const normalizedText = text.toLowerCase()
+  const normalizedTerm = term.toLowerCase()
+
+  let index = 0
+  while ((index = normalizedText.indexOf(normalizedTerm, index)) !== -1) {
+    positions.push(index)
+    index += normalizedTerm.length
+  }
+
+  // Wyciągnij kontekst z pierwszego wystąpienia (150-200 znaków, uwzględnij tekst przed i po)
+  let context = ''
+  if (positions.length > 0) {
+    const firstPos = positions[0]
+    const contextStart = Math.max(0, firstPos - 75) // ~75 znaków przed
+    const contextEnd = Math.min(text.length, firstPos + term.length + 125) // ~125 znaków po
+    context = text.substring(contextStart, contextEnd).trim()
+
+    // Dodaj wielokropek jeśli kontekst został obcięty
+    if (contextStart > 0) context = '...' + context
+    if (contextEnd < text.length) context = context + '...'
+  }
+
+  return {
+    positions,
+    context,
+    occurrences: positions.length
+  }
+}
+
 // Funkcja do wykrywania języka (wywołuje API z franc-min)
 async function detectLanguageAPI(text: string): Promise<string> {
   try {
@@ -269,6 +301,78 @@ export default function Home() {
       setCurrentProject(updatedProject)
     }
     refreshGlossary()
+  }
+
+  // Obsługa ręcznego dodawania terminu
+  const handleManualAddTerm = (termText: string) => {
+    if (!termText || !documentText || !currentProject || !currentGlossary) {
+      alert(language === 'pl'
+        ? 'Brak dokumentu źródłowego. Załaduj dokument przed dodaniem terminu.'
+        : 'No source document. Load a document before adding a term.')
+      return
+    }
+
+    const trimmedTerm = termText.trim()
+
+    if (trimmedTerm.length < 2) {
+      alert(language === 'pl'
+        ? 'Termin musi mieć co najmniej 2 znaki.'
+        : 'Term must be at least 2 characters long.')
+      return
+    }
+
+    // Sprawdź czy termin już istnieje w glosariuszu
+    const existingTerm = terms.find(t => t.term.toLowerCase() === trimmedTerm.toLowerCase())
+    if (existingTerm) {
+      alert(language === 'pl'
+        ? `Termin "${trimmedTerm}" już istnieje w glosariuszu.`
+        : `Term "${trimmedTerm}" already exists in the glossary.`)
+      return
+    }
+
+    // Znajdź wszystkie wystąpienia terminu w dokumencie
+    const { positions, context, occurrences } = findTermOccurrences(documentText, trimmedTerm)
+
+    if (occurrences === 0) {
+      alert(language === 'pl'
+        ? `Nie znaleziono terminu "${trimmedTerm}" w dokumencie źródłowym.`
+        : `Term "${trimmedTerm}" not found in source document.`)
+      return
+    }
+
+    // Utwórz nowy termin
+    const newTerm: Term = {
+      id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      term: trimmedTerm,
+      context,
+      occurrences,
+      positions,
+      definition: '',
+      definitionSource: null
+    }
+
+    // Dodaj do listy terminów
+    const updatedTerms = [...terms, newTerm]
+    handleTermUpdate(updatedTerms)
+
+    console.log(`✅ Dodano ręcznie termin: "${trimmedTerm}" (${occurrences} wystąpień)`)
+    alert(language === 'pl'
+      ? `Termin "${trimmedTerm}" został dodany do glosariusza.\n\nZnaleziono ${occurrences} wystąpień w dokumencie.`
+      : `Term "${trimmedTerm}" has been added to the glossary.\n\nFound ${occurrences} occurrences in the document.`)
+  }
+
+  // Prompt użytkownika do ręcznego dodania terminu
+  const promptManualAddTerm = () => {
+    const termText = prompt(
+      language === 'pl'
+        ? 'Wprowadź termin do dodania do glosariusza:'
+        : 'Enter term to add to glossary:',
+      ''
+    )
+
+    if (termText) {
+      handleManualAddTerm(termText)
+    }
   }
 
   // Odśwież glosariusz gdy projekt się zmieni
@@ -688,10 +792,22 @@ export default function Home() {
                     </div>
                   )}
 
+                  {/* Manual Add Term Button */}
+                  {documentText && (
+                    <button
+                      onClick={promptManualAddTerm}
+                      className="w-full mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
+                      title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
+                    >
+                      <span>➕</span>
+                      <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={handleSaveProject}
                     disabled={terms.length === 0}
-                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
                   >
                     {language === 'pl'
                       ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
@@ -787,6 +903,7 @@ export default function Home() {
                 selectedTerm={selectedTerm}
                 fileName={fileName}
                 terms={terms}
+                onAddTermFromSelection={handleManualAddTerm}
               />
             )}
           </div>

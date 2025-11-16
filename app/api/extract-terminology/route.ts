@@ -124,9 +124,14 @@ CRITERIA:
 Return ONLY valid JSON (no markdown, no explanation):
 {
   "terms": [
-    {"term": "exact term from document in English", "context": "...surrounding text in English...", "occurrences": number}
+    {"term": "exact term from document in English", "context": "...surrounding text in English (150-200 characters, include text before and after the term)...", "occurrences": number}
   ]
 }
+
+CONTEXT REQUIREMENTS:
+- Context should be 150-200 characters long
+- Include text BEFORE and AFTER the term for better understanding
+- Should be a complete, readable sentence or phrase
 
 IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.
 
@@ -169,9 +174,14 @@ KRYTERIA:
 Zwróć TYLKO poprawny JSON (bez markdown, bez wyjaśnień):
 {
   "terms": [
-    {"term": "dokładny termin z dokumentu po polsku", "context": "...otaczający tekst po polsku...", "occurrences": liczba}
+    {"term": "dokładny termin z dokumentu po polsku", "context": "...otaczający tekst po polsku (150-200 znaków, uwzględnij tekst przed i po terminie)...", "occurrences": liczba}
   ]
 }
+
+WYMAGANIA DOTYCZĄCE KONTEKSTU:
+- Kontekst powinien mieć 150-200 znaków
+- Uwzględnij tekst PRZED i PO terminie dla lepszego zrozumienia
+- Powinien być kompletnym, czytelnym zdaniem lub frazą
 
 WAŻNE PRZYPOMNIENIE: Przeanalizuj CAŁY dokument poniżej. Nawet jeśli ekstraktujesz tylko ${minTerms}-${maxTerms} terminów, przeczytaj wszystkie sekcje od początku do końca, aby zidentyfikować najważniejsze terminy w CAŁYM tekście.
 
@@ -207,9 +217,14 @@ CRITERIA:
 Return ONLY valid JSON:
 {
   "terms": [
-    {"term": "exact term in ${langName}", "context": "context in ${langName}", "occurrences": number}
+    {"term": "exact term in ${langName}", "context": "context in ${langName} (150-200 characters, include text before and after the term)", "occurrences": number}
   ]
 }
+
+CONTEXT REQUIREMENTS:
+- Context should be 150-200 characters long
+- Include text BEFORE and AFTER the term for better understanding
+- Should be a complete, readable sentence or phrase
 
 IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.
 

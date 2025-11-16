@@ -241,7 +241,9 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   const exportToXLSX = () => {
     // Przygotuj dane dla XLSX
     const data = [
-      ['IURIDICO EJ GTEXTT - Glossary and Terminology Extraction Tool', '', '', '', '', ''],
+      ['IURIDICO EJ GTEXTT', '', '', '', '', ''],
+      ['Glossary and Terminology Extraction Tool', '', '', '', '', ''],
+      ['', '', '', '', '', ''],
       ['Dokument źródłowy:', fileName, '', '', '', ''],
       ['Data utworzenia:', new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', ''],
       ['Liczba terminów:', terms.length.toString(), '', '', '', ''],
@@ -261,11 +263,11 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
 
     const ws = XLSX.utils.aoa_to_sheet(data)
 
-    // Szerokości kolumn - zwiększone dla lepszej czytelności
+    // Szerokości kolumn - dostosowane wg wymagań
     ws['!cols'] = [
-      { wch: 8 },   // Nr
+      { wch: 10 },   // Nr (+30%)
       { wch: 35 },  // Termin
-      { wch: 14 },  // Wystąpienia
+      { wch: 11 },  // Wystąpienia (-25%)
       { wch: 70 },  // Definicja
       { wch: 22 },  // Źródło
       { wch: 80 }   // Kontekst
@@ -273,12 +275,14 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
     ws['!rows'] = []
-    for (let i = 0; i <= terms.length + 5; i++) {
+    for (let i = 0; i <= terms.length + 7; i++) {
       if (i === 0) {
-        ws['!rows'][i] = { hpt: 30 } // Tytuł - wyższy wiersz
-      } else if (i === 5) {
-        ws['!rows'][i] = { hpt: 25 } // Nagłówek - wyższy wiersz
-      } else if (i >= 6) {
+        ws['!rows'][i] = { hpt: 25 } // Tytuł główny
+      } else if (i === 1) {
+        ws['!rows'][i] = { hpt: 20 } // Podtytuł
+      } else if (i === 7) {
+        ws['!rows'][i] = { hpt: 25 } // Nagłówek tabeli
+      } else if (i >= 8) {
         ws['!rows'][i] = { hpt: 60 } // Dane - bardzo wysokie wiersze dla zawijania
       }
     }
@@ -302,14 +306,29 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
           }
         }
 
-        // Tytuł (wiersz 1)
+        // Tytuł główny (wiersz 1)
         if (R === 0) {
           ws[cellAddress].s = {
-            font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+            font: { bold: true, sz: 18, color: { rgb: 'FFFFFF' } },
             fill: { fgColor: { rgb: '5B47A8' } },
-            alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+            alignment: { vertical: 'center', horizontal: 'center', wrapText: false },
             border: {
               top: { style: 'thick', color: { rgb: '5B47A8' } },
+              bottom: { style: 'thin', color: { rgb: '5B47A8' } },
+              left: { style: 'thick', color: { rgb: '5B47A8' } },
+              right: { style: 'thick', color: { rgb: '5B47A8' } }
+            }
+          }
+        }
+
+        // Podtytuł (wiersz 2)
+        if (R === 1) {
+          ws[cellAddress].s = {
+            font: { sz: 11, color: { rgb: 'FFFFFF' }, italic: true },
+            fill: { fgColor: { rgb: '5B47A8' } },
+            alignment: { vertical: 'center', horizontal: 'center', wrapText: false },
+            border: {
+              top: { style: 'thin', color: { rgb: '5B47A8' } },
               bottom: { style: 'thick', color: { rgb: '5B47A8' } },
               left: { style: 'thick', color: { rgb: '5B47A8' } },
               right: { style: 'thick', color: { rgb: '5B47A8' } }
@@ -317,8 +336,8 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
           }
         }
 
-        // Metadane (wiersze 2-4)
-        if (R >= 1 && R <= 3) {
+        // Metadane (wiersze 4-6)
+        if (R >= 3 && R <= 5) {
           if (C === 0) {
             ws[cellAddress].s = {
               font: { bold: true, sz: 11 },
@@ -345,8 +364,8 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
           }
         }
 
-        // Nagłówek tabeli (wiersz 6)
-        if (R === 5) {
+        // Nagłówek tabeli (wiersz 8)
+        if (R === 7) {
           ws[cellAddress].s = {
             font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
             fill: { fgColor: { rgb: '2B579A' } },
@@ -360,9 +379,9 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
           }
         }
 
-        // Dane tabeli (od wiersza 7)
-        if (R >= 6) {
-          const isEven = (R - 6) % 2 === 0
+        // Dane tabeli (od wiersza 9)
+        if (R >= 8) {
+          const isEven = (R - 8) % 2 === 0
           ws[cellAddress].s = {
             font: { sz: 11 },
             alignment: {
@@ -408,95 +427,127 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
 
   const exportToPDF = () => {
     const doc = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
       compress: true
     })
 
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const margin = 15
+
+    // Nagłówek strony z gradientem (symulacja)
+    doc.setFillColor(91, 71, 168) // Fioletowy
+    doc.rect(0, 0, pageWidth, 35, 'F')
+
     // Tytuł
-    doc.setFontSize(18)
+    doc.setFontSize(22)
     doc.setFont('helvetica', 'bold')
-    doc.text('IURIDICO EJ GTEXTT', 14, 15)
+    doc.setTextColor(255, 255, 255)
+    doc.text('IURIDICO EJ GTEXTT', margin, 15)
 
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    doc.text('Glossary and Terminology Extraction Tool', 14, 22)
+    doc.setTextColor(230, 230, 230)
+    doc.text('Glossary and Terminology Extraction Tool', margin, 22)
 
-    // Linia separująca
-    doc.setDrawColor(200, 200, 200)
-    doc.line(14, 25, 283, 25)
+    // Metadane w białym bloku
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(220, 220, 220)
+    doc.setLineWidth(0.1)
+    doc.roundedRect(margin, 28, pageWidth - 2 * margin, 2, 0, 0, 'FD')
 
-    // Metadane
-    doc.setFontSize(9)
-    doc.setTextColor(60, 60, 60)
+    doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Dokument: ${fileName}`, 14, 31)
-    doc.text(`Data: ${new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`, 14, 36)
-    doc.text(`Liczba terminów: ${terms.length}`, 14, 41)
+    doc.setTextColor(80, 80, 80)
+    doc.text(`Dokument: ${fileName}`, margin + 3, 29)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`|`, margin + 70, 29)
+    doc.text(`Data: ${new Date().toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, margin + 72, 29)
+    doc.text(`|`, margin + 120, 29)
+    doc.text(`Terminów: ${terms.length}`, margin + 122, 29)
 
-    // Przygotuj dane tabeli - BEZ truncate, pełny tekst
-    const tableData = terms.map((term, index) => [
-      (index + 1).toString(),
-      term.term,
-      term.occurrences.toString(),
-      term.definition || '-',
-      term.definitionSource === 'document' ? 'Z dokumentu' :
-       term.definitionSource === 'edited' ? 'Edytowano' :
-       term.definitionSource === 'ai' ? 'AI' : '-',
-      term.context || '-'
-    ])
+    // Przygotuj dane tabeli
+    const tableData = terms.map((term, index) => {
+      const sourceText = term.definitionSource === 'document' ? 'Dok.' :
+                        term.definitionSource === 'edited' ? 'Ed.' :
+                        term.definitionSource === 'ai' ? 'AI' : '-'
 
-    // Utwórz tabelę z lepszym formatowaniem
+      return [
+        (index + 1).toString(),
+        term.term,
+        term.occurrences.toString(),
+        term.definition || '-',
+        sourceText,
+        term.context || '-'
+      ]
+    })
+
+    // Tabela z nowoczesnym designem
     autoTable(doc, {
-      startY: 48,
-      head: [['Nr', 'Termin', 'Wyst.', 'Definicja', 'Źródło', 'Kontekst']],
+      startY: 38,
+      head: [['Nr', 'Termin', 'Wyst.', 'Definicja', 'Źr.', 'Kontekst']],
       body: tableData,
+      theme: 'grid',
       styles: {
-        fontSize: 8,
-        cellPadding: 3,
+        fontSize: 9,
+        cellPadding: 3.5,
         font: 'helvetica',
         overflow: 'linebreak',
         cellWidth: 'wrap',
-        lineColor: [200, 200, 200],
-        lineWidth: 0.2,
-        textColor: [40, 40, 40],
-        minCellHeight: 10
+        lineColor: [220, 220, 220],
+        lineWidth: 0.1,
+        textColor: [50, 50, 50],
+        valign: 'top',
+        halign: 'left'
       },
       headStyles: {
         fillColor: [43, 87, 154],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 9,
+        fontSize: 10,
         halign: 'center',
         valign: 'middle',
-        cellPadding: 4
+        cellPadding: 4,
+        lineWidth: 0.2,
+        lineColor: [30, 60, 120]
       },
       columnStyles: {
-        0: { cellWidth: 12, halign: 'center', valign: 'middle' },  // Nr
-        1: { cellWidth: 45, fontStyle: 'bold', valign: 'top', fontSize: 9 },     // Termin
-        2: { cellWidth: 18, halign: 'center', valign: 'middle' },   // Wystąpienia
-        3: { cellWidth: 75, valign: 'top' },                        // Definicja
-        4: { cellWidth: 25, halign: 'center', fontSize: 7, valign: 'middle' }, // Źródło
-        5: { cellWidth: 85, valign: 'top' }                        // Kontekst
+        0: { cellWidth: 10, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [100, 100, 100] },
+        1: { cellWidth: 35, fontStyle: 'bold', textColor: [30, 60, 95] },
+        2: { cellWidth: 12, halign: 'center', valign: 'middle' },
+        3: { cellWidth: 50 },
+        4: { cellWidth: 11, halign: 'center', fontSize: 8, textColor: [100, 100, 100] },
+        5: { cellWidth: 62 }
       },
       alternateRowStyles: {
-        fillColor: [245, 245, 245]
+        fillColor: [250, 250, 252]
       },
-      margin: { left: 14, right: 14 },
-      tableWidth: 'auto',
-      showHead: 'everyPage',
+      margin: { left: margin, right: margin, top: 35, bottom: 20 },
       didDrawPage: function (data) {
-        // Stopka na każdej stronie
+        // Nagłówek na każdej stronie (poza pierwszą)
+        if (data.pageNumber > 1) {
+          doc.setFillColor(91, 71, 168)
+          doc.rect(0, 0, pageWidth, 12, 'F')
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(255, 255, 255)
+          doc.text('IURIDICO EJ GTEXTT', margin, 8)
+          doc.setFontSize(7)
+          doc.setFont('helvetica', 'normal')
+          doc.text(fileName, pageWidth - margin, 8, { align: 'right' })
+        }
+
+        // Stopka
         doc.setFontSize(8)
-        doc.setTextColor(120, 120, 120)
-        doc.text(
-          `Strona ${data.pageNumber}`,
-          doc.internal.pageSize.getWidth() / 2,
-          doc.internal.pageSize.getHeight() - 10,
-          { align: 'center' }
-        )
+        doc.setTextColor(150, 150, 150)
+        doc.setFont('helvetica', 'normal')
+        const pageText = `Strona ${data.pageNumber}`
+        doc.text(pageText, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' })
+
+        // Dodatkowa informacja w stopce
+        doc.setFontSize(7)
+        doc.text('Wygenerowano przez IURIDICO EJ GTEXTT', margin, doc.internal.pageSize.getHeight() - 10)
       }
     })
 
@@ -516,38 +567,38 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 items-start">
       <button
         onClick={exportToXLSX}
-        className="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         📊 Excel (XLSX)
       </button>
 
       <button
         onClick={exportToPDF}
-        className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         📄 PDF
       </button>
 
       <button
         onClick={exportToCSV}
-        className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         📊 CSV
       </button>
 
       <button
         onClick={exportToHTML}
-        className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         🌐 HTML
       </button>
 
       <button
         onClick={exportToJSON}
-        className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
+        className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         📄 JSON
       </button>
