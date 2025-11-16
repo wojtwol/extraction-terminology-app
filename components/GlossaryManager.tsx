@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Glossary, GlossaryVersion, projectStorage } from '@/utils/projectStorage'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface GlossaryManagerProps {
   projectId: string
@@ -18,6 +19,7 @@ export default function GlossaryManager({
   onGlossaryChange,
   onRefresh
 }: GlossaryManagerProps) {
+  const { t, language } = useLanguage()
   const [showNewGlossaryDialog, setShowNewGlossaryDialog] = useState(false)
   const [newGlossaryName, setNewGlossaryName] = useState('')
   const [showVersions, setShowVersions] = useState(false)
@@ -29,7 +31,7 @@ export default function GlossaryManager({
 
   const handleCreateGlossary = () => {
     if (!newGlossaryName.trim()) {
-      alert('Podaj nazwę glosariusza')
+      alert(t.enterGlossaryName)
       return
     }
 
@@ -45,7 +47,8 @@ export default function GlossaryManager({
     const glossary = glossaries.find(g => g.id === glossaryId)
     if (!glossary) return
 
-    if (!confirm(`Czy na pewno chcesz usunąć glosariusz "${glossary.name}"? Ta operacja jest nieodwracalna.`)) {
+    const confirmMessage = `${t.deleteGlossaryConfirm} "${glossary.name}"? ${language === 'pl' ? 'Ta operacja jest nieodwracalna.' : 'This operation is irreversible.'}`
+    if (!confirm(confirmMessage)) {
       return
     }
 
@@ -70,33 +73,33 @@ export default function GlossaryManager({
   const handleRestoreVersion = (versionId: string) => {
     if (!currentGlossaryId) return
 
-    if (!confirm('Czy na pewno chcesz przywrócić tę wersję? Aktualna praca zostanie zapisana jako nowa wersja.')) {
+    if (!confirm(t.restoreVersionConfirm)) {
       return
     }
 
     if (projectStorage.restoreVersion(projectId, currentGlossaryId, versionId)) {
       onRefresh()
-      alert('Wersja została przywrócona')
+      alert(t.versionRestored)
     }
   }
 
   const handleDeleteVersion = (versionId: string) => {
     if (!currentGlossaryId) return
 
-    if (!confirm('Czy na pewno chcesz usunąć tę wersję? Ta operacja jest nieodwracalna.')) {
+    if (!confirm(t.deleteVersionConfirm)) {
       return
     }
 
     if (projectStorage.deleteVersion(projectId, currentGlossaryId, versionId)) {
       onRefresh()
     } else {
-      alert('Nie można usunąć tej wersji (może to być aktywna wersja lub jedyna wersja)')
+      alert(t.cannotDeleteVersion)
     }
   }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleString('pl-PL', {
+    return date.toLocaleString(language === 'pl' ? 'pl-PL' : 'en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -108,19 +111,19 @@ export default function GlossaryManager({
   return (
     <div className="bg-white rounded-lg shadow-lg p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-gray-800">Glosariusze</h3>
+        <h3 className="text-lg font-semibold text-gray-800">{t.glossaries}</h3>
         <button
           onClick={() => setShowNewGlossaryDialog(true)}
           className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
         >
-          + Nowy glosariusz
+          {t.newGlossary}
         </button>
       </div>
 
       {/* Lista glosariuszy */}
       <div className="space-y-2 mb-4">
         {glossaries.length === 0 ? (
-          <p className="text-sm text-gray-500 italic">Brak glosariuszy</p>
+          <p className="text-sm text-gray-500 italic">{t.noGlossaries}</p>
         ) : (
           glossaries.map(glossary => (
             <div
@@ -165,13 +168,13 @@ export default function GlossaryManager({
                       <div className="font-semibold text-gray-800 flex items-center gap-2">
                         {glossary.name}
                         {currentGlossaryId === glossary.id && (
-                          <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">Aktywny</span>
+                          <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">{t.active}</span>
                         )}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {glossary.versions.length} {glossary.versions.length === 1 ? 'wersja' : 'wersji'} •
+                        {glossary.versions.length} {glossary.versions.length === 1 ? t.version : t.versions} •
                         {currentGlossary?.id === glossary.id && currentVersion && (
-                          <> {currentVersion.terms.length} terminów</>
+                          <> {currentVersion.terms.length} {t.terms}</>
                         )}
                       </div>
                     </>
@@ -184,7 +187,7 @@ export default function GlossaryManager({
                       setEditingName(glossary.name)
                     }}
                     className="px-2 py-1 text-gray-600 hover:text-blue-600 text-xs"
-                    title="Zmień nazwę"
+                    title={t.rename}
                   >
                     ✎
                   </button>
@@ -192,7 +195,7 @@ export default function GlossaryManager({
                     <button
                       onClick={() => handleDeleteGlossary(glossary.id)}
                       className="px-2 py-1 text-gray-600 hover:text-red-600 text-xs"
-                      title="Usuń glosariusz"
+                      title={t.delete}
                     >
                       🗑
                     </button>

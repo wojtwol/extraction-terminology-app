@@ -1,10 +1,7 @@
-import './globals.css'
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'IURIDICO EJ GTEXTT - Glossary and Terminology Extraction Tool',
-  description: 'Profesjonalne narzędzie do ekstrakcji terminologii i tworzenia glosariuszy z dokumentów prawnych i urzędowych',
-}
+import './globals.css'
+import { LanguageProvider } from '@/contexts/LanguageContext'
 
 export default function RootLayout({
   children,
@@ -13,7 +10,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pl">
-      <body>{children}</body>
+      <head>
+        <title>IURIDICO EJ GTEXTT - Glossary and Terminology Extraction Tool</title>
+        <meta name="description" content="Professional tool for terminology extraction and glossary creation from legal and official documents" />
+      </head>
+      <body>
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
+      </body>
     </html>
   )
 }

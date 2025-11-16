@@ -7,7 +7,9 @@ import ExportButtons from '@/components/ExportButtons'
 import DocumentViewer from '@/components/DocumentViewer'
 import GlossaryManager from '@/components/GlossaryManager'
 import SnapshotButton from '@/components/SnapshotButton'
+import LanguageSwitch from '@/components/LanguageSwitch'
 import { Project, Glossary, GlossaryVersion, projectStorage } from '@/utils/projectStorage'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export interface Term {
   id: string
@@ -50,6 +52,7 @@ async function detectLanguageAPI(text: string): Promise<string> {
 }
 
 export default function Home() {
+  const { t, language } = useLanguage()
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [documentText, setDocumentText] = useState('')
@@ -338,26 +341,31 @@ export default function Home() {
       <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-8 text-center">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">
-              IURIDICO EJ GTEXTT
-            </h1>
-            <p className="text-gray-600 text-lg">
-              Glossary and Terminology Extraction Tool
-            </p>
+          <div className="mb-8 flex items-center justify-between">
+            <div className="flex-1 text-center">
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                {t.title}
+              </h1>
+              <p className="text-gray-600 text-lg">
+                {t.subtitle}
+              </p>
+            </div>
+            <div className="ml-4">
+              <LanguageSwitch />
+            </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-xl p-8">
             <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-              Wybierz projekt lub utwórz nowy
+              {language === 'pl' ? 'Wybierz projekt lub utwórz nowy' : 'Select project or create new'}
             </h2>
 
             {/* Przycisk nowego projektu */}
             <button
               onClick={() => {
                 // Generuj domyślną nazwę z numerem porządkowym
-                const today = new Date().toLocaleDateString('pl-PL')
-                const baseNamePrefix = `Glosariusz ${today}`
+                const today = new Date().toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-US')
+                const baseNamePrefix = language === 'pl' ? `Glosariusz ${today}` : `Glossary ${today}`
 
                 // Znajdź wszystkie projekty z dzisiejszą datą
                 const todayProjects = allProjects.filter(p =>
@@ -368,7 +376,7 @@ export default function Home() {
                 const nextNumber = todayProjects.length + 1
                 const defaultName = `${baseNamePrefix}_${nextNumber}`
 
-                const name = prompt('Nazwa nowego projektu:', defaultName)
+                const name = prompt(language === 'pl' ? 'Nazwa nowego projektu:' : 'New project name:', defaultName)
                 if (name) {
                   const newProject = projectStorage.save({
                     name,
@@ -383,7 +391,7 @@ export default function Home() {
               }}
               className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg mb-6"
             >
-              + Utwórz nowy projekt
+              {language === 'pl' ? '+ Utwórz nowy projekt' : '+ Create New Project'}
             </button>
 
             {/* Lista istniejących projektów */}
@@ -391,7 +399,7 @@ export default function Home() {
               <>
                 <div className="border-t border-gray-200 pt-6">
                   <h3 className="text-lg font-semibold text-gray-700 mb-4">
-                    Lub wczytaj istniejący projekt ({allProjects.length})
+                    {language === 'pl' ? `Lub wczytaj istniejący projekt (${allProjects.length})` : `Or load existing project (${allProjects.length})`}
                   </h3>
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {allProjects.map((project) => (
@@ -404,23 +412,29 @@ export default function Home() {
                           <div className="flex-1">
                             <p className="font-semibold text-gray-800">{project.name}</p>
                             <p className="text-sm text-gray-600 mt-1">
-                              {project.glossaries.length} {project.glossaries.length === 1 ? 'glosariusz' : 'glosariuszy'} • {project.detectedLanguage || 'Brak dokumentu'}
+                              {project.glossaries.length} {language === 'pl'
+                                ? (project.glossaries.length === 1 ? 'glosariusz' : 'glosariuszy')
+                                : (project.glossaries.length === 1 ? 'glossary' : 'glossaries')
+                              } • {project.detectedLanguage || (language === 'pl' ? 'Brak dokumentu' : 'No document')}
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
-                              Zmieniono: {new Date(project.updatedAt).toLocaleString('pl-PL')}
+                              {language === 'pl' ? 'Zmieniono:' : 'Modified:'} {new Date(project.updatedAt).toLocaleString(language === 'pl' ? 'pl-PL' : 'en-US')}
                             </p>
                           </div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (confirm(`Czy na pewno chcesz usunąć projekt "${project.name}"?`)) {
+                              const confirmMessage = language === 'pl'
+                                ? `Czy na pewno chcesz usunąć projekt "${project.name}"?`
+                                : `Are you sure you want to delete project "${project.name}"?`
+                              if (confirm(confirmMessage)) {
                                 projectStorage.delete(project.id)
                                 window.location.reload()
                               }
                             }}
                             className="ml-4 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
                           >
-                            🗑 Usuń
+                            🗑 {language === 'pl' ? 'Usuń' : 'Delete'}
                           </button>
                         </div>
                       </div>
@@ -432,7 +446,9 @@ export default function Home() {
 
             {allProjects.length === 0 && (
               <p className="text-center text-gray-500 mt-8">
-                Brak zapisanych projektów. Utwórz pierwszy projekt, aby rozpocząć!
+                {language === 'pl'
+                  ? 'Brak zapisanych projektów. Utwórz pierwszy projekt, aby rozpocząć!'
+                  : 'No saved projects. Create your first project to get started!'}
               </p>
             )}
           </div>
@@ -447,22 +463,27 @@ export default function Home() {
       <div className="max-w-[1600px] mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-800 mb-1">
-              IURIDICO EJ GTEXTT
+              {t.title}
             </h1>
             <p className="text-gray-600 text-sm font-medium">
-              Glossary and Terminology Extraction Tool
+              {t.subtitle}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-sm font-semibold text-gray-700">Projekt: {currentProject.name}</p>
-            <button
-              onClick={handleNewProject}
-              className="text-sm text-blue-600 hover:text-blue-800 underline"
-            >
-              Zmień projekt
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm font-semibold text-gray-700">
+                {language === 'pl' ? 'Projekt:' : 'Project:'} {currentProject.name}
+              </p>
+              <button
+                onClick={handleNewProject}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                {language === 'pl' ? 'Zmień projekt' : 'Change project'}
+              </button>
+            </div>
+            <LanguageSwitch />
           </div>
         </div>
 
@@ -480,20 +501,20 @@ export default function Home() {
             {loadedText && !isLoading && terms.length === 0 && (
               <div className="bg-white rounded-lg shadow-lg p-4">
                 <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                  Podgląd dokumentu
+                  {language === 'pl' ? 'Podgląd dokumentu' : 'Document Preview'}
                 </h3>
 
                 <div className="grid grid-cols-3 gap-3 mb-3 text-sm">
                   <div>
-                    <span className="text-gray-600">Plik:</span>
+                    <span className="text-gray-600">{language === 'pl' ? 'Plik:' : 'File:'}</span>
                     <p className="font-medium text-gray-800 truncate">{loadedFileName}</p>
                   </div>
                   <div>
-                    <span className="text-gray-600">Rozmiar:</span>
-                    <p className="font-medium text-gray-800">{loadedText.length.toLocaleString()} znaków</p>
+                    <span className="text-gray-600">{language === 'pl' ? 'Rozmiar:' : 'Size:'}</span>
+                    <p className="font-medium text-gray-800">{loadedText.length.toLocaleString()} {language === 'pl' ? 'znaków' : 'characters'}</p>
                   </div>
                   <div>
-                    <span className="text-gray-600">Język:</span>
+                    <span className="text-gray-600">{language === 'pl' ? 'Język:' : 'Language:'}</span>
                     <p className="font-medium text-blue-600">{detectedLanguage}</p>
                   </div>
                 </div>
@@ -506,12 +527,14 @@ export default function Home() {
 
                 {/* Parametry ekstrakcji */}
                 <div className="bg-blue-50 rounded-lg p-3 mb-3 border border-blue-200">
-                  <h4 className="text-sm font-semibold text-gray-800 mb-2">Parametry ekstrakcji</h4>
+                  <h4 className="text-sm font-semibold text-gray-800 mb-2">
+                    {language === 'pl' ? 'Parametry ekstrakcji' : 'Extraction Parameters'}
+                  </h4>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-700 mb-1">
-                        Min. liczba terminów
+                        {language === 'pl' ? 'Min. liczba terminów' : 'Min. terms count'}
                       </label>
                       <input
                         type="number"
@@ -533,7 +556,7 @@ export default function Home() {
 
                     <div>
                       <label className="block text-xs text-gray-700 mb-1">
-                        Maks. liczba terminów
+                        {language === 'pl' ? 'Maks. liczba terminów' : 'Max. terms count'}
                       </label>
                       <input
                         type="number"
@@ -555,7 +578,7 @@ export default function Home() {
 
                     <div>
                       <label className="block text-xs text-gray-700 mb-1">
-                        Min. długość terminu (znaki)
+                        {language === 'pl' ? 'Min. długość terminu (znaki)' : 'Min. term length (chars)'}
                       </label>
                       <input
                         type="number"
@@ -572,7 +595,7 @@ export default function Home() {
 
                     <div>
                       <label className="block text-xs text-gray-700 mb-1">
-                        Min. liczba wystąpień
+                        {language === 'pl' ? 'Min. liczba wystąpień' : 'Min. occurrences'}
                       </label>
                       <input
                         type="number"
@@ -590,17 +613,23 @@ export default function Home() {
 
                   {(minTerms === 0 || maxTerms === 0) && (
                     <p className="text-xs text-red-600 font-semibold mt-2">
-                      ⚠️ Minimalna i maksymalna liczba terminów muszą być większe od zera!
+                      ⚠️ {language === 'pl'
+                        ? 'Minimalna i maksymalna liczba terminów muszą być większe od zera!'
+                        : 'Minimum and maximum number of terms must be greater than zero!'}
                     </p>
                   )}
                   {maxTerms > 0 && minTerms > 0 && maxTerms < minTerms && (
                     <p className="text-xs text-red-600 font-semibold mt-2">
-                      ⚠️ Maksymalna liczba terminów nie może być mniejsza niż minimalna!
+                      ⚠️ {language === 'pl'
+                        ? 'Maksymalna liczba terminów nie może być mniejsza niż minimalna!'
+                        : 'Maximum number of terms cannot be less than minimum!'}
                     </p>
                   )}
 
                   <p className="text-xs text-gray-600 mt-2">
-                    Aplikacja będzie dążyć do maksymalnej liczby terminów spełniających kryteria.
+                    {language === 'pl'
+                      ? 'Aplikacja będzie dążyć do maksymalnej liczby terminów spełniających kryteria.'
+                      : 'The application will aim for the maximum number of terms meeting the criteria.'}
                   </p>
                 </div>
 
@@ -609,7 +638,7 @@ export default function Home() {
                   disabled={minTerms === 0 || maxTerms === 0 || maxTerms < minTerms}
                   className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  Utwórz glosariusz
+                  {language === 'pl' ? 'Utwórz glosariusz' : 'Create Glossary'}
                 </button>
               </div>
             )}
@@ -641,7 +670,7 @@ export default function Home() {
               <>
                 <div className="bg-white rounded-lg shadow-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    Akcje
+                    {language === 'pl' ? 'Akcje' : 'Actions'}
                   </h3>
 
                   {/* Snapshot Button */}
@@ -664,13 +693,15 @@ export default function Home() {
                     disabled={terms.length === 0}
                     className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400"
                   >
-                    {currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt'}
+                    {language === 'pl'
+                      ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
+                      : (currentProject ? 'Save changes' : 'Save as project')}
                   </button>
                 </div>
 
                 <div className="bg-white rounded-lg shadow-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    Eksport
+                    {language === 'pl' ? 'Eksport' : 'Export'}
                   </h3>
                   <div className="space-y-2">
                     <ExportButtons
@@ -687,11 +718,13 @@ export default function Home() {
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <div className="text-center mb-4">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                  <p className="text-sm text-gray-600">Ekstrakcja w toku...</p>
+                  <p className="text-sm text-gray-600">
+                    {language === 'pl' ? 'Ekstrakcja w toku...' : 'Extraction in progress...'}
+                  </p>
                 </div>
                 <div className="w-full">
                   <div className="flex justify-between mb-1 text-xs">
-                    <span className="text-gray-600">Postęp:</span>
+                    <span className="text-gray-600">{language === 'pl' ? 'Postęp:' : 'Progress:'}</span>
                     <span className="font-semibold text-blue-600">{progress}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -720,7 +753,7 @@ export default function Home() {
                   </div>
                   <div className="ml-3 flex-1">
                     <h3 className="text-sm font-semibold text-blue-800 mb-1">
-                      💡 Sugestia - Kompleksowy glosariusz
+                      💡 {language === 'pl' ? 'Sugestia - Kompleksowy glosariusz' : 'Suggestion - Comprehensive Glossary'}
                     </h3>
                     <p className="text-sm text-blue-700">
                       {extractionSuggestion}
@@ -729,7 +762,7 @@ export default function Home() {
                   <button
                     onClick={() => setExtractionSuggestion(null)}
                     className="ml-3 flex-shrink-0 text-blue-400 hover:text-blue-600 transition-colors"
-                    title="Zamknij sugestię"
+                    title={language === 'pl' ? 'Zamknij sugestię' : 'Close suggestion'}
                   >
                     <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -761,7 +794,9 @@ export default function Home() {
         {!isLoading && terms.length === 0 && !loadedText && (
           <div className="bg-white rounded-lg shadow-lg p-12 text-center">
             <p className="text-gray-500 text-lg">
-              Załaduj dokument lub wklej tekst, aby rozpocząć
+              {language === 'pl'
+                ? 'Załaduj dokument lub wklej tekst, aby rozpocząć'
+                : 'Load a document or paste text to get started'}
             </p>
           </div>
         )}

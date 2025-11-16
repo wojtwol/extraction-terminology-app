@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Term } from '@/app/page'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface TerminologyTableProps {
   terms: Term[]
@@ -13,6 +14,7 @@ interface TerminologyTableProps {
 }
 
 export default function TerminologyTable({ terms, onUpdate, documentText, apiKey, onTermSelect, selectedTermId }: TerminologyTableProps) {
+  const { t, language } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences'>('alphabetical')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -45,7 +47,10 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
   })
 
   const handleDelete = (id: string) => {
-    if (confirm('Czy na pewno chcesz usunąć ten termin?')) {
+    const confirmMessage = language === 'pl'
+      ? 'Czy na pewno chcesz usunąć ten termin?'
+      : 'Are you sure you want to delete this term?'
+    if (confirm(confirmMessage)) {
       onUpdate(terms.filter(t => t.id !== id))
     }
   }
@@ -229,13 +234,13 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-        Wyekstrahowane terminy ({terms.length})
+        {t.extractedTerms} ({terms.length})
       </h2>
 
       <div className="mb-4 space-y-3">
         <input
           type="text"
-          placeholder="Szukaj terminów..."
+          placeholder={language === 'pl' ? 'Szukaj terminów...' : 'Search terms...'}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -250,7 +255,7 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            Alfabetycznie
+            {language === 'pl' ? 'Alfabetycznie' : 'Alphabetically'}
           </button>
           <button
             onClick={() => setSortBy('occurrences')}
@@ -260,7 +265,7 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            Według wystąpień
+            {language === 'pl' ? 'Według wystąpień' : 'By occurrences'}
           </button>
         </div>
       </div>
@@ -269,12 +274,12 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-100 border-b-2 border-gray-300">
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-8">#</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-48">Termin</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-20">Wystąpienia</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-80">Definicja</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-96">Kontekst</th>
-              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700 w-32">Akcje</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-8">{t.number}</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-48">{t.term}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-20">{t.occurrences}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-80">{t.definition}</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-96">{t.context}</th>
+              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700 w-32">{t.actions}</th>
             </tr>
           </thead>
           <tbody>
@@ -341,7 +346,7 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                         value={editingDefinition.value}
                         onChange={(e) => setEditingDefinition({ id: term.id, value: e.target.value })}
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded h-20 resize-none"
-                        placeholder="Wprowadź definicję..."
+                        placeholder={language === 'pl' ? 'Wprowadź definicję...' : 'Enter definition...'}
                         autoFocus
                       />
                       <div className="flex gap-1">
@@ -349,13 +354,13 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                           onClick={handleSaveDefinition}
                           className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
                         >
-                          ✓ Zapisz
+                          ✓ {t.save}
                         </button>
                         <button
                           onClick={() => setEditingDefinition(null)}
                           className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
                         >
-                          ✕ Anuluj
+                          ✕ {t.cancel}
                         </button>
                       </div>
                     </div>
@@ -368,13 +373,13 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                             ? 'bg-green-100 text-green-800'
                             : 'bg-purple-100 text-purple-800'
                         }`}>
-                          {term.definitionSource === 'document' ? 'Z dokumentu' : 'Wygenerowane AI'}
+                          {term.definitionSource === 'document' ? t.fromDocument : t.generatedAI}
                         </span>
                         <button
                           onClick={() => handleManualDefinition(term.id)}
                           className="text-xs text-blue-600 hover:text-blue-800 underline"
                         >
-                          Edytuj
+                          {t.edit}
                         </button>
                       </div>
                     </div>
@@ -385,13 +390,13 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                         disabled={loadingDefinitions.has(term.id)}
                         className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 w-full"
                       >
-                        {loadingDefinitions.has(term.id) ? 'Generowanie...' : '🤖 Generuj AI'}
+                        {loadingDefinitions.has(term.id) ? t.generating : t.generateAI}
                       </button>
                       <button
                         onClick={() => handleManualDefinition(term.id)}
                         className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 w-full"
                       >
-                        ✎ Dodaj ręcznie
+                        {t.addManually}
                       </button>
                     </div>
                   )}
@@ -518,9 +523,9 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
       {languageDialogTerm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">W jakim języku wygenerować definicję?</h3>
+            <h3 className="text-lg font-semibold mb-4">{t.selectLanguageTitle}</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Termin: <strong>{languageDialogTerm.term}</strong>
+              {t.selectLanguageDescription} <strong>{languageDialogTerm.term}</strong>
             </p>
             <div className="grid grid-cols-2 gap-2 mb-4">
               <button
@@ -564,7 +569,7 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
               onClick={() => setLanguageDialogTerm(null)}
               className="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
             >
-              Anuluj
+              {t.cancel}
             </button>
           </div>
         </div>
