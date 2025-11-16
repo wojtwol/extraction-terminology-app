@@ -20,6 +20,8 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set())
   const [modalTerm, setModalTerm] = useState<Term | null>(null)
   const [currentOccurrence, setCurrentOccurrence] = useState(0)
+  const [languageDialogTerm, setLanguageDialogTerm] = useState<{id: string, term: string} | null>(null)
+  const [editingDefinition, setEditingDefinition] = useState<{id: string, value: string} | null>(null)
 
   // Automatyczny scroll do pierwszego wystąpienia po otwarciu modalu
   useEffect(() => {
@@ -147,7 +149,15 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
     return <p className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">{segments}</p>
   }
 
-  const handleGenerateDefinition = async (termId: string, termText: string) => {
+  const handleGenerateDefinitionClick = (termId: string, termText: string) => {
+    setLanguageDialogTerm({ id: termId, term: termText })
+  }
+
+  const handleGenerateDefinition = async (language: string) => {
+    if (!languageDialogTerm) return
+
+    const { id: termId, term: termText } = languageDialogTerm
+    setLanguageDialogTerm(null)
     setLoadingDefinitions(prev => new Set(prev).add(termId))
 
     try {
@@ -159,7 +169,8 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
         body: JSON.stringify({
           term: termText,
           documentText: documentText,
-          apiKey: apiKey
+          apiKey: apiKey,
+          language: language
         }),
       })
 
@@ -190,6 +201,29 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
         return newSet
       })
     }
+  }
+
+  const handleManualDefinition = (termId: string) => {
+    const term = terms.find(t => t.id === termId)
+    if (!term) return
+    setEditingDefinition({ id: termId, value: term.definition || '' })
+  }
+
+  const handleSaveDefinition = () => {
+    if (!editingDefinition) return
+
+    onUpdate(
+      terms.map(t =>
+        t.id === editingDefinition.id
+          ? {
+              ...t,
+              definition: editingDefinition.value,
+              definitionSource: 'document' as const
+            }
+          : t
+      )
+    )
+    setEditingDefinition(null)
   }
 
   return (
@@ -236,11 +270,11 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
           <thead>
             <tr className="bg-gray-100 border-b-2 border-gray-300">
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-8">#</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700">Termin</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-48">Termin</th>
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-20">Wystąpienia</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700">Definicja</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700">Kontekst</th>
-              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700 w-24">Akcje</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-80">Definicja</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-96">Kontekst</th>
+              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700 w-32">Akcje</th>
             </tr>
           </thead>
           <tbody>
@@ -300,31 +334,71 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 </td>
 
                 {/* Definicja */}
-                <td className="px-2 py-3 text-sm">
-                  {term.definition ? (
-                    <div>
+                <td className="px-2 py-3 text-sm max-w-80">
+                  {editingDefinition?.id === term.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editingDefinition.value}
+                        onChange={(e) => setEditingDefinition({ id: term.id, value: e.target.value })}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded h-20 resize-none"
+                        placeholder="Wprowadź definicję..."
+                        autoFocus
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          onClick={handleSaveDefinition}
+                          className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                        >
+                          ✓ Zapisz
+                        </button>
+                        <button
+                          onClick={() => setEditingDefinition(null)}
+                          className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                        >
+                          ✕ Anuluj
+                        </button>
+                      </div>
+                    </div>
+                  ) : term.definition ? (
+                    <div className="break-words group relative">
                       <p className="text-gray-700">{term.definition}</p>
-                      <span className={`text-xs mt-1 inline-block px-2 py-1 rounded ${
-                        term.definitionSource === 'document'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {term.definitionSource === 'document' ? 'Z dokumentu' : 'Wygenerowane AI'}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs inline-block px-2 py-1 rounded ${
+                          term.definitionSource === 'document'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {term.definitionSource === 'document' ? 'Z dokumentu' : 'Wygenerowane AI'}
+                        </span>
+                        <button
+                          onClick={() => handleManualDefinition(term.id)}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          Edytuj
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => handleGenerateDefinition(term.id, term.term)}
-                      disabled={loadingDefinitions.has(term.id)}
-                      className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400"
-                    >
-                      {loadingDefinitions.has(term.id) ? 'Generowanie...' : 'Generuj definicję'}
-                    </button>
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => handleGenerateDefinitionClick(term.id, term.term)}
+                        disabled={loadingDefinitions.has(term.id)}
+                        className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 w-full"
+                      >
+                        {loadingDefinitions.has(term.id) ? 'Generowanie...' : '🤖 Generuj AI'}
+                      </button>
+                      <button
+                        onClick={() => handleManualDefinition(term.id)}
+                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 w-full"
+                      >
+                        ✎ Dodaj ręcznie
+                      </button>
+                    </div>
                   )}
                 </td>
 
                 {/* Kontekst */}
-                <td className="px-3 py-3 text-sm text-gray-600 max-w-xs">
+                <td className="px-3 py-3 text-sm text-gray-600">
                   <div className="flex items-center gap-2">
                     <div className="truncate flex-1" title={term.context}>
                       {term.context}
@@ -436,6 +510,62 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog wyboru języka dla definicji */}
+      {languageDialogTerm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">W jakim języku wygenerować definicję?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Termin: <strong>{languageDialogTerm.term}</strong>
+            </p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button
+                onClick={() => handleGenerateDefinition('pl')}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                🇵🇱 Polski
+              </button>
+              <button
+                onClick={() => handleGenerateDefinition('en')}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                🇬🇧 English
+              </button>
+              <button
+                onClick={() => handleGenerateDefinition('de')}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                🇩🇪 Deutsch
+              </button>
+              <button
+                onClick={() => handleGenerateDefinition('fr')}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                🇫🇷 Français
+              </button>
+              <button
+                onClick={() => handleGenerateDefinition('es')}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                🇪🇸 Español
+              </button>
+              <button
+                onClick={() => handleGenerateDefinition('it')}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                🇮🇹 Italiano
+              </button>
+            </div>
+            <button
+              onClick={() => setLanguageDialogTerm(null)}
+              className="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+            >
+              Anuluj
+            </button>
           </div>
         </div>
       )}

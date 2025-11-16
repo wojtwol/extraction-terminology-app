@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { term, documentText, apiKey } = body
+    const { term, documentText, apiKey, language = 'pl' } = body
 
     if (!term || !documentText || !apiKey) {
       return NextResponse.json(
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     const anthropic = new Anthropic({ apiKey })
 
-    console.log(`🔍 Szukam definicji dla terminu: ${term}`)
+    console.log(`🔍 Szukam definicji dla terminu: ${term} (język: ${language})`)
 
     // Najpierw sprawdź czy definicja jest w dokumencie
     const documentCheckMessage = await anthropic.messages.create({
@@ -62,7 +62,7 @@ Zwróć TYLKO JSON:
     const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
       // Fallback - generuj AI
-      return await generateAIDefinition(anthropic, term, documentText)
+      return await generateAIDefinition(anthropic, term, documentText, language)
     }
 
     const checkResult = JSON.parse(jsonMatch[0])
@@ -77,7 +77,7 @@ Zwróć TYLKO JSON:
 
     // Nie znaleziono w dokumencie - generuj AI
     console.log('⚠️ Brak definicji w dokumencie, generuję AI')
-    return await generateAIDefinition(anthropic, term, documentText)
+    return await generateAIDefinition(anthropic, term, documentText, language)
 
   } catch (error: any) {
     console.error('❌ Błąd generowania definicji:', error)
@@ -88,14 +88,21 @@ Zwróć TYLKO JSON:
   }
 }
 
-async function generateAIDefinition(anthropic: Anthropic, term: string, documentText: string) {
-  const aiMessage = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 512,
-    messages: [
-      {
-        role: 'user',
-        content: `Na podstawie poniższego dokumentu wygeneruj krótką, precyzyjną definicję terminu "${term}".
+async function generateAIDefinition(anthropic: Anthropic, term: string, documentText: string, language: string) {
+  const languageNames: {[key: string]: string} = {
+    'pl': 'polskim',
+    'en': 'English',
+    'de': 'Deutsch',
+    'fr': 'français',
+    'es': 'español',
+    'it': 'italiano'
+  }
+
+  const langName = languageNames[language] || 'polskim'
+  const isPolish = language === 'pl'
+
+  const promptTemplate = isPolish
+    ? `Na podstawie poniższego dokumentu wygeneruj krótką, precyzyjną definicję terminu "${term}" w języku polskim.
 
 Wytyczne:
 - Definicja powinna mieć 1-2 zdania
@@ -106,7 +113,27 @@ Wytyczne:
 Dokument:
 ${documentText.slice(0, 20000)}
 
-Zwróć TYLKO tekst definicji, bez dodatkowych komentarzy.`
+Zwróć TYLKO tekst definicji po polsku, bez dodatkowych komentarzy.`
+    : `Based on the document below, generate a short, precise definition of the term "${term}" in ${langName}.
+
+Guidelines:
+- Definition should be 1-2 sentences
+- Should be based on the context of use in the document
+- Use professional but understandable language
+- Do not use phrases like "in this document", "according to the text" - provide only the definition
+
+Document:
+${documentText.slice(0, 20000)}
+
+Return ONLY the definition text in ${langName}, without additional comments.`
+
+  const aiMessage = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 512,
+    messages: [
+      {
+        role: 'user',
+        content: promptTemplate
       }
     ]
   })

@@ -194,15 +194,15 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     doc.text(`Data utworzenia: ${new Date().toLocaleDateString('pl-PL')}`, 14, 33)
     doc.text(`Liczba terminów: ${terms.length}`, 14, 38)
 
-    // Tabela
+    // Tabela - skróć definicje i konteksty dla lepszej czytelności
     const tableData = terms.map((term, index) => [
       (index + 1).toString(),
       term.term,
       term.occurrences.toString(),
-      term.definition || '-',
+      (term.definition || '-').substring(0, 150) + (term.definition && term.definition.length > 150 ? '...' : ''),
       term.definitionSource === 'document' ? 'Z dokumentu' :
        term.definitionSource === 'ai' ? 'AI' : '-',
-      (term.context || '').substring(0, 100) + (term.context && term.context.length > 100 ? '...' : '')
+      (term.context || '-').substring(0, 120) + (term.context && term.context.length > 120 ? '...' : '')
     ])
 
     autoTable(doc, {
@@ -211,26 +211,33 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       body: tableData,
       styles: {
         fontSize: 8,
-        cellPadding: 2,
-        font: 'helvetica'
+        cellPadding: 3,
+        font: 'helvetica',
+        overflow: 'linebreak',
+        cellWidth: 'wrap',
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1
       },
       headStyles: {
         fillColor: [0, 102, 204],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 9
+        fontSize: 9,
+        halign: 'center'
       },
       columnStyles: {
-        0: { cellWidth: 10 },  // Nr
-        1: { cellWidth: 40 },  // Termin
-        2: { cellWidth: 15 },  // Wystąpienia
-        3: { cellWidth: 70 },  // Definicja
-        4: { cellWidth: 25 },  // Źródło
-        5: { cellWidth: 70 }   // Kontekst
+        0: { cellWidth: 10, halign: 'center' },  // Nr
+        1: { cellWidth: 45, fontStyle: 'bold' },  // Termin - zwiększone
+        2: { cellWidth: 12, halign: 'center' },  // Wystąpienia - zmniejszone
+        3: { cellWidth: 85, fontSize: 7 },  // Definicja - zwiększone, mniejsza czcionka
+        4: { cellWidth: 22, halign: 'center', fontSize: 7 },  // Źródło - zmniejszone
+        5: { cellWidth: 85, fontSize: 7 }   // Kontekst - zwiększone, mniejsza czcionka
       },
       alternateRowStyles: {
         fillColor: [245, 245, 245]
-      }
+      },
+      margin: { left: 14, right: 14 },
+      tableWidth: 'auto'
     })
 
     doc.save(`${fileName}_glosariusz.pdf`)
