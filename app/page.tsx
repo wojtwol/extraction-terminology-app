@@ -75,6 +75,23 @@ export default function Home() {
   const [minLength, setMinLength] = useState(3)
   const [minOccurrences, setMinOccurrences] = useState(1)
 
+  // Wczytaj zapisany klucz API przy starcie
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('anthropic_api_key')
+    if (savedApiKey) {
+      setApiKey(savedApiKey)
+      console.log('🔑 Wczytano zapisany klucz API')
+    }
+  }, [])
+
+  // Zapisz klucz API przy zmianie
+  useEffect(() => {
+    if (apiKey && apiKey.startsWith('sk-ant-')) {
+      localStorage.setItem('anthropic_api_key', apiKey)
+      console.log('💾 Zapisano klucz API')
+    }
+  }, [apiKey])
+
   // Obsługa załadowania pliku/tekstu (bez ekstrakcji)
   const handleFileLoaded = (text: string, filename: string, key: string) => {
     setLoadedText(text)
@@ -252,7 +269,11 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Left side - Upload & Projects */}
           <div className="lg:col-span-2 space-y-4">
-            <FileUpload onExtract={handleFileLoaded} isLoading={isLoading} />
+            <FileUpload
+              onExtract={handleFileLoaded}
+              isLoading={isLoading}
+              savedApiKey={apiKey}
+            />
 
             {/* Panel podglądu */}
             {loadedText && !isLoading && terms.length === 0 && (

@@ -1,20 +1,28 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import mammoth from 'mammoth'
 import * as XLSX from 'xlsx'
 
 interface FileUploadProps {
   onExtract: (text: string, filename: string, apiKey: string) => void
   isLoading: boolean
+  savedApiKey?: string
 }
 
-export default function FileUpload({ onExtract, isLoading }: FileUploadProps) {
+export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUploadProps) {
   const [apiKey, setApiKey] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [inputMode, setInputMode] = useState<'file' | 'text'>('file')
   const [pastedText, setPastedText] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Ustaw zapisany klucz API jeśli jest dostępny
+  useEffect(() => {
+    if (savedApiKey && !apiKey) {
+      setApiKey(savedApiKey)
+    }
+  }, [savedApiKey])
 
   const extractTextFromFile = async (file: File): Promise<string> => {
     const extension = file.name.split('.').pop()?.toLowerCase()
@@ -129,9 +137,19 @@ export default function FileUpload({ onExtract, isLoading }: FileUploadProps) {
       </h2>
 
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Klucz API Anthropic
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Klucz API Anthropic
+          </label>
+          {savedApiKey && (
+            <span className="text-xs text-green-600 flex items-center gap-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Zapisany
+            </span>
+          )}
+        </div>
         <input
           type="password"
           value={apiKey}
@@ -140,7 +158,7 @@ export default function FileUpload({ onExtract, isLoading }: FileUploadProps) {
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <p className="text-xs text-gray-500 mt-1">
-          Pobierz klucz API z{' '}
+          Pobierz klucz z{' '}
           <a
             href="https://console.anthropic.com/"
             target="_blank"
@@ -149,6 +167,7 @@ export default function FileUpload({ onExtract, isLoading }: FileUploadProps) {
           >
             console.anthropic.com
           </a>
+          {' • '}Klucz jest automatycznie zapisywany lokalnie
         </p>
         <p className="text-xs text-gray-500 mt-2">
           <strong>Limity:</strong> Maksymalnie 200,000 znaków (~100 stron).
