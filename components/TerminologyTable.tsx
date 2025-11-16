@@ -18,6 +18,8 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set())
+  const [modalTerm, setModalTerm] = useState<Term | null>(null)
+  const [currentOccurrence, setCurrentOccurrence] = useState(0)
 
   const filteredTerms = terms.filter(term =>
     term.term.toLowerCase().includes(searchQuery.toLowerCase())
@@ -56,22 +58,83 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
     setEditValue('')
   }
 
-  const moveUp = (termId: string) => {
-    const currentIndex = terms.findIndex(t => t.id === termId)
-    if (currentIndex <= 0) return
-
-    const newTerms = [...terms]
-    ;[newTerms[currentIndex - 1], newTerms[currentIndex]] = [newTerms[currentIndex], newTerms[currentIndex - 1]]
-    onUpdate(newTerms)
+  const handleOpenModal = (term: Term) => {
+    setModalTerm(term)
+    setCurrentOccurrence(0)
   }
 
-  const moveDown = (termId: string) => {
-    const currentIndex = terms.findIndex(t => t.id === termId)
-    if (currentIndex === -1 || currentIndex === terms.length - 1) return
+  const handleCloseModal = () => {
+    setModalTerm(null)
+    setCurrentOccurrence(0)
+  }
 
-    const newTerms = [...terms]
-    ;[newTerms[currentIndex], newTerms[currentIndex + 1]] = [newTerms[currentIndex + 1], newTerms[currentIndex]]
-    onUpdate(newTerms)
+  const navigateNext = () => {
+    if (modalTerm && currentOccurrence < modalTerm.positions.length - 1) {
+      setCurrentOccurrence(prev => prev + 1)
+      // Scroll to occurrence
+      setTimeout(() => {
+        const element = document.getElementById(`occurrence-${currentOccurrence + 1}`)
+        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }
+
+  const navigatePrevious = () => {
+    if (currentOccurrence > 0) {
+      setCurrentOccurrence(prev => prev - 1)
+      // Scroll to occurrence
+      setTimeout(() => {
+        const element = document.getElementById(`occurrence-${currentOccurrence - 1}`)
+        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }
+
+  const renderModalContent = () => {
+    if (!modalTerm) return null
+
+    const termLength = modalTerm.term.length
+    const segments: JSX.Element[] = []
+    let lastIndex = 0
+
+    const sortedPositions = [...modalTerm.positions].sort((a, b) => a - b)
+
+    sortedPositions.forEach((position, idx) => {
+      if (position > lastIndex) {
+        segments.push(
+          <span key={`text-${idx}`}>
+            {documentText.substring(lastIndex, position)}
+          </span>
+        )
+      }
+
+      const isActive = idx === currentOccurrence
+      segments.push(
+        <span
+          key={`highlight-${idx}`}
+          id={`occurrence-${idx}`}
+          className={`${
+            isActive
+              ? 'bg-yellow-300 font-bold border-2 border-yellow-600'
+              : 'bg-yellow-100'
+          } px-0.5 rounded transition-all duration-200`}
+        >
+          {documentText.substring(position, position + termLength)}
+        </span>
+      )
+
+      lastIndex = position + termLength
+    })
+
+    if (lastIndex < documentText.length) {
+      segments.push(
+        <span key="text-end">
+          {documentText.substring(lastIndex)}
+        </span>
+      )
+    }
+
+    return <p className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">{segments}</p>
   }
 
   const handleGenerateDefinition = async (termId: string, termText: string) => {
@@ -162,12 +225,12 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-100 border-b-2 border-gray-300">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-8">#</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Termin</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-24">Wystąpienia</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Definicja</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Kontekst</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-32">Akcje</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-8">#</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700">Termin</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-20">Wystąpienia</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700">Definicja</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700">Kontekst</th>
+              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700 w-24">Akcje</th>
             </tr>
           </thead>
           <tbody>
@@ -178,10 +241,10 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                   selectedTermId === term.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
                 }`}
               >
-                <td className="px-4 py-3 text-sm text-gray-600">{index + 1}</td>
+                <td className="px-2 py-3 text-sm text-gray-600">{index + 1}</td>
 
                 {/* Termin */}
-                <td className="px-4 py-3">
+                <td className="px-3 py-3">
                   {editingId === term.id ? (
                     <div className="flex gap-2">
                       <input
@@ -218,14 +281,14 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 </td>
 
                 {/* Wystąpienia */}
-                <td className="px-4 py-3 text-sm text-gray-600 text-center">
-                  <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                <td className="px-2 py-3 text-sm text-gray-600 text-center">
+                  <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
                     {term.occurrences}
                   </span>
                 </td>
 
                 {/* Definicja */}
-                <td className="px-4 py-3 text-sm">
+                <td className="px-2 py-3 text-sm">
                   {term.definition ? (
                     <div>
                       <p className="text-gray-700">{term.definition}</p>
@@ -249,31 +312,24 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 </td>
 
                 {/* Kontekst */}
-                <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
-                  <div className="truncate" title={term.context}>
-                    {term.context}
+                <td className="px-3 py-3 text-sm text-gray-600 max-w-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="truncate flex-1" title={term.context}>
+                      {term.context}
+                    </div>
+                    <button
+                      onClick={() => handleOpenModal(term)}
+                      className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 whitespace-nowrap"
+                      title="Pokaż w dokumencie"
+                    >
+                      🔍 Pokaż
+                    </button>
                   </div>
                 </td>
 
                 {/* Akcje */}
-                <td className="px-4 py-3 text-center">
+                <td className="px-2 py-3 text-center">
                   <div className="flex justify-center gap-1">
-                    <button
-                      onClick={() => moveUp(term.id)}
-                      disabled={terms.findIndex(t => t.id === term.id) === 0}
-                      className="px-2 py-1 text-gray-700 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
-                      title="Przesuń w górę"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      onClick={() => moveDown(term.id)}
-                      disabled={terms.findIndex(t => t.id === term.id) === terms.length - 1}
-                      className="px-2 py-1 text-gray-700 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
-                      title="Przesuń w dół"
-                    >
-                      ↓
-                    </button>
                     <button
                       onClick={() => handleEdit(term)}
                       className="p-1 text-gray-600 hover:text-blue-600"
@@ -295,6 +351,82 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
           </tbody>
         </table>
       </div>
+
+      {/* Modal do przeglądania terminu w dokumencie */}
+      {modalTerm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Termin w dokumencie: {modalTerm.term}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Wystąpienie {currentOccurrence + 1} z {modalTerm.positions.length}
+                </p>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                title="Zamknij"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Nawigacja */}
+            <div className="flex items-center justify-center gap-4 p-4 border-b border-gray-200 bg-gray-50">
+              <button
+                onClick={navigatePrevious}
+                disabled={currentOccurrence === 0}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                ← Poprzednie
+              </button>
+              <span className="text-sm text-gray-700 font-medium">
+                {currentOccurrence + 1} / {modalTerm.positions.length}
+              </span>
+              <button
+                onClick={navigateNext}
+                disabled={currentOccurrence >= modalTerm.positions.length - 1}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                Następne →
+              </button>
+            </div>
+
+            {/* Treść dokumentu */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                {renderModalContent()}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between text-xs text-gray-600">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block bg-yellow-100 px-2 py-1 rounded">Żółty</span>
+                    = wystąpienia terminu
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block bg-yellow-300 border-2 border-yellow-600 px-2 py-1 rounded font-bold">Pogrubiony</span>
+                    = aktualne wystąpienie
+                  </span>
+                </div>
+                <button
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  Zamknij
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
