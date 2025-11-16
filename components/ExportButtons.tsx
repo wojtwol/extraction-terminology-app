@@ -527,10 +527,11 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     })
 
     // Dynamiczne szerokości kolumn w zależności od obecności definicji
-    const definitionWidth = hasDefinitions ? 70 : 35  // Zwężona o 50% gdy brak definicji
-    const sourceWidth = hasDefinitions ? 22 : 22
-    const contextWidth = hasDefinitions ? 95 : 130     // Rozszerzona gdy brak definicji
-    const occurrencesWidth = hasDefinitions ? 20 : 25  // Rozszerzona gdy brak definicji
+    // Dostępna szerokość strony: 210mm - 2*12mm margines = 186mm
+    const definitionWidth = hasDefinitions ? 50 : 20  // Zmniejszona aby zmieścić się na stronie
+    const sourceWidth = hasDefinitions ? 18 : 18
+    const contextWidth = hasDefinitions ? 55 : 85     // Zmniejszona aby zapobiec wychodzeniu poza tabelę
+    const occurrencesWidth = hasDefinitions ? 18 : 18
 
     // Profesjonalna tabela w odcieniach szarości - ZAWSZE po angielsku
     autoTable(doc, {
@@ -539,8 +540,8 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
       body: tableData,
       theme: 'striped',
       styles: {
-        fontSize: 7.5,
-        cellPadding: 2.5,
+        fontSize: 7,
+        cellPadding: 2,
         font: 'helvetica',
         overflow: 'linebreak',
         cellWidth: 'wrap',
@@ -563,12 +564,12 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
         lineColor: [60, 60, 60]
       },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [80, 80, 80] },
-        1: { cellWidth: 42, fontStyle: 'bold', textColor: [20, 20, 20], overflow: 'linebreak', cellPadding: 2 },
+        0: { cellWidth: 8, halign: 'center', valign: 'middle', fontStyle: 'normal', textColor: [80, 80, 80] },
+        1: { cellWidth: 35, fontStyle: 'bold', textColor: [20, 20, 20], overflow: 'linebreak', cellPadding: 2 },
         2: { cellWidth: occurrencesWidth, halign: 'center', valign: 'middle' },
-        3: { cellWidth: definitionWidth, fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
+        3: { cellWidth: definitionWidth, fontSize: 6.5, overflow: 'linebreak', cellPadding: 2 },
         4: { cellWidth: sourceWidth, halign: 'center', fontSize: 7, textColor: [80, 80, 80] },
-        5: { cellWidth: contextWidth, fontSize: 7, overflow: 'linebreak', cellPadding: 2 }
+        5: { cellWidth: contextWidth, fontSize: 6.5, overflow: 'linebreak', cellPadding: 2, minCellWidth: 55 }
       },
       alternateRowStyles: {
         fillColor: [245, 245, 245]
