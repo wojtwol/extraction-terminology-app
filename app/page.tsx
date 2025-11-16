@@ -23,6 +23,7 @@ export default function Home() {
     setIsLoading(true)
     setDocumentText(text)
     setFileName(filename)
+    setTerms([]) // Wyczyść poprzednie wyniki
 
     try {
       const response = await fetch('/api/extract-terminology', {
@@ -40,15 +41,29 @@ export default function Home() {
         }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Błąd podczas ekstrakcji terminologii')
+        // Wyświetl szczegółowy błąd z API
+        const errorMessage = data.error || 'Nieznany błąd podczas ekstrakcji'
+        throw new Error(errorMessage)
       }
 
-      const data = await response.json()
-      setTerms(data.terms || [])
+      if (!data.terms || data.terms.length === 0) {
+        alert('Nie znaleziono terminów w dokumencie. Spróbuj z innym dokumentem.')
+        return
+      }
+
+      setTerms(data.terms)
+      console.log(`✅ Wyekstrahowano ${data.terms.length} terminów`)
+
     } catch (error) {
-      console.error('Error:', error)
-      alert('Wystąpił błąd podczas ekstrakcji terminologii')
+      console.error('❌ Błąd ekstrakcji:', error)
+
+      const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
+
+      // Wyświetl przyjazny komunikat błędu
+      alert(`❌ Błąd ekstrakcji:\n\n${errorMessage}\n\nSprawdź:\n• Czy klucz API jest poprawny\n• Czy masz aktywną subskrypcję Anthropic\n• Czy dokument zawiera tekst\n• Konsolę przeglądarki (F12) dla szczegółów`)
     } finally {
       setIsLoading(false)
     }
