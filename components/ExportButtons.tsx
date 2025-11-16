@@ -249,51 +249,45 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-        2. Eksportuj glosariusz
-      </h2>
+    <>
+      <button
+        onClick={exportToXLSX}
+        className="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
+      >
+        📊 Excel (XLSX)
+      </button>
 
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={exportToXLSX}
-          className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium shadow-md"
-        >
-          📊 Excel (XLSX)
-        </button>
+      <button
+        onClick={exportToPDF}
+        className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+      >
+        📄 PDF
+      </button>
 
-        <button
-          onClick={exportToPDF}
-          className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-md"
-        >
-          📄 PDF
-        </button>
+      <button
+        onClick={exportToCSV}
+        className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+      >
+        📊 CSV
+      </button>
 
-        <button
-          onClick={exportToCSV}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-        >
-          📊 CSV
-        </button>
+      <button
+        onClick={exportToHTML}
+        className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+      >
+        🌐 HTML
+      </button>
 
-        <button
-          onClick={exportToHTML}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          🌐 HTML
-        </button>
+      <button
+        onClick={exportToJSON}
+        className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
+      >
+        📄 JSON
+      </button>
 
-        <button
-          onClick={exportToJSON}
-          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium col-span-2"
-        >
-          📄 JSON
-        </button>
-      </div>
-
-      <p className="text-sm text-gray-500 mt-4">
-        <strong>XLSX i PDF</strong> zawierają definicje i oznaczenia źródła
+      <p className="text-xs text-gray-500 mt-2">
+        <strong>XLSX i PDF</strong> zawierają definicje
       </p>
-    </div>
+    </>
   )
 }

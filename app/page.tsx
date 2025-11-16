@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
+import ProjectManager from '@/components/ProjectManager'
+import { Project, projectStorage } from '@/utils/projectStorage'
 
 export interface Term {
   id: string
@@ -62,6 +64,10 @@ export default function Home() {
   // Nowy state - załadowany tekst przed ekstrakcją
   const [loadedText, setLoadedText] = useState('')
   const [loadedFileName, setLoadedFileName] = useState('')
+
+  // Projekty
+  const [currentProject, setCurrentProject] = useState<Project | null>(null)
+  const [projectName, setProjectName] = useState('')
 
   // Obsługa załadowania pliku/tekstu (bez ekstrakcji)
   const handleFileLoaded = (text: string, filename: string, key: string) => {
@@ -166,111 +172,198 @@ export default function Home() {
     setTerms(updatedTerms)
   }
 
-  return (
-    <main className="min-h-screen p-8 bg-gradient-to-b from-gray-100 to-white">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">
-          IURIDICO EJ GTEXTT
-        </h1>
-        <p className="text-gray-600 mb-1 text-sm font-medium">
-          Glossary and Terminology Extraction Tool
-        </p>
-        <p className="text-gray-500 mb-8 text-sm">
-          Profesjonalne narzędzie do ekstrakcji terminologii i tworzenia glosariuszy
-        </p>
+  // Automatyczne zapisywanie projektu
+  useEffect(() => {
+    if (currentProject && terms.length > 0) {
+      projectStorage.update(currentProject.id, {
+        terms,
+        name: projectName || currentProject.name,
+        documentText,
+        fileName,
+        detectedLanguage
+      })
+    }
+  }, [terms, projectName])
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
+  // Zapisz jako nowy projekt
+  const handleSaveProject = () => {
+    const name = prompt('Nazwa projektu:', fileName || 'Nowy glosariusz')
+    if (!name) return
+
+    const project = projectStorage.save({
+      name,
+      fileName,
+      documentText,
+      detectedLanguage,
+      terms
+    })
+
+    setCurrentProject(project)
+    setProjectName(name)
+    alert('Projekt został zapisany!')
+  }
+
+  // Wczytaj projekt
+  const handleLoadProject = (project: Project) => {
+    setCurrentProject(project)
+    setProjectName(project.name)
+    setFileName(project.fileName)
+    setDocumentText(project.documentText)
+    setDetectedLanguage(project.detectedLanguage)
+    setTerms(project.terms)
+    setLoadedText('')
+    setLoadedFileName('')
+  }
+
+  // Nowy projekt
+  const handleNewProject = () => {
+    setCurrentProject(null)
+    setProjectName('')
+    setTerms([])
+    setDocumentText('')
+    setFileName('')
+    setDetectedLanguage('')
+    setLoadedText('')
+    setLoadedFileName('')
+  }
+
+  return (
+    <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
+      <div className="max-w-[1600px] mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-1">
+            IURIDICO EJ GTEXTT
+          </h1>
+          <p className="text-gray-600 text-sm font-medium">
+            Glossary and Terminology Extraction Tool
+          </p>
+        </div>
+
+        {/* Top Section - Upload & Projects (left) + Export (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          {/* Left side - Upload & Projects */}
+          <div className="lg:col-span-2 space-y-4">
             <FileUpload onExtract={handleFileLoaded} isLoading={isLoading} />
 
-            {/* Panel podglądu załadowanego dokumentu */}
+            {/* Panel podglądu */}
             {loadedText && !isLoading && terms.length === 0 && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-                  2. Podgląd dokumentu
-                </h2>
+              <div className="bg-white rounded-lg shadow-lg p-4">
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">
+                  Podgląd dokumentu
+                </h3>
 
-                <div className="space-y-3 mb-4">
-                  <div className="flex justify-between text-sm">
+                <div className="grid grid-cols-3 gap-3 mb-3 text-sm">
+                  <div>
                     <span className="text-gray-600">Plik:</span>
-                    <span className="font-medium text-gray-800">{loadedFileName}</span>
+                    <p className="font-medium text-gray-800 truncate">{loadedFileName}</p>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div>
                     <span className="text-gray-600">Rozmiar:</span>
-                    <span className="font-medium text-gray-800">
-                      {loadedText.length.toLocaleString()} znaków
-                    </span>
+                    <p className="font-medium text-gray-800">{loadedText.length.toLocaleString()} znaków</p>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Wykryty język:</span>
-                    <span className="font-medium text-blue-600">{detectedLanguage}</span>
+                  <div>
+                    <span className="text-gray-600">Język:</span>
+                    <p className="font-medium text-blue-600">{detectedLanguage}</p>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-4 mb-4 max-h-32 overflow-y-auto">
-                  <p className="text-sm text-gray-700 font-mono whitespace-pre-wrap">
-                    {loadedText.substring(0, 300)}
-                    {loadedText.length > 300 && '...'}
+                <div className="bg-gray-50 rounded p-3 mb-3 max-h-24 overflow-y-auto">
+                  <p className="text-xs text-gray-700 font-mono whitespace-pre-wrap">
+                    {loadedText.substring(0, 200)}{loadedText.length > 200 && '...'}
                   </p>
                 </div>
 
                 <button
                   onClick={handleStartExtraction}
-                  className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg shadow-md hover:shadow-lg"
+                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md"
                 >
                   Utwórz glosariusz
                 </button>
               </div>
             )}
 
-            {terms.length > 0 && (
-              <ExportButtons
-                terms={terms}
-                fileName={fileName}
-                documentText={documentText}
-              />
-            )}
+            <ProjectManager
+              currentProject={currentProject}
+              onLoadProject={handleLoadProject}
+              onNewProject={handleNewProject}
+            />
           </div>
 
-          <div>
-            {isLoading ? (
-              <div className="bg-white rounded-lg shadow-lg p-8">
-                <div className="text-center mb-6">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600 font-medium">Ekstrakcja terminologii w toku...</p>
-                  <p className="text-sm text-gray-500 mt-2">To może potrwać chwilę dla dużych dokumentów</p>
+          {/* Right side - Export (compact) */}
+          <div className="space-y-4">
+            {terms.length > 0 && (
+              <>
+                <div className="bg-white rounded-lg shadow-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
+                    Akcje
+                  </h3>
+                  <button
+                    onClick={handleSaveProject}
+                    disabled={terms.length === 0}
+                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 mb-2"
+                  >
+                    {currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt'}
+                  </button>
                 </div>
 
-                {/* Progress bar */}
-                <div className="w-full">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-gray-600">Postęp:</span>
-                    <span className="text-sm font-semibold text-blue-600">{progress}%</span>
+                <div className="bg-white rounded-lg shadow-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
+                    Eksport
+                  </h3>
+                  <div className="space-y-2">
+                    <ExportButtons
+                      terms={terms}
+                      fileName={fileName}
+                      documentText={documentText}
+                    />
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                </div>
+              </>
+            )}
+
+            {isLoading && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="text-center mb-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                  <p className="text-sm text-gray-600">Ekstrakcja w toku...</p>
+                </div>
+                <div className="w-full">
+                  <div className="flex justify-between mb-1 text-xs">
+                    <span className="text-gray-600">Postęp:</span>
+                    <span className="font-semibold text-blue-600">{progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     ></div>
                   </div>
                 </div>
               </div>
-            ) : terms.length > 0 ? (
-              <TerminologyTable
-                terms={terms}
-                onUpdate={handleTermUpdate}
-                documentText={documentText}
-                apiKey={apiKey}
-              />
-            ) : (
-              <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-                <p className="text-gray-500">
-                  {loadedText ? 'Kliknij "Utwórz glosariusz" aby rozpocząć' : 'Załaduj dokument, aby wyekstrahować terminologię'}
-                </p>
-              </div>
             )}
           </div>
         </div>
+
+        {/* Bottom Section - Glossary Table (full width) */}
+        {terms.length > 0 && !isLoading && (
+          <div className="w-full">
+            <TerminologyTable
+              terms={terms}
+              onUpdate={handleTermUpdate}
+              documentText={documentText}
+              apiKey={apiKey}
+            />
+          </div>
+        )}
+
+        {!isLoading && terms.length === 0 && !loadedText && (
+          <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+            <p className="text-gray-500 text-lg">
+              Załaduj dokument lub wklej tekst, aby rozpocząć
+            </p>
+          </div>
+        )}
       </div>
     </main>
   )
