@@ -254,7 +254,7 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                 <td className="px-2 py-3 text-sm text-gray-600">{index + 1}</td>
 
                 {/* Termin */}
-                <td className="px-3 py-3 max-w-xs">
+                <td className={`px-3 py-3 ${term.term.split(' ').length >= 4 ? 'max-w-xs' : ''}`}>
                   {editingId === term.id ? (
                     <div className="flex gap-2">
                       <input
@@ -280,11 +280,12 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                   ) : (
                     <span
                       onClick={() => onTermSelect?.(term)}
-                      className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors break-words ${
-                        selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
+                      className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
+                        term.term.split(' ').length >= 4 ? 'break-words' : ''
+                      } ${selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
                       }`}
                       title="Kliknij, aby wyświetlić w dokumencie"
-                      style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                      style={term.term.split(' ').length >= 4 ? { wordBreak: 'break-word', overflowWrap: 'break-word' } : {}}
                     >
                       {term.term}
                     </span>
