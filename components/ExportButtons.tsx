@@ -286,7 +286,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     // Dynamiczne szerokości kolumn w zależności od obecności definicji
     const definitionColWidth = hasDefinitions ? 70 : 12   // Szerokość tytułu "Definicja" gdy brak danych
     const sourceColWidth = hasDefinitions ? 18 : 18       // Szerokość tytułu "Źródło definicji"
-    const contextColWidth = hasDefinitions ? 60 : 120     // Zwężona do 60 gdy są definicje, rozszerzona gdy brak
+    const contextColWidth = hasDefinitions ? 45 : 90      // Zwężona o 25% (60→45, 120→90)
 
     ws['!cols'] = [
       { wch: 20 },                 // Kolumna A - Nr
@@ -535,7 +535,7 @@ export default function ExportButtons({ terms, fileName, documentText }: ExportB
     // Profesjonalna tabela w odcieniach szarości - ZAWSZE po angielsku
     autoTable(doc, {
       startY: 32,
-      head: [['No.', 'Term', 'Count', 'Definition', 'Source', 'Context']],
+      head: [['No.', 'Term', 'Number of\noccurrences', 'Definition', 'Source of\ndefinition', 'Context']],
       body: tableData,
       theme: 'striped',
       styles: {
