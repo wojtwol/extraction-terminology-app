@@ -7,6 +7,7 @@ import ModeSelector from '@/components/ModeSelector'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
 import DocumentViewer from '@/components/DocumentViewer'
+import DocumentSplitView from '@/components/DocumentSplitView'
 import GlossaryManager from '@/components/GlossaryManager'
 import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
@@ -647,6 +648,48 @@ export default function Home() {
     }
   }
 
+  // Handler dla Quick Add - dodawanie target term przez zaznaczenie tekstu
+  const handleQuickAddTarget = (termId: string, targetTerm: string) => {
+    if (!currentProject || !currentGlossary) return
+
+    const updatedTerms = terms.map(t =>
+      t.id === termId
+        ? {
+            ...t,
+            targetTerm,
+            targetSource: 'manual' as const,
+            targetContext: undefined,
+            targetOccurrences: 0,
+            targetPositions: []
+          }
+        : t
+    )
+
+    // Zapisz jako nową wersję
+    if (currentVersion) {
+      const description = language === 'pl'
+        ? `Dodano ręcznie: "${targetTerm}" dla "${terms.find(t => t.id === termId)?.term}"`
+        : `Manually added: "${targetTerm}" for "${terms.find(t => t.id === termId)?.term}"`
+
+      projectStorage.addVersion(
+        currentProject.id,
+        currentGlossary.id,
+        updatedTerms,
+        description,
+        currentVersion.extractionParams,
+        false
+      )
+
+      const updated = projectStorage.getById(currentProject.id)
+      if (updated) {
+        setCurrentProject(updated)
+        refreshGlossary()
+      }
+    }
+
+    console.log(`✅ Quick Add: "${targetTerm}" jako target dla terminu ID ${termId}`)
+  }
+
   // Ekran wyboru projektu - pokazuj jeśli nie ma wybranego projektu
   if (!currentProject) {
     const allProjects = projectStorage.getAll().sort((a, b) =>
@@ -1283,7 +1326,19 @@ export default function Home() {
               bilingualStage={bilingualStage}
             />
 
-            {documentText && (
+            {/* Document viewers - bilingual vs monolingual */}
+            {glossaryMode === 'bilingual' && bilingualStage === 2 && sourceDocumentText && targetDocumentText ? (
+              <DocumentSplitView
+                sourceDocument={sourceDocumentText}
+                targetDocument={targetDocumentText}
+                sourceLanguage={sourceLanguage}
+                targetLanguage={targetLanguage}
+                terms={terms}
+                selectedTerm={selectedTerm}
+                onQuickAddTarget={handleQuickAddTarget}
+                onTermSelect={setSelectedTerm}
+              />
+            ) : documentText ? (
               <DocumentViewer
                 documentText={documentText}
                 selectedTerm={selectedTerm}
@@ -1291,7 +1346,7 @@ export default function Home() {
                 terms={terms}
                 onAddTermFromSelection={handleManualAddTerm}
               />
-            )}
+            ) : null}
           </div>
         )}
 
