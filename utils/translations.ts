@@ -326,7 +326,7 @@ export const translations: Record<Language, Translations> = {
     extractionParamsDescription: 'Set the range of terms to extract',
 
     // FileUpload
-    loadDocument: 'Load Document',
+    loadDocument: 'Upload Source Document',
     apiKeyRequired: 'Anthropic API Key (required)',
     apiKeyHint: 'Get your key from',
     getApiKey: 'Get API Key',
