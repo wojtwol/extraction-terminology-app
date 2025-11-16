@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    const { text, apiKey, minTerms = 10, maxTerms = 100, minLength = 3 } = body
+    const { text, apiKey, minTerms = 10, maxTerms = 100, minLength = 3, minOccurrences = 1 } = body
 
     // Walidacja
     if (!text) {
@@ -80,15 +80,22 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych terminów specjalistycznych z tekstu (min ${minLength} znaki, formy podstawowe, jedno i wielowyrazowe).
+          content: `Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych terminów specjalistycznych z tekstu.
+
+Kryteria:
+- Minimum ${minLength} znaków
+- Minimum ${minOccurrences} wystąpień w tekście
+- Formy podstawowe (mianownik l.p. dla rzeczowników)
+- Terminy jedno i wielowyrazowe
+- Priorytet: terminy częste, kluczowe dla treści
 
 Zwróć TYLKO JSON (bez markdown):
 {
   "terms": [
     {
       "term": "termin w formie podstawowej",
-      "context": "krótki kontekst",
-      "occurrences": 1
+      "context": "krótki kontekst (1-2 zdania)",
+      "occurrences": liczba_wystąpień
     }
   ]
 }
@@ -145,10 +152,10 @@ ${text}`
       )
     }
 
-    console.log(`📊 Znaleziono ${parsedResponse.terms.length} terminów`)
+    console.log(`📊 Znaleziono ${parsedResponse.terms.length} terminów z Claude`)
 
     // Przetwórz terminy i znajdź ich pozycje w tekście
-    const processedTerms: Term[] = parsedResponse.terms
+    const allTerms = parsedResponse.terms
       .filter((term: any) => term && term.term) // Filtruj puste terminy
       .map((term: any, index: number) => {
         const positions = findTermPositions(text, term.term)
@@ -160,6 +167,13 @@ ${text}`
           positions: positions
         }
       })
+
+    console.log(`🔍 Przed filtrowaniem: ${allTerms.length} terminów`)
+
+    // Filtruj według minimalnej liczby wystąpień
+    const processedTerms: Term[] = allTerms.filter((term: Term) => term.occurrences >= minOccurrences)
+
+    console.log(`✂️  Po filtrowaniu (min ${minOccurrences} wystąpień): ${processedTerms.length} terminów`)
 
     // Sortuj alfabetycznie
     processedTerms.sort((a, b) => a.term.localeCompare(b.term, 'pl'))

@@ -69,6 +69,12 @@ export default function Home() {
   const [currentProject, setCurrentProject] = useState<Project | null>(null)
   const [projectName, setProjectName] = useState('')
 
+  // Parametry ekstrakcji
+  const [minTerms, setMinTerms] = useState(10)
+  const [maxTerms, setMaxTerms] = useState(100)
+  const [minLength, setMinLength] = useState(3)
+  const [minOccurrences, setMinOccurrences] = useState(1)
+
   // Obsługa załadowania pliku/tekstu (bez ekstrakcji)
   const handleFileLoaded = (text: string, filename: string, key: string) => {
     setLoadedText(text)
@@ -113,9 +119,10 @@ export default function Home() {
         body: JSON.stringify({
           text: loadedText,
           apiKey,
-          minTerms: 10,
-          maxTerms: 100,
-          minLength: 3,
+          minTerms,
+          maxTerms,
+          minLength,
+          minOccurrences,
           caseSensitive: false
         }),
       })
@@ -271,6 +278,73 @@ export default function Home() {
                 <div className="bg-gray-50 rounded p-3 mb-3 max-h-24 overflow-y-auto">
                   <p className="text-xs text-gray-700 font-mono whitespace-pre-wrap">
                     {loadedText.substring(0, 200)}{loadedText.length > 200 && '...'}
+                  </p>
+                </div>
+
+                {/* Parametry ekstrakcji */}
+                <div className="bg-blue-50 rounded-lg p-3 mb-3 border border-blue-200">
+                  <h4 className="text-sm font-semibold text-gray-800 mb-2">Parametry ekstrakcji</h4>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-700 mb-1">
+                        Min. liczba terminów
+                      </label>
+                      <input
+                        type="number"
+                        value={minTerms}
+                        onChange={(e) => setMinTerms(Math.max(1, parseInt(e.target.value) || 1))}
+                        min="1"
+                        max={maxTerms}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-700 mb-1">
+                        Maks. liczba terminów
+                      </label>
+                      <input
+                        type="number"
+                        value={maxTerms}
+                        onChange={(e) => setMaxTerms(Math.max(minTerms, parseInt(e.target.value) || 10))}
+                        min={minTerms}
+                        max="500"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-700 mb-1">
+                        Min. długość terminu (znaki)
+                      </label>
+                      <input
+                        type="number"
+                        value={minLength}
+                        onChange={(e) => setMinLength(Math.max(1, parseInt(e.target.value) || 3))}
+                        min="1"
+                        max="20"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-700 mb-1">
+                        Min. liczba wystąpień
+                      </label>
+                      <input
+                        type="number"
+                        value={minOccurrences}
+                        onChange={(e) => setMinOccurrences(Math.max(1, parseInt(e.target.value) || 1))}
+                        min="1"
+                        max="10"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-600 mt-2">
+                    Aplikacja będzie dążyć do maksymalnej liczby terminów spełniających kryteria.
                   </p>
                 </div>
 
