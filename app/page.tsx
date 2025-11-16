@@ -733,6 +733,25 @@ export default function Home() {
             <p className="text-gray-600 text-sm font-medium">
               {t.subtitle}
             </p>
+            {glossaryMode === 'bilingual' && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 text-xs font-semibold rounded-full">
+                  {language === 'pl' ? 'Tryb dwujęzyczny' : 'Bilingual Mode'}
+                </span>
+                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                  bilingualStage === 1
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-purple-100 text-purple-800'
+                }`}>
+                  {bilingualStage === 1
+                    ? (language === 'pl' ? 'Etap 1: Glosariusz bazowy' : 'Stage 1: Base Glossary')
+                    : (language === 'pl' ? 'Etap 2: Wyszukiwanie ekwiwalentów' : 'Stage 2: Finding Equivalents')}
+                </span>
+                <span className="text-xs text-gray-600">
+                  {sourceLanguage} → {targetLanguage}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -812,6 +831,68 @@ export default function Home() {
                       ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
                       : (currentProject ? 'Save changes' : 'Save as project')}
                   </button>
+
+                  {/* Bilingual Workflow Buttons - Stage 1 */}
+                  {glossaryMode === 'bilingual' && bilingualStage === 1 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <p className="text-xs text-gray-600 mb-3">
+                        {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 1' : 'Bilingual Glossary - Stage 1'}
+                      </p>
+                      <button
+                        onClick={() => {
+                          const confirmMsg = language === 'pl'
+                            ? 'Zatwierdzić glosariusz bazowy i przejść do wyszukiwania ekwiwalentów?'
+                            : 'Approve base glossary and proceed to finding equivalents?'
+                          if (confirm(confirmMsg)) {
+                            setBilingualStage(2)
+                            console.log('✅ Glosariusz bazowy zatwierdzony, przejście do Stage 2')
+                          }
+                        }}
+                        disabled={terms.length === 0}
+                        className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
+                      >
+                        ✓ {language === 'pl' ? 'Zatwierdź glosariusz bazowy' : 'Approve Base Glossary'}
+                      </button>
+                      <p className="text-xs text-gray-500 italic">
+                        {language === 'pl'
+                          ? 'Po zatwierdzeniu będziesz mógł wyszukiwać ekwiwalenty w dokumencie docelowym'
+                          : 'After approval you can find equivalents in target document'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Bilingual Workflow Buttons - Stage 2 */}
+                  {glossaryMode === 'bilingual' && bilingualStage === 2 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <p className="text-xs text-gray-600 mb-3">
+                        {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 2' : 'Bilingual Glossary - Stage 2'}
+                      </p>
+                      <button
+                        onClick={() => {
+                          alert(language === 'pl'
+                            ? 'Wyszukiwanie ekwiwalentów - wkrótce dostępne!'
+                            : 'Finding equivalents - coming soon!')
+                        }}
+                        disabled={terms.length === 0}
+                        className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
+                      >
+                        🔍 {language === 'pl' ? 'Znajdź wszystkie ekwiwalenty' : 'Find All Equivalents'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const confirmMsg = language === 'pl'
+                            ? 'Wrócić do edycji glosariusza bazowego?'
+                            : 'Return to editing base glossary?'
+                          if (confirm(confirmMsg)) {
+                            setBilingualStage(1)
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                      >
+                        ← {language === 'pl' ? 'Powrót do Etapu 1' : 'Back to Stage 1'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-white rounded-lg shadow-lg p-4">
