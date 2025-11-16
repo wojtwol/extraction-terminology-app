@@ -19,37 +19,60 @@ export interface Term {
 
 // Funkcja do wykrywania języka
 function detectLanguage(text: string): string {
-  const sample = text.slice(0, 1000).toLowerCase()
+  const sample = text.slice(0, 3000).toLowerCase()
 
-  // Polskie znaki i słowa
+  // Polskie znaki - silny wskaźnik
   const polishChars = /[ąćęłńóśźż]/
-  const polishWords = /\b(i|w|z|na|do|od|dla|że|się|nie|jest|są|oraz|przez)\b/g
+  const hasPolishChars = polishChars.test(sample)
 
-  // Angielskie słowa
-  const englishWords = /\b(the|and|or|in|on|at|to|for|of|with|is|are|be|have|has)\b/g
+  // Specyficzne słowa dla każdego języka (bardziej unikalne)
+  const polishWords = /\b(oraz|przez|które|został|została|zostały|zgodnie|sposób|może|każdy|wszystkie|należy|powinien|niniejsz)\b/g
+  const englishWords = /\b(the|and|which|shall|should|may|must|however|therefore|any|such|between|including|under)\b/g
+  const germanWords = /\b(der|die|das|und|auch|oder|aber|werden|können|soll|alle|zwischen|sowie|gemäß)\b/g
+  const frenchWords = /\b(les|des|une|qui|sont|peut|tous|entre|selon|ainsi|donc|avec|dans|pour)\b/g
 
-  // Niemieckie
-  const germanWords = /\b(der|die|das|und|oder|mit|von|in|zu|für|ist|sind)\b/g
-
-  // Francuskie
-  const frenchWords = /\b(le|la|les|de|du|et|ou|dans|pour|avec|est|sont)\b/g
-
-  if (polishChars.test(sample)) return 'Polski'
-
+  // Licytowanie słów
   const polishCount = (sample.match(polishWords) || []).length
   const englishCount = (sample.match(englishWords) || []).length
   const germanCount = (sample.match(germanWords) || []).length
   const frenchCount = (sample.match(frenchWords) || []).length
 
-  const max = Math.max(polishCount, englishCount, germanCount, frenchCount)
+  console.log('🔍 Wykrywanie języka:')
+  console.log(`   Polski: ${polishCount} słów${hasPolishChars ? ' + polskie znaki ✓' : ''}`)
+  console.log(`   Angielski: ${englishCount} słów`)
+  console.log(`   Niemiecki: ${germanCount} słów`)
+  console.log(`   Francuski: ${frenchCount} słów`)
 
-  if (max === 0) return 'Nieznany'
-  if (max === polishCount) return 'Polski'
-  if (max === englishCount) return 'Angielski'
-  if (max === germanCount) return 'Niemiecki'
-  if (max === frenchCount) return 'Francuski'
+  // Jeśli są polskie znaki, to prawie na pewno polski
+  if (hasPolishChars && polishCount >= 2) {
+    console.log('✅ Wykryto: Polski (polskie znaki + słowa)')
+    return 'Polski'
+  }
 
-  return 'Nieznany'
+  // Jeśli są polskie znaki ale mało polskich słów, może być błąd
+  if (hasPolishChars) {
+    console.log('⚠️  Polskie znaki ale mało polskich słów - możliwe tłumaczenie')
+  }
+
+  const scores = {
+    Polski: polishCount,
+    Angielski: englishCount,
+    Niemiecki: germanCount,
+    Francuski: frenchCount
+  }
+
+  const maxScore = Math.max(polishCount, englishCount, germanCount, frenchCount)
+
+  if (maxScore === 0) {
+    console.log('❌ Nie wykryto języka')
+    return 'Nieznany'
+  }
+
+  // Znajdź język z najwyższym wynikiem
+  const detectedLang = Object.entries(scores).find(([_, score]) => score === maxScore)?.[0] || 'Nieznany'
+
+  console.log(`✅ Wykryto: ${detectedLang} (${maxScore} dopasowań)`)
+  return detectedLang
 }
 
 export default function Home() {
