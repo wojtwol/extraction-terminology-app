@@ -1324,6 +1324,10 @@ export default function Home() {
               selectedTermId={selectedTerm?.id}
               glossaryMode={glossaryMode}
               bilingualStage={bilingualStage}
+              sourceDocument={sourceDocumentText}
+              targetDocument={targetDocumentText}
+              sourceLanguage={sourceLanguage}
+              targetLanguage={targetLanguage}
             />
 
             {/* Document viewers - bilingual vs monolingual */}

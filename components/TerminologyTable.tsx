@@ -13,15 +13,33 @@ interface TerminologyTableProps {
   selectedTermId?: string | null
   glossaryMode?: 'monolingual' | 'bilingual' | null
   bilingualStage?: 1 | 2
+  sourceDocument?: string
+  targetDocument?: string
+  sourceLanguage?: string
+  targetLanguage?: string
 }
 
-export default function TerminologyTable({ terms, onUpdate, documentText, apiKey, onTermSelect, selectedTermId, glossaryMode, bilingualStage }: TerminologyTableProps) {
+export default function TerminologyTable({
+  terms,
+  onUpdate,
+  documentText,
+  apiKey,
+  onTermSelect,
+  selectedTermId,
+  glossaryMode,
+  bilingualStage,
+  sourceDocument,
+  targetDocument,
+  sourceLanguage,
+  targetLanguage
+}: TerminologyTableProps) {
   const { t, language } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences'>('alphabetical')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set())
+  const [loadingTargetTerms, setLoadingTargetTerms] = useState<Set<string>>(new Set())
   const [modalTerm, setModalTerm] = useState<Term | null>(null)
   const [currentOccurrence, setCurrentOccurrence] = useState(0)
   const [languageDialogTerm, setLanguageDialogTerm] = useState<{id: string, term: string} | null>(null)
@@ -300,6 +318,77 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
     setEditingTargetTerm(null)
   }
 
+  const handleGenerateTargetTerm = async (termId: string) => {
+    if (!sourceDocument || !targetDocument || !sourceLanguage || !targetLanguage) {
+      alert(language === 'pl'
+        ? 'Brak wymaganych dokumentów lub języków'
+        : 'Missing required documents or languages')
+      return
+    }
+
+    const term = terms.find(t => t.id === termId)
+    if (!term) return
+
+    setLoadingTargetTerms(prev => new Set(prev).add(termId))
+
+    try {
+      // Oblicz pozycję terminu jako % długości dokumentu
+      const termPosition = term.positions && term.positions.length > 0
+        ? (term.positions[0] / sourceDocument.length) * 100
+        : 50 // Default to middle if no position
+
+      const response = await fetch('/api/generate-target-term', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiKey,
+          sourceTerm: term.term,
+          sourceContext: term.context || '',
+          targetDocument,
+          sourceLanguage,
+          targetLanguage,
+          termPosition
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate target term')
+      }
+
+      const data = await response.json()
+
+      console.log(`✅ Generated target term: "${data.targetTerm}" (source: ${data.targetSource})`)
+
+      onUpdate(
+        terms.map(t =>
+          t.id === termId
+            ? {
+                ...t,
+                targetTerm: data.targetTerm,
+                targetContext: data.targetContext,
+                targetOccurrences: data.targetOccurrences,
+                targetPositions: data.targetPositions,
+                targetSource: data.targetSource
+              }
+            : t
+        )
+      )
+    } catch (error: any) {
+      console.error('Error generating target term:', error)
+      alert(language === 'pl'
+        ? `Błąd generowania: ${error.message}`
+        : `Generation error: ${error.message}`)
+    } finally {
+      setLoadingTargetTerms(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(termId)
+        return newSet
+      })
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-2xl font-semibold mb-4 text-gray-800">
@@ -462,21 +551,35 @@ export default function TerminologyTable({ terms, onUpdate, documentText, apiKey
                             ✕
                           </button>
                         </div>
-                      ) : (
+                      ) : term.targetTerm ? (
                         <div
                           onClick={() => handleEditTargetTerm(term.id, term.targetTerm || '')}
                           className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1 transition-colors"
                           title={language === 'pl' ? 'Kliknij, aby edytować' : 'Click to edit'}
                         >
-                          {term.targetTerm ? (
-                            <span className="font-semibold text-gray-800 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                              {term.targetTerm}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 italic text-sm">
-                              {language === 'pl' ? 'Brak ekwiwalentu' : 'No equivalent'}
-                            </span>
-                          )}
+                          <span className="font-semibold text-gray-800 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                            {term.targetTerm}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleGenerateTargetTerm(term.id)}
+                            disabled={loadingTargetTerms.has(term.id)}
+                            className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            title={language === 'pl' ? 'Wygeneruj ekwiwalent używając AI' : 'Generate equivalent using AI'}
+                          >
+                            {loadingTargetTerms.has(term.id)
+                              ? (language === 'pl' ? '⏳ Generowanie...' : '⏳ Generating...')
+                              : (language === 'pl' ? '🤖 Generuj AI' : '🤖 Generate AI')}
+                          </button>
+                          <button
+                            onClick={() => handleEditTargetTerm(term.id, '')}
+                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                            title={language === 'pl' ? 'Dodaj ręcznie' : 'Add manually'}
+                          >
+                            ✎ {language === 'pl' ? 'Ręcznie' : 'Manual'}
+                          </button>
                         </div>
                       )}
                     </td>
