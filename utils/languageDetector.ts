@@ -92,20 +92,6 @@ export function detectLanguage(text: string, fileName?: string): LanguageDetecti
   console.log(`🔍 Wykrywanie języka (próbka: ${sampleSize} znaków)...`)
   if (fileName) console.log(`   Plik: ${fileName}`)
 
-  // Sprawdź wskazówki w nazwie pliku
-  let fileHint: string | null = null
-  if (fileName) {
-    const nameLower = fileName.toLowerCase()
-    if (/_en\b|_eng\b|english/i.test(nameLower)) fileHint = 'eng'
-    else if (/_pl\b|_pol\b|polish/i.test(nameLower)) fileHint = 'pol'
-    else if (/_pt\b|_por\b|portuguese/i.test(nameLower)) fileHint = 'por'
-    else if (/_de\b|_deu\b|german/i.test(nameLower)) fileHint = 'deu'
-    else if (/_fr\b|_fra\b|french/i.test(nameLower)) fileHint = 'fra'
-    else if (/_es\b|_spa\b|spanish/i.test(nameLower)) fileHint = 'spa'
-
-    if (fileHint) console.log(`   Wskazówka z nazwy pliku: ${fileHint}`)
-  }
-
   // Ograniczamy franc tylko do obsługiwanych języków dla lepszej dokładności
   const supportedCodes = Object.keys(SUPPORTED_LANGUAGES)
 
@@ -117,14 +103,10 @@ export function detectLanguage(text: string, fileName?: string): LanguageDetecti
 
   console.log(`   Franc wykrył: ${detectedCode}`)
 
-  // Jeśli nazwa pliku jednoznacznie wskazuje język, użyj tej wskazówki
-  if (fileHint && fileHint !== detectedCode) {
-    console.log(`   ⚠️  Konflikt: franc=${detectedCode}, plik sugeruje=${fileHint}`)
-  }
-
   // Heurystyka dla poprawienia wykrywania angielskiego vs portugalskiego
   // (franc czasem myli te języki w tekstach prawniczych z łacińskimi terminami)
-  if (detectedCode === 'por' || (fileHint === 'eng' && detectedCode === 'por')) {
+  // UWAGA: Bazujemy tylko na treści, nie na nazwie pliku!
+  if (detectedCode === 'por') {
     const englishIndicators = /\b(the|and|of|to|in|is|are|was|were|be|been|being|have|has|had|for|that|this|with|from|by|at|or|as|shall|may|must|should|would|could|will|can|court|law|case|section|article|act|statute|regulation|jurisdiction|plaintiff|defendant|judge|judgment|appeal|v\.|vs\.|versus)\b/gi
     const portugueseIndicators = /\b(o|a|os|as|um|uma|de|do|da|dos|das|em|no|na|nos|nas|para|por|com|sem|sobre|entre|pelo|pela|pelos|pelas|que|quando|onde|como|porque|artigo|lei|tribunal|juiz|caso|regulamento)\b/gi
 
@@ -133,9 +115,9 @@ export function detectLanguage(text: string, fileName?: string): LanguageDetecti
 
     console.log(`   Sprawdzanie EN vs PT: EN=${englishMatches}, PT=${portugueseMatches}`)
 
-    // Bardziej agresywna heurystyka: jeśli nazwa pliku sugeruje EN lub EN ma więcej wskaźników
-    if (fileHint === 'eng' || englishMatches > portugueseMatches) {
-      console.log(`   ✅ Korekta: zmiana z portugalskiego na angielski (plik=${fileHint}, EN=${englishMatches}, PT=${portugueseMatches})`)
+    // Korekta tylko na podstawie analizy treści (nie nazwy pliku!)
+    if (englishMatches > portugueseMatches) {
+      console.log(`   ✅ Korekta: zmiana z portugalskiego na angielski (EN=${englishMatches} > PT=${portugueseMatches})`)
       detectedCode = 'eng'
     }
   }
