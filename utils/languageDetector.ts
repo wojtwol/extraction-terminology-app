@@ -1,7 +1,7 @@
 import { franc } from 'franc-min'
 
 // Mapowanie kodów ISO 639-3 na pełne nazwy języków
-// Obejmuje: 24 języki urzędowe UE + dodatkowe (RU, UKR, serbski, turecki)
+// Obejmuje: 24 języki urzędowe UE + dodatkowe (RU, UKR, serbski, turecki, arabski, albański)
 const SUPPORTED_LANGUAGES: Record<string, string> = {
   // Języki UE (24)
   'bul': 'Bułgarski',
@@ -32,7 +32,9 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
   'rus': 'Rosyjski',
   'ukr': 'Ukraiński',
   'srp': 'Serbski',
-  'tur': 'Turecki'
+  'tur': 'Turecki',
+  'arb': 'Arabski',
+  'sqi': 'Albański'
 }
 
 // Mapowanie nazw na kody ISO dla Claude
@@ -66,7 +68,9 @@ const LANGUAGE_TO_ISO: Record<string, string> = {
   'Rosyjski': 'rus',
   'Ukraiński': 'ukr',
   'Serbski': 'srp',
-  'Turecki': 'tur'
+  'Turecki': 'tur',
+  'Arabski': 'arb',
+  'Albański': 'sqi'
 }
 
 export interface LanguageDetectionResult {
@@ -78,7 +82,7 @@ export interface LanguageDetectionResult {
 
 /**
  * Wykrywa język dokumentu używając franc-min (bazuje na n-gramach)
- * Obsługuje 28 języków: 24 języki UE + RU, UKR, serbski, turecki
+ * Obsługuje 30 języków: 24 języki UE + RU, UKR, serbski, turecki, arabski, albański
  */
 export function detectLanguage(text: string): LanguageDetectionResult {
   // Użyj większej próbki dla lepszej dokładności
