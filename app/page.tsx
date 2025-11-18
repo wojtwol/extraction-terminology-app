@@ -475,6 +475,22 @@ export default function Home() {
     setDetectedLanguage(project.detectedLanguage)
     setLoadedText('')
     setLoadedFileName('')
+
+    // Przywróć tryb i języki dla projektu bilingual
+    if (project.mode === 'bilingual') {
+      setGlossaryMode('bilingual')
+      setSourceLanguage(project.sourceLanguage || '')
+      setTargetLanguage(project.targetLanguage || '')
+      setSourceFileName(project.sourceFileName || '')
+      setTargetFileName(project.targetFileName || '')
+      setSourceDocumentText(project.sourceDocumentText || '')
+      setTargetDocumentText(project.targetDocumentText || '')
+      setBilingualStage(project.stage || 1)
+      console.log(`🔄 Przywrócono projekt bilingual: ${project.sourceLanguage} → ${project.targetLanguage}`)
+    } else {
+      setGlossaryMode('monolingual')
+    }
+
     refreshGlossary()
   }
 
@@ -520,6 +536,21 @@ export default function Home() {
     setLoadedText(sourceText)
     setLoadedFileName(sourceFile)
     setDetectedLanguage(sourceLang)
+
+    // Jeśli istnieje projekt, zapisz języki w projekcie
+    if (currentProject) {
+      projectStorage.update(currentProject.id, {
+        mode: 'bilingual',
+        sourceLanguage: sourceLang,
+        targetLanguage: targetLang,
+        sourceFileName: sourceFile,
+        targetFileName: targetFile,
+        sourceDocumentText: sourceText,
+        targetDocumentText: targetText,
+        stage: 1  // Początkowy stage dla bilingual
+      })
+      console.log(`💾 Zapisano języki w projekcie: ${sourceLang} → ${targetLang}`)
+    }
 
     console.log(`📄 Załadowano dokumenty bilingual:`)
     console.log(`   Source: ${sourceFile} (${sourceLang}), ${sourceText.length} znaków`)
@@ -627,6 +658,10 @@ export default function Home() {
         const updated = projectStorage.getById(currentProject.id)
         if (updated) {
           setCurrentProject(updated)
+          // Zapisz stage 2 po znalezieniu ekwiwalentów
+          projectStorage.update(updated.id, { stage: 2 })
+          setBilingualStage(2)
+          console.log('💾 Zapisano stage 2 (finding equivalents)')
           refreshGlossary()
         }
       }

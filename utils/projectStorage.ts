@@ -55,6 +55,12 @@ export interface Project {
   // Dla bilingual mode
   mode?: 'monolingual' | 'bilingual'
   stage?: 1 | 2  // Workflow stage dla bilingual (1 = base glossary, 2 = finding equivalents)
+  sourceLanguage?: string  // Język źródłowy dla trybu bilingual
+  targetLanguage?: string  // Język docelowy dla trybu bilingual
+  sourceFileName?: string  // Nazwa pliku źródłowego
+  targetFileName?: string  // Nazwa pliku docelowego
+  sourceDocumentText?: string  // Tekst dokumentu źródłowego
+  targetDocumentText?: string  // Tekst dokumentu docelowego
 
   glossaries: Glossary[]
   currentGlossaryId: string | null
