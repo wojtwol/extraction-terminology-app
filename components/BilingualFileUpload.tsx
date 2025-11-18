@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { getSupportedLanguages } from '@/utils/languageDetector'
 
 interface BilingualFileUploadProps {
   onExtract: (sourceText: string, targetText: string, sourceLang: string, targetLang: string, sourceFileName: string, targetFileName: string) => void
@@ -21,6 +22,9 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
   const [detectingTargetLang, setDetectingTargetLang] = useState(false)
   const [sourceLanguage, setSourceLanguage] = useState<'source' | 'target'>('source')
 
+  // Lista obsługiwanych języków
+  const supportedLanguages = getSupportedLanguages()
+
   const translations = {
     pl: {
       title: 'Załaduj dokumenty dwujęzyczne',
@@ -32,6 +36,8 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       formats: 'Obsługiwane formaty: TXT, HTML, DOCX, XLSX, XML',
       detecting: 'Wykrywanie języka...',
       detected: 'Wykryto',
+      selectLang: 'Wybierz język',
+      correctLang: 'Skoryguj język jeśli niepoprawny',
       selectSource: 'Wybierz język źródłowy',
       sourceIsSource: 'Ten dokument jest źródłem',
       sourceIsTarget: 'Ten dokument jest celem',
@@ -50,6 +56,8 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       formats: 'Supported formats: TXT, HTML, DOCX, XLSX, XML',
       detecting: 'Detecting language...',
       detected: 'Detected',
+      selectLang: 'Select language',
+      correctLang: 'Correct language if needed',
       selectSource: 'Select source language',
       sourceIsSource: 'This document is the source',
       sourceIsTarget: 'This document is the target',
@@ -208,12 +216,31 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
 
           {sourceFile && (
             <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
-              <p className="text-sm font-medium text-gray-700 truncate">{sourceFile.name}</p>
+              <p className="text-sm font-medium text-gray-700 truncate mb-2">{sourceFile.name}</p>
               {detectingSourceLang ? (
                 <p className="text-xs text-gray-500 mt-1">{txt.detecting}</p>
-              ) : sourceLang ? (
-                <p className="text-xs text-green-600 mt-1">{txt.detected}: {sourceLang}</p>
-              ) : null}
+              ) : (
+                <div className="space-y-1">
+                  {sourceLang && (
+                    <p className="text-xs text-green-600">{txt.detected}: {sourceLang}</p>
+                  )}
+                  <label className="block">
+                    <p className="text-xs text-gray-600 mb-1">{txt.correctLang}:</p>
+                    <select
+                      value={sourceLang}
+                      onChange={(e) => setSourceLang(e.target.value)}
+                      className="w-full text-sm px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">{txt.selectLang}</option>
+                      {supportedLanguages.map(lang => (
+                        <option key={lang.code} value={lang.name}>
+                          {lang.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -247,12 +274,31 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
 
           {targetFile && (
             <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
-              <p className="text-sm font-medium text-gray-700 truncate">{targetFile.name}</p>
+              <p className="text-sm font-medium text-gray-700 truncate mb-2">{targetFile.name}</p>
               {detectingTargetLang ? (
                 <p className="text-xs text-gray-500 mt-1">{txt.detecting}</p>
-              ) : targetLang ? (
-                <p className="text-xs text-green-600 mt-1">{txt.detected}: {targetLang}</p>
-              ) : null}
+              ) : (
+                <div className="space-y-1">
+                  {targetLang && (
+                    <p className="text-xs text-green-600">{txt.detected}: {targetLang}</p>
+                  )}
+                  <label className="block">
+                    <p className="text-xs text-gray-600 mb-1">{txt.correctLang}:</p>
+                    <select
+                      value={targetLang}
+                      onChange={(e) => setTargetLang(e.target.value)}
+                      className="w-full text-sm px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">{txt.selectLang}</option>
+                      {supportedLanguages.map(lang => (
+                        <option key={lang.code} value={lang.name}>
+                          {lang.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
             </div>
           )}
         </div>

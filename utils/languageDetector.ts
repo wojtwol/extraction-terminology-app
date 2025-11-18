@@ -87,8 +87,14 @@ export function detectLanguage(text: string): LanguageDetectionResult {
 
   console.log(`🔍 Wykrywanie języka (próbka: ${sampleSize} znaków)...`)
 
+  // Ograniczamy franc tylko do obsługiwanych języków dla lepszej dokładności
+  const supportedCodes = Object.keys(SUPPORTED_LANGUAGES)
+
   // franc zwraca kod ISO 639-3
-  const detectedCode = franc(sample, { minLength: 10 })
+  const detectedCode = franc(sample, {
+    minLength: 10,
+    only: supportedCodes  // Ograniczamy tylko do naszych języków
+  })
 
   console.log(`   Wykryty kod: ${detectedCode}`)
 
