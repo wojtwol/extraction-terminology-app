@@ -89,7 +89,10 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       const response = await fetch('/api/detect-language', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.slice(0, 10000) })
+        body: JSON.stringify({
+          text: text.slice(0, 10000),
+          fileName: file.name  // Przekaż nazwę pliku jako wskazówkę
+        })
       })
 
       const data = await response.json()
