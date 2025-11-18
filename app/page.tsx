@@ -1084,7 +1084,7 @@ export default function Home() {
             />
 
             {/* Akcje i Eksport pod FileUpload */}
-            {terms.length > 0 && (
+            {currentProject && currentGlossary && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white rounded-lg shadow-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">
