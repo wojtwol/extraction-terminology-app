@@ -1150,19 +1150,19 @@ export default function Home() {
                   <button
                     onClick={handleImportGlossaryJSON}
                     className="w-[180px] mb-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
-                    title={language === 'pl' ? 'Importuj/łącz glosariusz z JSON (zachowuje wszystkie metadane)' : 'Import/merge glossary from JSON (preserves all metadata)'}
+                    title={language === 'pl' ? 'Importuj lub połącz z glosariuszem z JSON (zachowuje wszystkie metadane: pozycje, definicje)' : 'Import or merge with glossary from JSON (preserves all metadata: positions, definitions)'}
                   >
                     <span>📋</span>
-                    <span>{language === 'pl' ? 'Importuj JSON' : 'Import JSON'}</span>
+                    <span>{language === 'pl' ? 'Łącz JSON' : 'Merge JSON'}</span>
                   </button>
 
                   <button
                     onClick={handleImportGlossaryXLSX}
                     className="w-[180px] px-4 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors font-medium flex items-center gap-2"
-                    title={language === 'pl' ? 'Importuj/łącz terminy z pliku XLSX' : 'Import/merge terms from XLSX file'}
+                    title={language === 'pl' ? 'Importuj lub połącz z glosariuszem z XLSX (tylko terminy i konteksty)' : 'Import or merge with glossary from XLSX (only terms and contexts)'}
                   >
                     <span>📊</span>
-                    <span>{language === 'pl' ? 'Importuj XLSX' : 'Import XLSX'}</span>
+                    <span>{language === 'pl' ? 'Łącz XLSX' : 'Merge XLSX'}</span>
                   </button>
                 </div>
 

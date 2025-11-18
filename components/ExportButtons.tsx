@@ -239,27 +239,6 @@ export default function ExportButtons({
     downloadFile(htmlContent, `${fileName}_glosariusz.html`, 'text/html;charset=utf-8;')
   }
 
-  const exportToJSON = () => {
-    const baseData = {
-      createdAt: new Date().toISOString(),
-      termsCount: terms.length,
-      sourceFile: fileName,
-      terms: terms.map(term => ({
-        term: term.term,
-        occurrences: term.occurrences,
-        context: term.context,
-        positions: term.positions,
-        definition: term.definition,
-        definitionSource: term.definitionSource
-      }))
-    }
-
-    const jsonContent = JSON.stringify(baseData, null, 2)
-    const filename = `${fileName}_glosariusz.json`
-
-    downloadFile(jsonContent, filename, 'application/json;charset=utf-8;')
-  }
-
   const exportToXLSX = () => {
     const numCols = 6
     const data = [
@@ -666,14 +645,6 @@ export default function ExportButtons({
         className="w-[180px] px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
       >
         🌐 HTML
-      </button>
-
-      <button
-        onClick={exportToJSON}
-        disabled={!hasTerms}
-        className="w-[180px] px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-      >
-        📄 JSON
       </button>
 
       <p className="text-xs text-gray-500 mt-2">
