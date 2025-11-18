@@ -17,14 +17,39 @@ export default function ExportButtons({
   documentText
 }: ExportButtonsProps) {
   const exportToCSV = () => {
-    const csvContent = [
-      ['Termin', 'Liczba wystąpień', 'Kontekst'],
-      ...terms.map(term => [
-        term.term,
-        term.occurrences.toString(),
-        term.context || ''
-      ])
-    ]
+    // Sprawdź czy są definicje
+    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+
+    // Dynamiczne nagłówki
+    const headers = hasDefinitions
+      ? ['Termin', 'Liczba wystąpień', 'Definicja', 'Źródło definicji', 'Kontekst', 'Dokument źródłowy']
+      : ['Termin', 'Liczba wystąpień', 'Kontekst', 'Dokument źródłowy']
+
+    // Dynamiczne dane
+    const dataRows = terms.map(term => {
+      if (hasDefinitions) {
+        const sourceText = term.definitionSource === 'document' ? 'Z dokumentu' :
+                          term.definitionSource === 'edited' ? 'Edytowano' :
+                          term.definitionSource === 'ai' ? 'Wygenerowane AI' : ''
+        return [
+          term.term,
+          term.occurrences.toString(),
+          term.definition || '',
+          sourceText,
+          term.context || '',
+          term.sourceDocument || ''
+        ]
+      } else {
+        return [
+          term.term,
+          term.occurrences.toString(),
+          term.context || '',
+          term.sourceDocument || ''
+        ]
+      }
+    })
+
+    const csvContent = [headers, ...dataRows]
       .map(row => row.map(cell => `"${cell}"`).join(','))
       .join('\n')
 
@@ -36,11 +61,6 @@ export default function ExportButtons({
   const exportToHTML = () => {
     // Sprawdź czy są definicje
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
-
-    // Dynamiczne szerokości kolumn
-    const definitionWidth = hasDefinitions ? '30%' : '15%'  // 50% mniej gdy brak definicji
-    const sourceWidth = '100px'
-    const contextWidth = hasDefinitions ? '30%' : '45%'     // Rozszerzona gdy brak definicji
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -193,9 +213,12 @@ export default function ExportButtons({
           <th class="nr-col">Nr</th>
           <th style="width: 200px;">Termin</th>
           <th style="width: 80px; text-align: center;">Liczba wystąpień</th>
-          <th style="width: ${definitionWidth};">Definicja</th>
-          <th style="width: ${sourceWidth}; text-align: center;">Źródło definicji</th>
-          <th style="width: ${contextWidth};">Kontekst</th>
+          ${hasDefinitions ? `
+          <th style="width: 25%;">Definicja</th>
+          <th style="width: 100px; text-align: center;">Źródło definicji</th>
+          ` : ''}
+          <th style="width: ${hasDefinitions ? '25%' : '40%'};">Kontekst</th>
+          <th style="width: ${hasDefinitions ? '150px' : '200px'};">Dokument źródłowy</th>
         </tr>
       </thead>
       <tbody>
@@ -204,6 +227,7 @@ export default function ExportButtons({
             <td class="nr-col">${index + 1}</td>
             <td class="term">${term.term}</td>
             <td class="occurrences">${term.occurrences}</td>
+            ${hasDefinitions ? `
             <td class="definition">
               ${term.definition || '<span style="color: #adb5bd;">-</span>'}
             </td>
@@ -226,7 +250,9 @@ export default function ExportButtons({
                 </div>
               ` : '<span style="color: #adb5bd;">-</span>'}
             </td>
+            ` : ''}
             <td class="context">${term.context || '-'}</td>
+            <td>${term.sourceDocument || '-'}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -240,26 +266,54 @@ export default function ExportButtons({
   }
 
   const exportToXLSX = () => {
-    const numCols = 6
+    // Sprawdź czy są definicje
+    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+
+    // Dynamiczna liczba kolumn
+    const numCols = hasDefinitions ? 7 : 5
+
+    // Funkcja pomocnicza do wypełniania pustych komórek
+    const fillEmptyCells = (count: number) => Array(count).fill('')
+
+    // Nagłówki i dane w zależności od tego czy są definicje
+    const headers = hasDefinitions
+      ? ['Nr', 'Termin', 'Liczba wystąpień', 'Definicja', 'Źródło definicji', 'Kontekst', 'Dokument źródłowy']
+      : ['Nr', 'Termin', 'Liczba wystąpień', 'Kontekst', 'Dokument źródłowy']
+
+    const dataRows = terms.map((term, index) => {
+      if (hasDefinitions) {
+        return [
+          (index + 1).toString(),
+          term.term,
+          term.occurrences.toString(),
+          term.definition || '',
+          term.definitionSource === 'document' ? 'Z dokumentu' :
+           term.definitionSource === 'edited' ? 'Edytowano' :
+           term.definitionSource === 'ai' ? 'Wygenerowane AI' : '',
+          term.context || '',
+          term.sourceDocument || ''
+        ]
+      } else {
+        return [
+          (index + 1).toString(),
+          term.term,
+          term.occurrences.toString(),
+          term.context || '',
+          term.sourceDocument || ''
+        ]
+      }
+    })
+
     const data = [
-      ['IURIDICO EJ GTEXTT', '', '', '', '', ''],
-      ['Glossary and Terminology Extraction Tool', '', '', '', '', ''],
-      ['', '', '', '', '', ''],
-      ['Dokument źródłowy:', fileName, '', '', '', ''],
-      ['Data utworzenia:', new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', ''],
-      ['Liczba terminów:', terms.length.toString(), '', '', '', ''],
+      ['IURIDICO EJ GTEXTT', ...fillEmptyCells(numCols - 1)],
+      ['Glossary and Terminology Extraction Tool', ...fillEmptyCells(numCols - 1)],
+      fillEmptyCells(numCols),
+      ['Dokument źródłowy:', fileName, ...fillEmptyCells(numCols - 2)],
+      ['Data utworzenia:', new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), ...fillEmptyCells(numCols - 2)],
+      ['Liczba terminów:', terms.length.toString(), ...fillEmptyCells(numCols - 2)],
       [],
-      ['Nr', 'Termin', 'Liczba wystąpień', 'Definicja', 'Źródło definicji', 'Kontekst'],
-      ...terms.map((term, index) => [
-        (index + 1).toString(),
-        term.term,
-        term.occurrences.toString(),
-        term.definition || '',
-        term.definitionSource === 'document' ? 'Z dokumentu' :
-         term.definitionSource === 'edited' ? 'Edytowano' :
-         term.definitionSource === 'ai' ? 'Wygenerowane AI' : '',
-        term.context || ''
-      ])
+      headers,
+      ...dataRows
     ]
 
     const ws = XLSX.utils.aoa_to_sheet(data)
@@ -272,19 +326,25 @@ export default function ExportButtons({
     ]
 
     // Dynamiczne szerokości kolumn
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
-    const definitionColWidth = hasDefinitions ? 70 : 12
-    const sourceColWidth = hasDefinitions ? 18 : 18
-    const contextColWidth = hasDefinitions ? 36 : 72
-
-    ws['!cols'] = [
-      { wch: 20 },                 // Nr
-      { wch: 35 },                 // Termin
-      { wch: 18 },                 // Liczba wystąpień
-      { wch: definitionColWidth }, // Definicja (dynamiczna)
-      { wch: sourceColWidth },     // Źródło (dynamiczna)
-      { wch: contextColWidth }     // Kontekst (zwężona, z zawijaniem)
-    ]
+    if (hasDefinitions) {
+      ws['!cols'] = [
+        { wch: 10 },  // Nr
+        { wch: 35 },  // Termin
+        { wch: 18 },  // Liczba wystąpień
+        { wch: 60 },  // Definicja
+        { wch: 18 },  // Źródło definicji
+        { wch: 40 },  // Kontekst
+        { wch: 25 }   // Dokument źródłowy
+      ]
+    } else {
+      ws['!cols'] = [
+        { wch: 10 },  // Nr
+        { wch: 40 },  // Termin
+        { wch: 18 },  // Liczba wystąpień
+        { wch: 70 },  // Kontekst (szerszy gdy nie ma definicji)
+        { wch: 30 }   // Dokument źródłowy
+      ]
+    }
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
     ws['!rows'] = []
@@ -482,33 +542,48 @@ export default function ExportButtons({
     // Sprawdź czy są definicje
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
 
-    // Przygotuj dane dla tabeli - dane są już w UTF-8, jsPDF autoTable je obsłuży
-    const tableData = terms.map((term, index) => {
-      let sourceText = '-'
-      if (term.definitionSource === 'document') sourceText = 'Document'
-      else if (term.definitionSource === 'edited') sourceText = 'Edited'
-      else if (term.definitionSource === 'ai') sourceText = 'AI'
+    // Przygotuj nagłówki i dane w zależności od tego czy są definicje
+    const headers = hasDefinitions
+      ? [['No.', 'Term', 'Occurrences', 'Definition', 'Def. Source', 'Context', 'Source Doc']]
+      : [['No.', 'Term', 'Occurrences', 'Context', 'Source Document']]
 
-      return [
-        String(index + 1),
-        term.term || '',
-        String(term.occurrences),
-        term.definition || '-',
-        sourceText,
-        term.context || '-'
-      ]
+    const tableData = terms.map((term, index) => {
+      if (hasDefinitions) {
+        let sourceText = '-'
+        if (term.definitionSource === 'document') sourceText = 'Document'
+        else if (term.definitionSource === 'edited') sourceText = 'Edited'
+        else if (term.definitionSource === 'ai') sourceText = 'AI'
+
+        return [
+          String(index + 1),
+          term.term || '',
+          String(term.occurrences),
+          term.definition || '-',
+          sourceText,
+          term.context || '-',
+          term.sourceDocument || '-'
+        ]
+      } else {
+        return [
+          String(index + 1),
+          term.term || '',
+          String(term.occurrences),
+          term.context || '-',
+          term.sourceDocument || '-'
+        ]
+      }
     })
 
     // Optymalne szerokości kolumn (A4 landscape = 297mm, dostępne ~277mm)
     // Suma kolumn musi być < 277mm aby uniknąć wychodzenia poza stronę
     const colWidths = hasDefinitions
-      ? { 0: 10, 1: 42, 2: 18, 3: 60, 4: 22, 5: 70 }  // Z definicjami: 222mm
-      : { 0: 10, 1: 45, 2: 18, 3: 18, 4: 22, 5: 105 } // Bez definicji: 218mm
+      ? { 0: 8, 1: 35, 2: 15, 3: 50, 4: 18, 5: 60, 6: 25 }  // Z definicjami: 211mm
+      : { 0: 10, 1: 50, 2: 18, 3: 110, 4: 35 }              // Bez definicji: 223mm
 
     // Tabela z danymi
     autoTable(doc, {
       startY: 28,
-      head: [['No.', 'Term', 'Number of\noccurrences', 'Definition', 'Source of\ndefinition', 'Context']],
+      head: headers,
       body: tableData,
 
       // Podstawowe style
@@ -535,43 +610,21 @@ export default function ExportButtons({
         cellPadding: 3
       },
 
-      // Style poszczególnych kolumn
-      columnStyles: {
-        0: {
-          cellWidth: colWidths[0],
-          halign: 'center',
-          valign: 'middle',
-          fontSize: 7
-        },
-        1: {
-          cellWidth: colWidths[1],
-          fontStyle: 'bold',
-          fontSize: 9,
-          overflow: 'linebreak'
-        },
-        2: {
-          cellWidth: colWidths[2],
-          halign: 'center',
-          valign: 'middle'
-        },
-        3: {
-          cellWidth: colWidths[3],
-          fontSize: 6.5,
-          cellPadding: 2,
-          overflow: 'linebreak'
-        },
-        4: {
-          cellWidth: colWidths[4],
-          halign: 'center',
-          fontSize: 7
-        },
-        5: {
-          cellWidth: colWidths[5],
-          fontSize: 6.5,
-          cellPadding: 2,
-          overflow: 'linebreak',
-          minCellWidth: 70
-        }
+      // Style poszczególnych kolumn - dynamicznie w zależności czy są definicje
+      columnStyles: hasDefinitions ? {
+        0: { cellWidth: colWidths[0], halign: 'center', valign: 'middle', fontSize: 7 },
+        1: { cellWidth: colWidths[1], fontStyle: 'bold', fontSize: 9, overflow: 'linebreak' },
+        2: { cellWidth: colWidths[2], halign: 'center', valign: 'middle' },
+        3: { cellWidth: colWidths[3], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak' },
+        4: { cellWidth: colWidths[4], halign: 'center', fontSize: 7 },
+        5: { cellWidth: colWidths[5], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak' },
+        6: { cellWidth: colWidths[6], fontSize: 7, overflow: 'linebreak' }
+      } : {
+        0: { cellWidth: colWidths[0], halign: 'center', valign: 'middle', fontSize: 7 },
+        1: { cellWidth: colWidths[1], fontStyle: 'bold', fontSize: 9, overflow: 'linebreak' },
+        2: { cellWidth: colWidths[2], halign: 'center', valign: 'middle' },
+        3: { cellWidth: colWidths[3], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak' },
+        4: { cellWidth: colWidths[4], fontSize: 7, overflow: 'linebreak' }
       },
 
       // Naprzemienne wiersze

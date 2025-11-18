@@ -35,6 +35,7 @@ export interface Term {
 
   definition?: string
   definitionSource?: 'document' | 'ai' | 'edited' | null
+  sourceDocument?: string  // Nazwa dokumentu źródłowego z którego wyekstrahowano termin
 }
 
 // Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście (case sensitive)
@@ -272,6 +273,12 @@ export default function Home() {
         return
       }
 
+      // Dodaj sourceDocument do każdego terminu
+      const termsWithSource = data.terms.map((term: Term) => ({
+        ...term,
+        sourceDocument: loadedFileName || fileName || 'unknown'
+      }))
+
       // Zapisz wyniki jako nową wersję glosariusza
       const extractionParams = { minTerms, maxTerms, minLength, minOccurrences }
       const description = `Ekstrakcja: ${minTerms}-${maxTerms} terminów`
@@ -279,7 +286,7 @@ export default function Home() {
       projectStorage.addVersion(
         currentProject.id,
         currentGlossary.id,
-        data.terms,
+        termsWithSource,
         description,
         extractionParams,
         false // nie jest snapshotem
@@ -293,10 +300,10 @@ export default function Home() {
       refreshGlossary()
 
       // Jeśli włączono automatyczne generowanie definicji
-      if (generateDefinitions && data.terms.length > 0) {
-        console.log(`🔮 Rozpoczynam automatyczne generowanie definicji dla ${data.terms.length} terminów...`)
+      if (generateDefinitions && termsWithSource.length > 0) {
+        console.log(`🔮 Rozpoczynam automatyczne generowanie definicji dla ${termsWithSource.length} terminów...`)
 
-        const termsWithDefinitions = [...data.terms]
+        const termsWithDefinitions = [...termsWithSource]
         let successCount = 0
         let errorCount = 0
 
@@ -364,7 +371,7 @@ export default function Home() {
       }
 
       setProgress(100)
-      console.log(`✅ Wyekstrahowano ${data.terms.length} terminów`)
+      console.log(`✅ Wyekstrahowano ${termsWithSource.length} terminów`)
 
       // Zapisz sugestię jeśli istnieje
       if (data.suggestion) {
@@ -617,7 +624,8 @@ export default function Home() {
         occurrences: term.occurrences,
         positions: term.positions,
         definition: term.definition,
-        definitionSource: term.definitionSource
+        definitionSource: term.definitionSource,
+        sourceDocument: term.sourceDocument
       }))
     }
 
@@ -677,7 +685,8 @@ export default function Home() {
             occurrences,
             positions,
             definition: t.definition,
-            definitionSource: t.definitionSource
+            definitionSource: t.definitionSource,
+            sourceDocument: t.sourceDocument || glossaryData.fileName || 'imported'
           }
         })
 
@@ -804,7 +813,8 @@ export default function Home() {
             term: termText,
             context: context || row[contextCol]?.toString() || '',
             occurrences,
-            positions
+            positions,
+            sourceDocument: file.name || 'imported-xlsx'
           })
         }
 
