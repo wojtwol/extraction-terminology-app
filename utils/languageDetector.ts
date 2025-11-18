@@ -107,18 +107,32 @@ export function detectLanguage(text: string, fileName?: string): LanguageDetecti
   // (franc czasem myli te języki w tekstach prawniczych z łacińskimi terminami)
   // UWAGA: Bazujemy tylko na treści, nie na nazwie pliku!
   if (detectedCode === 'por') {
-    const englishIndicators = /\b(the|and|of|to|in|is|are|was|were|be|been|being|have|has|had|for|that|this|with|from|by|at|or|as|shall|may|must|should|would|could|will|can|court|law|case|section|article|act|statute|regulation|jurisdiction|plaintiff|defendant|judge|judgment|appeal|v\.|vs\.|versus)\b/gi
-    const portugueseIndicators = /\b(o|a|os|as|um|uma|de|do|da|dos|das|em|no|na|nos|nas|para|por|com|sem|sobre|entre|pelo|pela|pelos|pelas|que|quando|onde|como|porque|artigo|lei|tribunal|juiz|caso|regulamento)\b/gi
+    // Najbardziej podstawowe angielskie słowa które MUSZĄ być w tekście angielskim
+    const coreEnglishWords = /\b(the|and)\b/gi
+    const coreEnglishMatches = (sample.match(coreEnglishWords) || []).length
 
-    const englishMatches = (sample.match(englishIndicators) || []).length
-    const portugueseMatches = (sample.match(portugueseIndicators) || []).length
+    console.log(`   Test podstawowych słów angielskich (the, and): ${coreEnglishMatches}`)
 
-    console.log(`   Sprawdzanie EN vs PT: EN=${englishMatches}, PT=${portugueseMatches}`)
-
-    // Korekta tylko na podstawie analizy treści (nie nazwy pliku!)
-    if (englishMatches > portugueseMatches) {
-      console.log(`   ✅ Korekta: zmiana z portugalskiego na angielski (EN=${englishMatches} > PT=${portugueseMatches})`)
+    // Jeśli są podstawowe angielskie słowa, to prawie na pewno to angielski
+    // (portugalski nie używa "the" ani "and")
+    if (coreEnglishMatches > 5) {
+      console.log(`   ✅ Korekta: wykryto podstawowe angielskie słowa (${coreEnglishMatches}x), zmiana z portugalskiego na angielski`)
       detectedCode = 'eng'
+    } else {
+      // Jeśli nie ma "the" i "and", sprawdź pełną listę
+      const englishIndicators = /\b(of|to|in|is|are|was|were|be|been|being|have|has|had|for|that|this|with|from|by|at|or|as|shall|may|must|should|would|could|will|can|court|law|case|section|article|act|statute|regulation|jurisdiction|plaintiff|defendant|judge|judgment|appeal|v\.|vs\.|versus)\b/gi
+      const portugueseIndicators = /\b(o|a|os|as|um|uma|de|do|da|dos|das|em|no|na|nos|nas|para|por|com|sem|sobre|entre|pelo|pela|pelos|pelas|que|quando|onde|como|porque|artigo|lei|tribunal|juiz|caso|regulamento)\b/gi
+
+      const englishMatches = (sample.match(englishIndicators) || []).length
+      const portugueseMatches = (sample.match(portugueseIndicators) || []).length
+
+      console.log(`   Sprawdzanie pełnych list: EN=${englishMatches}, PT=${portugueseMatches}`)
+
+      // Bardzo agresywna korekta: jeśli EN ma choć 60% wskaźników PT, to prawdopodobnie angielski
+      if (englishMatches > portugueseMatches * 0.6) {
+        console.log(`   ✅ Korekta: angielski ma >60% wskaźników portugalskiego, zmiana na angielski`)
+        detectedCode = 'eng'
+      }
     }
   }
 
