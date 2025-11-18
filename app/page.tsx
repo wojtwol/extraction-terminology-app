@@ -1093,103 +1093,108 @@ export default function Home() {
               savedApiKey={apiKey}
             />
 
-            {/* Akcje i Eksport pod FileUpload */}
+            {/* Akcje i Eksport pod FileUpload - jako rozwijane listy */}
             {currentProject && currentGlossary && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Akcje' : 'Actions'}
-                  </h3>
+                {/* Akcje dropdown */}
+                <details className="bg-white rounded-lg shadow-lg">
+                  <summary className="px-4 py-3 cursor-pointer hover:bg-gray-50 rounded-lg font-semibold text-gray-800 flex items-center justify-between">
+                    <span>{language === 'pl' ? 'Akcje' : 'Actions'}</span>
+                    <span className="text-sm text-gray-500">▼</span>
+                  </summary>
+                  <div className="px-4 pb-4 pt-2 space-y-2">
+                    {/* Snapshot Button */}
+                    {currentProject && currentGlossary && (
+                      <div className="mb-2">
+                        <SnapshotButton
+                          projectId={currentProject.id}
+                          glossaryId={currentGlossary.id}
+                          onSnapshotCreated={() => {
+                            const updated = projectStorage.getById(currentProject.id)
+                            if (updated) setCurrentProject(updated)
+                            refreshGlossary()
+                          }}
+                        />
+                      </div>
+                    )}
 
-                  {/* Snapshot Button */}
-                  {currentProject && currentGlossary && (
-                    <div className="mb-2">
-                      <SnapshotButton
-                        projectId={currentProject.id}
-                        glossaryId={currentGlossary.id}
-                        onSnapshotCreated={() => {
-                          const updated = projectStorage.getById(currentProject.id)
-                          if (updated) setCurrentProject(updated)
-                          refreshGlossary()
-                        }}
-                      />
-                    </div>
-                  )}
+                    {/* Manual Add Term Button */}
+                    {documentText && (
+                      <button
+                        onClick={promptManualAddTerm}
+                        className="w-full mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
+                        title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
+                      >
+                        <span>➕</span>
+                        <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
+                      </button>
+                    )}
 
-                  {/* Manual Add Term Button */}
-                  {documentText && (
                     <button
-                      onClick={promptManualAddTerm}
-                      className="w-[180px] mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
-                      title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
+                      onClick={handleSaveProject}
+                      disabled={terms.length === 0}
+                      className="w-full mb-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
                     >
-                      <span>➕</span>
-                      <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
+                      {language === 'pl'
+                        ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
+                        : (currentProject ? 'Save changes' : 'Save as project')}
                     </button>
-                  )}
 
-                  <button
-                    onClick={handleSaveProject}
-                    disabled={terms.length === 0}
-                    className="w-[180px] mb-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
-                  >
-                    {language === 'pl'
-                      ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
-                      : (currentProject ? 'Save changes' : 'Save as project')}
-                  </button>
+                    {/* Export/Import projektu */}
+                    <button
+                      onClick={handleExportProject}
+                      className="w-full mb-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Eksportuj projekt do pliku JSON' : 'Export project to JSON file'}
+                    >
+                      <span>💾</span>
+                      <span>{language === 'pl' ? 'Eksportuj projekt' : 'Export Project'}</span>
+                    </button>
 
-                  {/* Export/Import projektu */}
-                  <button
-                    onClick={handleExportProject}
-                    className="w-[180px] mb-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium flex items-center gap-2"
-                    title={language === 'pl' ? 'Eksportuj projekt do pliku JSON' : 'Export project to JSON file'}
-                  >
-                    <span>💾</span>
-                    <span>{language === 'pl' ? 'Eksportuj projekt' : 'Export Project'}</span>
-                  </button>
+                    <button
+                      onClick={handleImportProject}
+                      className="w-full mb-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Importuj projekt z pliku JSON' : 'Import project from JSON file'}
+                    >
+                      <span>📂</span>
+                      <span>{language === 'pl' ? 'Importuj projekt' : 'Import Project'}</span>
+                    </button>
 
-                  <button
-                    onClick={handleImportProject}
-                    className="w-[180px] mb-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium flex items-center gap-2"
-                    title={language === 'pl' ? 'Importuj projekt z pliku JSON' : 'Import project from JSON file'}
-                  >
-                    <span>📂</span>
-                    <span>{language === 'pl' ? 'Importuj projekt' : 'Import Project'}</span>
-                  </button>
+                    <button
+                      onClick={handleImportGlossaryJSON}
+                      className="w-full mb-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Importuj lub połącz z glosariuszem z JSON (zachowuje wszystkie metadane: pozycje, definicje)' : 'Import or merge with glossary from JSON (preserves all metadata: positions, definitions)'}
+                    >
+                      <span>📋</span>
+                      <span>{language === 'pl' ? 'Łącz JSON' : 'Merge JSON'}</span>
+                    </button>
 
-                  <button
-                    onClick={handleImportGlossaryJSON}
-                    className="w-[180px] mb-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
-                    title={language === 'pl' ? 'Importuj lub połącz z glosariuszem z JSON (zachowuje wszystkie metadane: pozycje, definicje)' : 'Import or merge with glossary from JSON (preserves all metadata: positions, definitions)'}
-                  >
-                    <span>📋</span>
-                    <span>{language === 'pl' ? 'Łącz JSON' : 'Merge JSON'}</span>
-                  </button>
+                    <button
+                      onClick={handleImportGlossaryXLSX}
+                      className="w-full px-4 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Importuj lub połącz z glosariuszem z XLSX (tylko terminy i konteksty)' : 'Import or merge with glossary from XLSX (only terms and contexts)'}
+                    >
+                      <span>📊</span>
+                      <span>{language === 'pl' ? 'Łącz XLSX' : 'Merge XLSX'}</span>
+                    </button>
+                  </div>
+                </details>
 
-                  <button
-                    onClick={handleImportGlossaryXLSX}
-                    className="w-[180px] px-4 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors font-medium flex items-center gap-2"
-                    title={language === 'pl' ? 'Importuj lub połącz z glosariuszem z XLSX (tylko terminy i konteksty)' : 'Import or merge with glossary from XLSX (only terms and contexts)'}
-                  >
-                    <span>📊</span>
-                    <span>{language === 'pl' ? 'Łącz XLSX' : 'Merge XLSX'}</span>
-                  </button>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Eksport' : 'Export'}
-                  </h3>
-                  <div className="space-y-2">
+                {/* Eksport dropdown */}
+                <details className="bg-white rounded-lg shadow-lg">
+                  <summary className="px-4 py-3 cursor-pointer hover:bg-gray-50 rounded-lg font-semibold text-gray-800 flex items-center justify-between">
+                    <span>{language === 'pl' ? 'Eksport' : 'Export'}</span>
+                    <span className="text-sm text-gray-500">▼</span>
+                  </summary>
+                  <div className="px-4 pb-4 pt-2 space-y-2">
                     {/* Export glosariusza do JSON - zachowuje wszystkie metadane */}
                     <button
                       onClick={handleExportGlossary}
                       disabled={terms.length === 0}
-                      className="w-[180px] mb-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
+                      className="w-full mb-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
                       title={language === 'pl' ? 'Eksportuj glosariusz do JSON (zachowuje wszystkie metadane: pozycje, definicje, konteksty)' : 'Export glossary to JSON (preserves all metadata: positions, definitions, contexts)'}
                     >
                       <span>📋</span>
-                      <span>{language === 'pl' ? 'Eksportuj JSON' : 'Export JSON'}</span>
+                      <span>JSON</span>
                     </button>
 
                     <ExportButtons
@@ -1198,7 +1203,7 @@ export default function Home() {
                       documentText={documentText}
                     />
                   </div>
-                </div>
+                </details>
               </div>
             )}
 

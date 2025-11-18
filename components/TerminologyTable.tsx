@@ -306,8 +306,9 @@ export default function TerminologyTable({
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
               <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '20%'}}>{t.definition}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '36%'}}>{t.context}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '25%' : '20%'}}>{t.definition}</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '25%' : '32%'}}>{t.context}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '150px'}}>{language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}</th>
               <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
             </tr>
           </thead>
@@ -451,6 +452,13 @@ export default function TerminologyTable({
                           🔍 Pokaż
                         </button>
                       </div>
+                    </td>
+
+                    {/* Dokument źródłowy */}
+                    <td className="px-2 py-3 text-sm text-gray-600">
+                      <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        {term.sourceDocument || '-'}
+                      </span>
                     </td>
 
                     {/* Akcje */}

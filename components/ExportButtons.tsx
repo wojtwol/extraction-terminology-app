@@ -667,11 +667,11 @@ export default function ExportButtons({
   const hasTerms = terms.length > 0
 
   return (
-    <div className="flex flex-col gap-2 items-start">
+    <div className="flex flex-col gap-2 items-stretch">
       <button
         onClick={exportToXLSX}
         disabled={!hasTerms}
-        className="w-[180px] px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        className="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
       >
         📊 Excel (XLSX)
       </button>
@@ -679,7 +679,7 @@ export default function ExportButtons({
       <button
         onClick={exportToPDF}
         disabled={!hasTerms}
-        className="w-[180px] px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
       >
         📄 PDF
       </button>
@@ -687,7 +687,7 @@ export default function ExportButtons({
       <button
         onClick={exportToCSV}
         disabled={!hasTerms}
-        className="w-[180px] px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
       >
         📊 CSV
       </button>
@@ -695,7 +695,7 @@ export default function ExportButtons({
       <button
         onClick={exportToHTML}
         disabled={!hasTerms}
-        className="w-[180px] px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
       >
         🌐 HTML
       </button>
