@@ -23,7 +23,7 @@ export default function TerminologyTable({
 }: TerminologyTableProps) {
   const { t, language } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences'>('alphabetical')
+  const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences' | 'position'>('alphabetical')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set())
@@ -50,7 +50,13 @@ export default function TerminologyTable({
     if (sortBy === 'alphabetical') {
       return a.term.localeCompare(b.term, 'pl')
     }
-    return b.occurrences - a.occurrences
+    if (sortBy === 'occurrences') {
+      return b.occurrences - a.occurrences
+    }
+    // sortBy === 'position' - sortuj według pierwszej pozycji w dokumencie
+    const aPos = a.positions && a.positions.length > 0 ? a.positions[0] : Infinity
+    const bPos = b.positions && b.positions.length > 0 ? b.positions[0] : Infinity
+    return aPos - bPos
   })
 
   // Check if any term has a definition
@@ -279,6 +285,16 @@ export default function TerminologyTable({
             }`}
           >
             {language === 'pl' ? 'Według wystąpień' : 'By occurrences'}
+          </button>
+          <button
+            onClick={() => setSortBy('position')}
+            className={`px-4 py-2 rounded-lg ${
+              sortBy === 'position'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            {language === 'pl' ? 'Według kolejności' : 'By position'}
           </button>
         </div>
       </div>
