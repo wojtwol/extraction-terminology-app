@@ -417,6 +417,128 @@ export default function Home() {
       : `Term "${trimmedTerm}" has been added to the glossary.\n\nFound ${occurrences} occurrences in the document.`)
   }
 
+  // Rozbudowa istniejącego glosariusza (generowanie dodatkowych terminów)
+  const handleExpandGlossary = async (newMaxTerms: number) => {
+    if (!loadedText || !apiKey || !currentProject || !currentGlossary || !currentVersion) {
+      alert(language === 'pl'
+        ? 'Brak danych do rozbudowy glosariusza'
+        : 'Missing data for glossary expansion')
+      return
+    }
+
+    if (newMaxTerms <= terms.length) {
+      alert(language === 'pl'
+        ? `Nowa maksymalna liczba terminów (${newMaxTerms}) musi być większa od liczby istniejących terminów (${terms.length})`
+        : `New maximum term count (${newMaxTerms}) must be greater than existing terms (${terms.length})`)
+      return
+    }
+
+    setIsLoading(true)
+    setProgress(0)
+    setExtractionSuggestion(null)
+
+    try {
+      console.log(`🔄 Rozbudowa glosariusza: ${terms.length} → ${newMaxTerms} terminów`)
+
+      setProgress(10)
+
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) return prev
+          return prev + 5
+        })
+      }, 500)
+
+      const response = await fetch('/api/expand-glossary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: loadedText,
+          apiKey,
+          existingTerms: terms,
+          newMaxTerms,
+          minLength,
+          minOccurrences,
+          detectedLanguage
+        }),
+      })
+
+      clearInterval(progressInterval)
+      setProgress(95)
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text()
+        console.error('❌ Odpowiedź nie jest JSON:', textResponse.substring(0, 500))
+        throw new Error(`Serwer zwrócił błąd (status ${response.status})`)
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        const errorMessage = data.error || 'Nieznany błąd podczas rozbudowy'
+        console.error('❌ Błąd API:', errorMessage)
+        throw new Error(errorMessage)
+      }
+
+      if (!data.terms || data.terms.length === 0) {
+        alert(language === 'pl'
+          ? 'Nie znaleziono nowych terminów do dodania. Spróbuj zwiększyć limit lub sprawdź dokument.'
+          : 'No new terms found. Try increasing the limit or check the document.')
+        setProgress(0)
+        return
+      }
+
+      // Połącz istniejące terminy z nowymi
+      const expandedTerms = [...terms, ...data.terms]
+
+      // Zapisz wyniki jako nową wersję glosariusza
+      const description = language === 'pl'
+        ? `Rozbudowa: ${terms.length} → ${expandedTerms.length} terminów (+${data.terms.length})`
+        : `Expansion: ${terms.length} → ${expandedTerms.length} terms (+${data.terms.length})`
+
+      const extractionParams = currentVersion.extractionParams || { minTerms, maxTerms: newMaxTerms, minLength, minOccurrences }
+
+      projectStorage.addVersion(
+        currentProject.id,
+        currentGlossary.id,
+        expandedTerms,
+        description,
+        { ...extractionParams, maxTerms: newMaxTerms },
+        false
+      )
+
+      // Odśwież projekt
+      const updatedProject = projectStorage.getById(currentProject.id)
+      if (updatedProject) {
+        setCurrentProject(updatedProject)
+      }
+      refreshGlossary()
+
+      setProgress(100)
+      console.log(`✅ Rozbudowano glosariusz: +${data.terms.length} nowych terminów`)
+
+      alert(language === 'pl'
+        ? `Glosariusz został rozbudowany!\n\nDodano: ${data.terms.length} nowych terminów\nŁącznie: ${expandedTerms.length} terminów`
+        : `Glossary expanded!\n\nAdded: ${data.terms.length} new terms\nTotal: ${expandedTerms.length} terms`)
+
+      // Reset progress po 1 sekundzie
+      setTimeout(() => setProgress(0), 1000)
+
+    } catch (error) {
+      console.error('❌ Błąd rozbudowy glosariusza:', error)
+
+      const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
+
+      alert(`❌ Błąd rozbudowy:\n\n${errorMessage}\n\nSprawdź:\n• Czy klucz API jest poprawny\n• Czy dokument jest dostępny\n• Konsolę przeglądarki (F12) dla szczegółów`)
+      setProgress(0)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Prompt użytkownika do ręcznego dodania terminu
   const promptManualAddTerm = () => {
     const termText = prompt(
@@ -996,6 +1118,65 @@ export default function Home() {
                       ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
                       : (currentProject ? 'Save changes' : 'Save as project')}
                   </button>
+
+                  {/* Rozbudowa glosariusza - tylko gdy glosariusz już istnieje */}
+                  {loadedText && terms.length > 0 && !isLoading && glossaryMode !== 'bilingual' && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <h4 className="text-sm font-semibold text-gray-800 mb-2">
+                        {language === 'pl' ? '🔄 Rozbuduj glosariusz' : '🔄 Expand Glossary'}
+                      </h4>
+                      <p className="text-xs text-gray-600 mb-3">
+                        {language === 'pl'
+                          ? `Obecna liczba terminów: ${terms.length}. Zwiększ limit, aby wygenerować dodatkowe terminy bez utraty obecnych.`
+                          : `Current terms: ${terms.length}. Increase the limit to generate additional terms without losing existing ones.`}
+                      </p>
+                      <div className="flex gap-2 mb-2">
+                        <div className="flex-1">
+                          <label className="block text-xs text-gray-700 mb-1">
+                            {language === 'pl' ? 'Nowy maks. limit' : 'New max limit'}
+                          </label>
+                          <input
+                            type="number"
+                            id="expandMaxTerms"
+                            min={terms.length + 1}
+                            max="500"
+                            placeholder={`${terms.length + 20}`}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const input = document.getElementById('expandMaxTerms') as HTMLInputElement
+                          const newMax = parseInt(input.value, 10)
+
+                          if (isNaN(newMax) || newMax <= terms.length) {
+                            alert(language === 'pl'
+                              ? `Nowy limit musi być większy od ${terms.length}`
+                              : `New limit must be greater than ${terms.length}`)
+                            return
+                          }
+
+                          const confirmMsg = language === 'pl'
+                            ? `Rozbudować glosariusz z ${terms.length} do maksymalnie ${newMax} terminów?\n\nBędą wygenerowane dodatkowe terminy bez utraty obecnych.`
+                            : `Expand glossary from ${terms.length} to maximum ${newMax} terms?\n\nAdditional terms will be generated without losing existing ones.`
+
+                          if (confirm(confirmMsg)) {
+                            handleExpandGlossary(newMax)
+                          }
+                        }}
+                        className="w-full px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 transition-all font-semibold shadow-md flex items-center justify-center gap-2"
+                      >
+                        <span>🚀</span>
+                        <span>{language === 'pl' ? 'Rozbuduj glosariusz' : 'Expand Glossary'}</span>
+                      </button>
+                      <p className="text-xs text-gray-500 italic mt-2">
+                        {language === 'pl'
+                          ? 'AI wygeneruje nowe terminy, które NIE występują w obecnym glosariuszu'
+                          : 'AI will generate new terms that are NOT in the current glossary'}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Bilingual Workflow Buttons - Stage 1 */}
                   {glossaryMode === 'bilingual' && bilingualStage === 1 && (
