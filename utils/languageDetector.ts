@@ -95,10 +95,28 @@ export function detectLanguage(text: string): LanguageDetectionResult {
   const supportedCodes = Object.keys(SUPPORTED_LANGUAGES)
 
   // franc zwraca kod ISO 639-3
-  const detectedCode = franc(sample, {
+  let detectedCode = franc(sample, {
     minLength: 10,
     only: supportedCodes  // Ograniczamy tylko do naszych języków
   })
+
+  // Heurystyka dla poprawienia wykrywania angielskiego vs portugalskiego
+  // (franc czasem myli te języki w tekstach prawniczych z łacińskimi terminami)
+  if (detectedCode === 'por') {
+    const englishIndicators = /\b(the|and|of|to|in|is|for|that|with|shall|may|must|court|law|section|article)\b/gi
+    const portugueseIndicators = /\b(o|a|de|do|da|para|que|com|pelo|pela|artigo|lei|tribunal)\b/gi
+
+    const englishMatches = (sample.match(englishIndicators) || []).length
+    const portugueseMatches = (sample.match(portugueseIndicators) || []).length
+
+    console.log(`   Sprawdzanie EN vs PT: EN=${englishMatches}, PT=${portugueseMatches}`)
+
+    // Jeśli wykryto więcej angielskich wskaźników niż portugalskich, zmień na angielski
+    if (englishMatches > portugueseMatches * 1.5) {
+      console.log(`   Korekta: zmiana z portugalskiego na angielski`)
+      detectedCode = 'eng'
+    }
+  }
 
   console.log(`   Wykryty kod: ${detectedCode}`)
 

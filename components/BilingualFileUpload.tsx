@@ -120,6 +120,14 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       return
     }
 
+    // Sprawdź czy języki zostały wybrane
+    if (!sourceLang || !targetLang) {
+      alert(language === 'pl'
+        ? 'Proszę wybrać języki dla obu dokumentów'
+        : 'Please select languages for both documents')
+      return
+    }
+
     // Zapisz klucz API
     localStorage.setItem('anthropic_api_key', apiKey)
 
