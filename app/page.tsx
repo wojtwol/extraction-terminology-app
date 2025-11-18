@@ -525,8 +525,150 @@ export default function Home() {
     input.click()
   }
 
+  // Export pojedynczego glosariusza do JSON
+  const handleExportGlossary = () => {
+    if (terms.length === 0) {
+      alert(language === 'pl'
+        ? 'Brak terminów do eksportu'
+        : 'No terms to export')
+      return
+    }
+
+    const glossaryData = {
+      exportedAt: new Date().toISOString(),
+      fileName: fileName || 'unknown',
+      language: detectedLanguage || 'unknown',
+      termsCount: terms.length,
+      terms: terms.map(term => ({
+        term: term.term,
+        context: term.context,
+        occurrences: term.occurrences,
+        positions: term.positions,
+        definition: term.definition,
+        definitionSource: term.definitionSource
+      }))
+    }
+
+    const jsonContent = JSON.stringify(glossaryData, null, 2)
+    const blob = new Blob([jsonContent], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    const safeName = (fileName || 'glossary').replace(/[^a-z0-9]/gi, '_')
+    link.download = `${safeName}_glossary_${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    console.log(`✅ Wyeksportowano glosariusz: ${terms.length} terminów`)
+  }
+
+  // Import glosariusza z JSON
+  const handleImportGlossaryJSON = async () => {
+    if (!currentProject || !currentGlossary) {
+      alert(language === 'pl'
+        ? 'Nie można zaimportować - brak aktywnego projektu lub glosariusza'
+        : 'Cannot import - no active project or glossary')
+      return
+    }
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const text = await file.text()
+        const glossaryData = JSON.parse(text)
+
+        // Walidacja
+        if (!glossaryData.terms || !Array.isArray(glossaryData.terms)) {
+          throw new Error(language === 'pl'
+            ? 'Nieprawidłowy format pliku glosariusza. Plik musi zawierać pole "terms" z tablicą terminów.'
+            : 'Invalid glossary file format. File must contain "terms" array.')
+        }
+
+        // Parsuj terminy z JSON
+        const importedTerms: Term[] = glossaryData.terms.map((t: any, index: number) => {
+          // Znajdź pozycje terminu w dokumencie (jeśli dokument jest dostępny)
+          const { positions, context, occurrences } = documentText && t.term
+            ? findTermOccurrences(documentText, t.term)
+            : { positions: t.positions || [], context: t.context || '', occurrences: t.occurrences || 1 }
+
+          return {
+            id: `imported-json-${Date.now()}-${index}`,
+            term: t.term,
+            context: context || t.context || '',
+            occurrences,
+            positions,
+            definition: t.definition,
+            definitionSource: t.definitionSource
+          }
+        })
+
+        if (importedTerms.length === 0) {
+          throw new Error(language === 'pl'
+            ? 'Nie znaleziono żadnych prawidłowych terminów w pliku'
+            : 'No valid terms found in file')
+        }
+
+        // Zapytaj użytkownika czy zastąpić czy dodać do istniejących
+        const action = confirm(language === 'pl'
+          ? `Znaleziono ${importedTerms.length} terminów.\n\nOK = Dodaj do istniejących terminów\nAnuluj = Zastąp wszystkie terminy`
+          : `Found ${importedTerms.length} terms.\n\nOK = Add to existing terms\nCancel = Replace all terms`)
+
+        let finalTerms: Term[]
+        if (action) {
+          // Dodaj do istniejących (sprawdź duplikaty)
+          const existingTermTexts = new Set(terms.map(t => t.term.toLowerCase()))
+          const newTerms = importedTerms.filter(t => !existingTermTexts.has(t.term.toLowerCase()))
+          finalTerms = [...terms, ...newTerms]
+
+          alert(language === 'pl'
+            ? `Dodano ${newTerms.length} nowych terminów (${importedTerms.length - newTerms.length} duplikatów pominięto)`
+            : `Added ${newTerms.length} new terms (${importedTerms.length - newTerms.length} duplicates skipped)`)
+        } else {
+          // Zastąp wszystkie
+          finalTerms = importedTerms
+          alert(language === 'pl'
+            ? `Zastąpiono wszystkie terminy. Nowa liczba: ${finalTerms.length}`
+            : `Replaced all terms. New count: ${finalTerms.length}`)
+        }
+
+        // Zapisz jako nową wersję
+        projectStorage.addVersion(
+          currentProject.id,
+          currentGlossary.id,
+          finalTerms,
+          `Import z JSON: ${file.name}`,
+          undefined,
+          false
+        )
+
+        // Odśwież projekt
+        const updatedProject = projectStorage.getById(currentProject.id)
+        if (updatedProject) {
+          setCurrentProject(updatedProject)
+        }
+        refreshGlossary()
+
+        console.log(`✅ Zaimportowano ${finalTerms.length} terminów z JSON`)
+
+      } catch (error) {
+        console.error('Import glossary JSON error:', error)
+        alert(language === 'pl'
+          ? `Błąd importu glosariusza: ${(error as Error).message}`
+          : `Import glossary error: ${(error as Error).message}`)
+      }
+    }
+    input.click()
+  }
+
   // Import glosariusza z XLSX
-  const handleImportGlossary = async () => {
+  const handleImportGlossaryXLSX = async () => {
     if (!currentProject || !currentGlossary) {
       alert(language === 'pl'
         ? 'Nie można zaimportować - brak aktywnego projektu lub glosariusza'
@@ -934,8 +1076,17 @@ export default function Home() {
                   </button>
 
                   <button
-                    onClick={handleImportGlossary}
-                    className="w-[180px] px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                    onClick={handleImportGlossaryJSON}
+                    className="w-[180px] mb-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                    title={language === 'pl' ? 'Importuj/łącz glosariusz z JSON (zachowuje wszystkie metadane)' : 'Import/merge glossary from JSON (preserves all metadata)'}
+                  >
+                    <span>📋</span>
+                    <span>{language === 'pl' ? 'Importuj JSON' : 'Import JSON'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleImportGlossaryXLSX}
+                    className="w-[180px] px-4 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors font-medium flex items-center gap-2"
                     title={language === 'pl' ? 'Importuj/łącz terminy z pliku XLSX' : 'Import/merge terms from XLSX file'}
                   >
                     <span>📊</span>
@@ -948,6 +1099,17 @@ export default function Home() {
                     {language === 'pl' ? 'Eksport' : 'Export'}
                   </h3>
                   <div className="space-y-2">
+                    {/* Export glosariusza do JSON - zachowuje wszystkie metadane */}
+                    <button
+                      onClick={handleExportGlossary}
+                      disabled={terms.length === 0}
+                      className="w-[180px] mb-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
+                      title={language === 'pl' ? 'Eksportuj glosariusz do JSON (zachowuje wszystkie metadane: pozycje, definicje, konteksty)' : 'Export glossary to JSON (preserves all metadata: positions, definitions, contexts)'}
+                    >
+                      <span>📋</span>
+                      <span>{language === 'pl' ? 'Eksportuj JSON' : 'Export JSON'}</span>
+                    </button>
+
                     <ExportButtons
                       terms={terms}
                       fileName={fileName}
