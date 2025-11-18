@@ -126,6 +126,7 @@ export default function Home() {
   const [maxTerms, setMaxTerms] = useState(30)
   const [minLength, setMinLength] = useState(3)
   const [minOccurrences, setMinOccurrences] = useState(1)
+  const [generateDefinitions, setGenerateDefinitions] = useState(false)
 
   // Wybrany termin do podświetlenia w dokumencie
   const [selectedTerm, setSelectedTerm] = useState<Term | null>(null)
@@ -290,6 +291,77 @@ export default function Home() {
         setCurrentProject(updatedProject)
       }
       refreshGlossary()
+
+      // Jeśli włączono automatyczne generowanie definicji
+      if (generateDefinitions && data.terms.length > 0) {
+        console.log(`🔮 Rozpoczynam automatyczne generowanie definicji dla ${data.terms.length} terminów...`)
+
+        const termsWithDefinitions = [...data.terms]
+        let successCount = 0
+        let errorCount = 0
+
+        for (let i = 0; i < termsWithDefinitions.length; i++) {
+          const term = termsWithDefinitions[i]
+          const progressPercent = Math.round((i / termsWithDefinitions.length) * 100)
+          setProgress(progressPercent)
+
+          try {
+            const defResponse = await fetch('/api/generate-definition', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                apiKey,
+                term: term.term,
+                context: term.context,
+                documentText: loadedText,
+                language: detectedLanguage || 'pl'
+              })
+            })
+
+            if (defResponse.ok) {
+              const defData = await defResponse.json()
+              termsWithDefinitions[i] = {
+                ...term,
+                definition: defData.definition,
+                definitionSource: 'ai' as const
+              }
+              successCount++
+              console.log(`✅ [${i + 1}/${termsWithDefinitions.length}] Wygenerowano definicję dla "${term.term}"`)
+            } else {
+              errorCount++
+              console.warn(`⚠️ [${i + 1}/${termsWithDefinitions.length}] Błąd generowania definicji dla "${term.term}"`)
+            }
+          } catch (error) {
+            errorCount++
+            console.error(`❌ [${i + 1}/${termsWithDefinitions.length}] Wyjątek podczas generowania definicji dla "${term.term}":`, error)
+          }
+        }
+
+        // Zapisz terminy z definicjami jako nową wersję
+        projectStorage.addVersion(
+          currentProject.id,
+          currentGlossary.id,
+          termsWithDefinitions,
+          `Ekstrakcja: ${minTerms}-${maxTerms} terminów (z definicjami: ${successCount}/${termsWithDefinitions.length})`,
+          extractionParams,
+          false
+        )
+
+        // Odśwież ponownie aby pokazać definicje
+        const projectWithDefinitions = projectStorage.getById(currentProject.id)
+        if (projectWithDefinitions) {
+          setCurrentProject(projectWithDefinitions)
+        }
+        refreshGlossary()
+
+        console.log(`✅ Wygenerowano ${successCount} definicji, ${errorCount} błędów`)
+
+        if (errorCount > 0) {
+          alert(language === 'pl'
+            ? `Wygenerowano definicje: ${successCount}/${termsWithDefinitions.length}\nBłędy: ${errorCount}`
+            : `Generated definitions: ${successCount}/${termsWithDefinitions.length}\nErrors: ${errorCount}`)
+        }
+      }
 
       setProgress(100)
       console.log(`✅ Wyekstrahowano ${data.terms.length} terminów`)
@@ -1232,6 +1304,28 @@ export default function Home() {
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
+                  </div>
+
+                  {/* Checkbox dla automatycznego generowania definicji */}
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={generateDefinitions}
+                        onChange={(e) => setGenerateDefinitions(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700 font-medium">
+                        {language === 'pl'
+                          ? 'Generuj definicje automatycznie'
+                          : 'Generate definitions automatically'}
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      {language === 'pl'
+                        ? 'Po ekstrakcji terminów automatycznie wygeneruj dla nich definicje (zwiększa czas przetwarzania)'
+                        : 'After extracting terms, automatically generate definitions for them (increases processing time)'}
+                    </p>
                   </div>
 
                   {(minTerms === 0 || maxTerms === 0) && (
