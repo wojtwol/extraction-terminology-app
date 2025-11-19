@@ -35,6 +35,11 @@ export interface Term {
 
   definition?: string
   definitionSource?: 'document' | 'ai' | 'edited' | null
+  sourceDocument?: string  // Nazwa dokumentu źródłowego z którego wyekstrahowano termin
+
+  // Dla incremental extraction mode
+  isNew?: boolean  // Oznaczenie nowo dodanego terminu podczas rozbudowy
+  addedAt?: string  // Timestamp dodania terminu
 
   // Dla bilingual glossary mode (target language)
   targetTerm?: string
