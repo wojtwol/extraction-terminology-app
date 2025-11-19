@@ -147,8 +147,8 @@ export const translations: Record<Language, Translations> = {
     actions: 'Akcje',
 
     // Definition actions
-    generateAI: 'AI',
-    addManually: 'Ręcznie',
+    generateAI: '🤖 Generuj AI',
+    addManually: '✎ Dodaj ręcznie',
     edit: 'Edytuj',
     generating: 'Generowanie...',
     save: 'Zapisz',
@@ -262,8 +262,8 @@ export const translations: Record<Language, Translations> = {
     actions: 'Actions',
 
     // Definition actions
-    generateAI: 'AI',
-    addManually: 'Manual',
+    generateAI: '🤖 Generate AI',
+    addManually: '✎ Add Manually',
     edit: 'Edit',
     generating: 'Generating...',
     save: 'Save',
