@@ -2,12 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
-import BilingualFileUpload from '@/components/BilingualFileUpload'
-import ModeSelector from '@/components/ModeSelector'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
 import DocumentViewer from '@/components/DocumentViewer'
-import DocumentSplitView from '@/components/DocumentSplitView'
 import GlossaryManager from '@/components/GlossaryManager'
 import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
@@ -38,13 +35,7 @@ export interface Term {
 
   definition?: string
   definitionSource?: 'document' | 'ai' | 'edited' | null
-
-  // Dla bilingual glossary mode (target language)
-  targetTerm?: string
-  targetContext?: string
-  targetOccurrences?: number
-  targetPositions?: number[]
-  targetSource?: 'document' | 'ai' | 'manual' | 'missing'
+  sourceDocument?: string  // Nazwa dokumentu źródłowego z którego wyekstrahowano termin
 
   // Dla incremental extraction mode
   isNew?: boolean  // Oznaczenie nowo dodanego terminu podczas rozbudowy
@@ -123,16 +114,6 @@ export default function Home() {
   const [fileName, setFileName] = useState('')
   const [detectedLanguage, setDetectedLanguage] = useState('')
   const [apiKey, setApiKey] = useState('')
-
-  // Bilingual mode state
-  const [glossaryMode, setGlossaryMode] = useState<'monolingual' | 'bilingual' | null>(null)
-  const [bilingualStage, setBilingualStage] = useState<1 | 2>(1)
-  const [sourceDocumentText, setSourceDocumentText] = useState('')
-  const [targetDocumentText, setTargetDocumentText] = useState('')
-  const [sourceLanguage, setSourceLanguage] = useState('')
-  const [targetLanguage, setTargetLanguage] = useState('')
-  const [sourceFileName, setSourceFileName] = useState('')
-  const [targetFileName, setTargetFileName] = useState('')
 
   // Nowy state - załadowany tekst przed ekstrakcją
   const [loadedText, setLoadedText] = useState('')
@@ -624,205 +605,6 @@ export default function Home() {
     setDetectedLanguage('')
     setLoadedText('')
     setLoadedFileName('')
-    setGlossaryMode(null)
-    setBilingualStage(1)
-    setSourceDocumentText('')
-    setTargetDocumentText('')
-    setSourceLanguage('')
-    setTargetLanguage('')
-    setSourceFileName('')
-    setTargetFileName('')
-  }
-
-  // Handler dla bilingual extraction
-  const handleBilingualExtract = async (
-    sourceText: string,
-    targetText: string,
-    sourceLang: string,
-    targetLang: string,
-    sourceFile: string,
-    targetFile: string
-  ) => {
-    // Zapisz oba dokumenty w state
-    setSourceDocumentText(sourceText)
-    setTargetDocumentText(targetText)
-    setSourceLanguage(sourceLang)
-    setTargetLanguage(targetLang)
-    setSourceFileName(sourceFile)
-    setTargetFileName(targetFile)
-
-    // Załaduj source document do main state (dla Stage 1 - bazowy glosariusz)
-    setLoadedText(sourceText)
-    setLoadedFileName(sourceFile)
-    setDetectedLanguage(sourceLang)
-
-    console.log(`📄 Załadowano dokumenty bilingual:`)
-    console.log(`   Source: ${sourceFile} (${sourceLang}), ${sourceText.length} znaków`)
-    console.log(`   Target: ${targetFile} (${targetLang}), ${targetText.length} znaków`)
-  }
-
-  // Handler dla znajdowania ekwiwalentów (Stage 2)
-  const handleFindAllEquivalents = async () => {
-    if (!currentProject || !currentVersion || !apiKey) {
-      alert(language === 'pl' ? 'Brak projektu lub klucza API' : 'No project or API key')
-      return
-    }
-
-    if (!sourceDocumentText || !targetDocumentText) {
-      alert(language === 'pl'
-        ? 'Brak dokumentów źródłowych. Załaduj oba dokumenty ponownie.'
-        : 'Source documents missing. Please reload both documents.')
-      return
-    }
-
-    setIsLoading(true)
-    setProgress(10)
-
-    try {
-      console.log(`🔍 Rozpoczynam wyszukiwanie ekwiwalentów dla ${terms.length} terminów...`)
-
-      // Przygotuj dane source terms
-      const sourceTerms = terms.map(term => ({
-        term: term.term,
-        context: term.context || '',
-        position: term.positions?.[0] || 0,
-        occurrences: term.occurrences
-      }))
-
-      setProgress(20)
-
-      const response = await fetch('/api/find-equivalents', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          apiKey,
-          sourceTerms,
-          sourceDocument: sourceDocumentText,
-          targetDocument: targetDocumentText,
-          sourceLanguage,
-          targetLanguage,
-          mode: 'batch'
-        }),
-      })
-
-      setProgress(90)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to find equivalents')
-      }
-
-      const data = await response.json()
-
-      console.log(`✅ Znaleziono ${data.stats.found}/${data.stats.total} ekwiwalentów`)
-
-      // Aktualizuj terminy z ekwiwalentami
-      const updatedTerms = terms.map((term, index) => {
-        const result = data.results[index]
-
-        if (result && result.targetTerm) {
-          return {
-            ...term,
-            targetTerm: result.targetTerm,
-            targetContext: result.targetContext,
-            targetOccurrences: result.targetOccurrences,
-            targetPositions: result.targetPositions,
-            targetSource: result.targetSource
-          }
-        }
-
-        // Jeśli nie znaleziono, oznacz jako missing
-        return {
-          ...term,
-          targetTerm: undefined,
-          targetContext: undefined,
-          targetOccurrences: 0,
-          targetPositions: [],
-          targetSource: 'missing' as const
-        }
-      })
-
-      // Zapisz zaktualizowane terminy jako nową wersję
-      if (currentGlossary) {
-        const description = language === 'pl'
-          ? `Znaleziono ekwiwalenty: ${data.stats.found}/${data.stats.total}`
-          : `Found equivalents: ${data.stats.found}/${data.stats.total}`
-
-        projectStorage.addVersion(
-          currentProject.id,
-          currentGlossary.id,
-          updatedTerms,
-          description,
-          currentVersion?.extractionParams,
-          false  // Nie jest to snapshot
-        )
-
-        const updated = projectStorage.getById(currentProject.id)
-        if (updated) {
-          setCurrentProject(updated)
-          refreshGlossary()
-        }
-      }
-
-      setProgress(100)
-
-      alert(language === 'pl'
-        ? `Znaleziono ${data.stats.found} z ${data.stats.total} ekwiwalentów.\n\nBrak ekwiwalentów: ${data.stats.missing}`
-        : `Found ${data.stats.found} out of ${data.stats.total} equivalents.\n\nMissing: ${data.stats.missing}`)
-
-    } catch (error: any) {
-      console.error('❌ Błąd wyszukiwania ekwiwalentów:', error)
-      alert(language === 'pl'
-        ? `Błąd: ${error.message}`
-        : `Error: ${error.message}`)
-    } finally {
-      setIsLoading(false)
-      setProgress(0)
-    }
-  }
-
-  // Handler dla Quick Add - dodawanie target term przez zaznaczenie tekstu
-  const handleQuickAddTarget = (termId: string, targetTerm: string) => {
-    if (!currentProject || !currentGlossary) return
-
-    const updatedTerms = terms.map(t =>
-      t.id === termId
-        ? {
-            ...t,
-            targetTerm,
-            targetSource: 'manual' as const,
-            targetContext: undefined,
-            targetOccurrences: 0,
-            targetPositions: []
-          }
-        : t
-    )
-
-    // Zapisz jako nową wersję
-    if (currentVersion) {
-      const description = language === 'pl'
-        ? `Dodano ręcznie: "${targetTerm}" dla "${terms.find(t => t.id === termId)?.term}"`
-        : `Manually added: "${targetTerm}" for "${terms.find(t => t.id === termId)?.term}"`
-
-      projectStorage.addVersion(
-        currentProject.id,
-        currentGlossary.id,
-        updatedTerms,
-        description,
-        currentVersion.extractionParams,
-        false
-      )
-
-      const updated = projectStorage.getById(currentProject.id)
-      if (updated) {
-        setCurrentProject(updated)
-        refreshGlossary()
-      }
-    }
-
-    console.log(`✅ Quick Add: "${targetTerm}" jako target dla terminu ID ${termId}`)
   }
 
   // Ekran wyboru projektu - pokazuj jeśli nie ma wybranego projektu
@@ -830,23 +612,6 @@ export default function Home() {
     const allProjects = projectStorage.getAll().sort((a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
-
-    // Najpierw pokaż ModeSelector jeśli tryb nie został wybrany
-    if (glossaryMode === null) {
-      return (
-        <>
-          <LanguageSwitch />
-          <ModeSelector
-            onSelectMode={(mode) => {
-              setGlossaryMode(mode)
-              if (mode === 'bilingual') {
-                setBilingualStage(1)
-              }
-            }}
-          />
-        </>
-      )
-    }
 
     return (
       <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
@@ -860,21 +625,9 @@ export default function Home() {
               <p className="text-gray-600 text-lg">
                 {t.subtitle}
               </p>
-              <p className="text-sm text-gray-500 mt-2">
-                {language === 'pl' ? 'Tryb:' : 'Mode:'} {glossaryMode === 'monolingual' ? (language === 'pl' ? 'Jednojęzyczny' : 'Monolingual') : (language === 'pl' ? 'Dwujęzyczny' : 'Bilingual')}
-              </p>
             </div>
-            <div className="ml-4 flex flex-col gap-2">
+            <div className="ml-4">
               <LanguageSwitch />
-              <button
-                onClick={() => {
-                  setGlossaryMode(null)
-                  setBilingualStage(1)
-                }}
-                className="text-sm px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-              >
-                {language === 'pl' ? 'Zmień tryb' : 'Change mode'}
-              </button>
             </div>
           </div>
 
@@ -1033,25 +786,6 @@ export default function Home() {
             <p className="text-gray-600 text-sm font-medium">
               {t.subtitle}
             </p>
-            {glossaryMode === 'bilingual' && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 text-xs font-semibold rounded-full">
-                  {language === 'pl' ? 'Tryb dwujęzyczny' : 'Bilingual Mode'}
-                </span>
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  bilingualStage === 1
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-purple-100 text-purple-800'
-                }`}>
-                  {bilingualStage === 1
-                    ? (language === 'pl' ? 'Etap 1: Glosariusz bazowy' : 'Stage 1: Base Glossary')
-                    : (language === 'pl' ? 'Etap 2: Wyszukiwanie ekwiwalentów' : 'Stage 2: Finding Equivalents')}
-                </span>
-                <span className="text-xs text-gray-600">
-                  {sourceLanguage} → {targetLanguage}
-                </span>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -1073,145 +807,75 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Left side - Upload & Projects */}
           <div className="lg:col-span-2 space-y-4">
-            {glossaryMode === 'bilingual' ? (
-              <BilingualFileUpload
-                onExtract={handleBilingualExtract}
-                isLoading={isLoading}
-                savedApiKey={apiKey}
-              />
-            ) : (
-              <FileUpload
-                onExtract={handleFileLoaded}
-                isLoading={isLoading}
-                savedApiKey={apiKey}
-              />
-            )}
+            <FileUpload
+              onExtract={handleFileLoaded}
+              isLoading={isLoading}
+              savedApiKey={apiKey}
+            />
 
             {/* Akcje i Eksport pod FileUpload */}
             {terms.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Akcje' : 'Actions'}
-                  </h3>
+                <details className="bg-white rounded-lg shadow-lg" open>
+                  <summary className="cursor-pointer p-4 hover:bg-gray-50 transition-colors rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-800 inline">
+                      {language === 'pl' ? 'Akcje' : 'Actions'}
+                    </h3>
+                  </summary>
+                  <div className="p-4 pt-0">
+                    {/* Snapshot Button */}
+                    {currentProject && currentGlossary && (
+                      <div className="mb-2">
+                        <SnapshotButton
+                          projectId={currentProject.id}
+                          glossaryId={currentGlossary.id}
+                          onSnapshotCreated={() => {
+                            const updated = projectStorage.getById(currentProject.id)
+                            if (updated) setCurrentProject(updated)
+                            refreshGlossary()
+                          }}
+                        />
+                      </div>
+                    )}
 
-                  {/* Snapshot Button */}
-                  {currentProject && currentGlossary && (
-                    <div className="mb-2">
-                      <SnapshotButton
-                        projectId={currentProject.id}
-                        glossaryId={currentGlossary.id}
-                        onSnapshotCreated={() => {
-                          const updated = projectStorage.getById(currentProject.id)
-                          if (updated) setCurrentProject(updated)
-                          refreshGlossary()
-                        }}
-                      />
-                    </div>
-                  )}
+                    {/* Manual Add Term Button */}
+                    {documentText && (
+                      <button
+                        onClick={promptManualAddTerm}
+                        className="w-[180px] mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
+                        title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
+                      >
+                        <span>➕</span>
+                        <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
+                      </button>
+                    )}
 
-                  {/* Manual Add Term Button */}
-                  {documentText && (
                     <button
-                      onClick={promptManualAddTerm}
-                      className="w-[180px] mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
-                      title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
+                      onClick={handleSaveProject}
+                      disabled={terms.length === 0}
+                      className="w-[180px] px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
                     >
-                      <span>➕</span>
-                      <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
+                      {language === 'pl'
+                        ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
+                        : (currentProject ? 'Save changes' : 'Save as project')}
                     </button>
-                  )}
+                  </div>
+                </details>
 
-                  <button
-                    onClick={handleSaveProject}
-                    disabled={terms.length === 0}
-                    className="w-[180px] px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
-                  >
-                    {language === 'pl'
-                      ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
-                      : (currentProject ? 'Save changes' : 'Save as project')}
-                  </button>
-
-                  {/* Bilingual Workflow Buttons - Stage 1 */}
-                  {glossaryMode === 'bilingual' && bilingualStage === 1 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-3">
-                        {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 1' : 'Bilingual Glossary - Stage 1'}
-                      </p>
-                      <button
-                        onClick={() => {
-                          const confirmMsg = language === 'pl'
-                            ? 'Zatwierdzić glosariusz bazowy i przejść do wyszukiwania ekwiwalentów?'
-                            : 'Approve base glossary and proceed to finding equivalents?'
-                          if (confirm(confirmMsg)) {
-                            setBilingualStage(2)
-                            console.log('✅ Glosariusz bazowy zatwierdzony, przejście do Stage 2')
-                          }
-                        }}
-                        disabled={terms.length === 0}
-                        className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
-                      >
-                        ✓ {language === 'pl' ? 'Zatwierdź glosariusz bazowy' : 'Approve Base Glossary'}
-                      </button>
-                      <p className="text-xs text-gray-500 italic">
-                        {language === 'pl'
-                          ? 'Po zatwierdzeniu będziesz mógł wyszukiwać ekwiwalenty w dokumencie docelowym'
-                          : 'After approval you can find equivalents in target document'}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Bilingual Workflow Buttons - Stage 2 */}
-                  {glossaryMode === 'bilingual' && bilingualStage === 2 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-3">
-                        {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 2' : 'Bilingual Glossary - Stage 2'}
-                      </p>
-                      <button
-                        onClick={handleFindAllEquivalents}
-                        disabled={isLoading || terms.length === 0}
-                        className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
-                      >
-                        {isLoading ? (
-                          <>⏳ {language === 'pl' ? 'Wyszukiwanie...' : 'Finding...'}</>
-                        ) : (
-                          <>🔍 {language === 'pl' ? 'Znajdź wszystkie ekwiwalenty' : 'Find All Equivalents'}</>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          const confirmMsg = language === 'pl'
-                            ? 'Wrócić do edycji glosariusza bazowego?'
-                            : 'Return to editing base glossary?'
-                          if (confirm(confirmMsg)) {
-                            setBilingualStage(1)
-                          }
-                        }}
-                        className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-                      >
-                        ← {language === 'pl' ? 'Powrót do Etapu 1' : 'Back to Stage 1'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white rounded-lg shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Eksport' : 'Export'}
-                  </h3>
-                  <div className="space-y-2">
+                <details className="bg-white rounded-lg shadow-lg" open>
+                  <summary className="cursor-pointer p-4 hover:bg-gray-50 transition-colors rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-800 inline">
+                      {language === 'pl' ? 'Eksport' : 'Export'}
+                    </h3>
+                  </summary>
+                  <div className="p-4 pt-0 space-y-2">
                     <ExportButtons
                       terms={terms}
                       fileName={fileName}
                       documentText={documentText}
-                      glossaryMode={glossaryMode}
-                      sourceLanguage={sourceLanguage}
-                      targetLanguage={targetLanguage}
-                      sourceFileName={sourceFileName}
-                      targetFileName={targetFileName}
                     />
                   </div>
-                </div>
+                </details>
               </div>
             )}
 
@@ -1519,27 +1183,10 @@ export default function Home() {
               apiKey={apiKey}
               onTermSelect={setSelectedTerm}
               selectedTermId={selectedTerm?.id}
-              glossaryMode={glossaryMode}
-              bilingualStage={bilingualStage}
-              sourceDocument={sourceDocumentText}
-              targetDocument={targetDocumentText}
-              sourceLanguage={sourceLanguage}
-              targetLanguage={targetLanguage}
             />
 
-            {/* Document viewers - bilingual vs monolingual */}
-            {glossaryMode === 'bilingual' && bilingualStage === 2 && sourceDocumentText && targetDocumentText ? (
-              <DocumentSplitView
-                sourceDocument={sourceDocumentText}
-                targetDocument={targetDocumentText}
-                sourceLanguage={sourceLanguage}
-                targetLanguage={targetLanguage}
-                terms={terms}
-                selectedTerm={selectedTerm}
-                onQuickAddTarget={handleQuickAddTarget}
-                onTermSelect={setSelectedTerm}
-              />
-            ) : documentText ? (
+            {/* Document viewer */}
+            {documentText && (
               <DocumentViewer
                 documentText={documentText}
                 selectedTerm={selectedTerm}
@@ -1547,7 +1194,7 @@ export default function Home() {
                 terms={terms}
                 onAddTermFromSelection={handleManualAddTerm}
               />
-            ) : null}
+            )}
           </div>
         )}
 
