@@ -929,9 +929,8 @@ export default function Home() {
               savedApiKey={apiKey}
             />
 
-            {/* Akcje i Eksport pod FileUpload */}
-            {terms.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Akcje i Eksport pod FileUpload - zawsze widoczne */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white rounded-lg shadow-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">
                     {language === 'pl' ? 'Akcje' : 'Actions'}
@@ -1039,18 +1038,32 @@ export default function Home() {
 
                 <div className="bg-white rounded-lg shadow-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Eksport' : 'Export'}
+                    {language === 'pl' ? 'Import / Eksport' : 'Import / Export'}
                   </h3>
                   <div className="space-y-2">
-                    <ExportButtons
-                      terms={terms}
-                      fileName={fileName}
-                      documentText={documentText}
-                    />
+                    {terms.length > 0 ? (
+                      <ExportButtons
+                        terms={terms}
+                        fileName={fileName}
+                        documentText={documentText}
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-600">
+                        <p className="mb-3">
+                          {language === 'pl'
+                            ? 'Załaduj dokument i wyekstrahuj terminy, aby móc je eksportować.'
+                            : 'Load a document and extract terms to export them.'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {language === 'pl'
+                            ? 'Formaty: XLSX, PDF, CSV, HTML'
+                            : 'Formats: XLSX, PDF, CSV, HTML'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
 
             {/* Panel podglądu */}
             {loadedText && !isLoading && terms.length === 0 && (
