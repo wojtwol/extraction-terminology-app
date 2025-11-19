@@ -9,64 +9,27 @@ interface ExportButtonsProps {
   terms: Term[]
   fileName: string
   documentText: string
-  glossaryMode?: 'monolingual' | 'bilingual' | null
-  sourceLanguage?: string
-  targetLanguage?: string
-  sourceFileName?: string
-  targetFileName?: string
 }
 
 export default function ExportButtons({
   terms,
   fileName,
-  documentText,
-  glossaryMode,
-  sourceLanguage,
-  targetLanguage,
-  sourceFileName,
-  targetFileName
+  documentText
 }: ExportButtonsProps) {
-  const isBilingual = glossaryMode === 'bilingual'
-  const hasTargetTerms = terms.some(t => t.targetTerm || t.targetSource === 'missing')
   const exportToCSV = () => {
-    let csvContent: string
-
-    if (isBilingual && hasTargetTerms) {
-      // Bilingual CSV
-      const headers = ['Nr', 'Source Term', 'Occurrences', 'Target Term', 'Source Context', 'Target Context', 'Status']
-      const rows = terms.map((term, index) => [
-        (index + 1).toString(),
+    const csvContent = [
+      ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
+      ...terms.map(term => [
         term.term,
         term.occurrences.toString(),
-        term.targetTerm || '',
-        term.context || '',
-        term.targetContext || '',
-        term.targetSource === 'document' ? 'Document' :
-        term.targetSource === 'ai' ? 'AI' :
-        term.targetSource === 'manual' ? 'Manual' : 'Missing'
+        term.sourceDocument || fileName || 'Dokument',
+        term.context || ''
       ])
+    ]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n')
 
-      csvContent = [headers, ...rows]
-        .map(row => row.map(cell => `"${cell}"`).join(','))
-        .join('\n')
-    } else {
-      // Monolingual CSV (original)
-      csvContent = [
-        ['Termin', 'Liczba wystąpień', 'Kontekst'],
-        ...terms.map(term => [
-          term.term,
-          term.occurrences.toString(),
-          term.context || ''
-        ])
-      ]
-        .map(row => row.map(cell => `"${cell}"`).join(','))
-        .join('\n')
-    }
-
-    const filename = isBilingual && hasTargetTerms
-      ? `${sourceFileName || fileName}_${sourceLanguage}-${targetLanguage}_glossary.csv`
-      : `${fileName}_glosariusz.csv`
-
+    const filename = `${fileName}_glosariusz.csv`
     downloadFile(csvContent, filename, 'text/csv;charset=utf-8;')
   }
 
@@ -74,10 +37,10 @@ export default function ExportButtons({
     // Sprawdź czy są definicje
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
 
-    // Dynamiczne szerokości kolumn
-    const definitionWidth = hasDefinitions ? '30%' : '15%'  // 50% mniej gdy brak definicji
+    // Dynamiczne szerokości kolumn (z uwzględnieniem kolumny Dokument)
+    const definitionWidth = hasDefinitions ? '26%' : '12%'  // Zmniejszone o miejsce dla kolumny Dokument
     const sourceWidth = '100px'
-    const contextWidth = hasDefinitions ? '30%' : '45%'     // Rozszerzona gdy brak definicji
+    const contextWidth = hasDefinitions ? '26%' : '38%'     // Zmniejszone o miejsce dla kolumny Dokument
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -228,8 +191,9 @@ export default function ExportButtons({
       <thead>
         <tr>
           <th class="nr-col">Nr</th>
-          <th style="width: 200px;">Termin</th>
-          <th style="width: 80px; text-align: center;">Liczba wystąpień</th>
+          <th style="width: 180px;">Termin</th>
+          <th style="width: 70px; text-align: center;">Liczba wystąpień</th>
+          <th style="width: 150px;">Dokument</th>
           <th style="width: ${definitionWidth};">Definicja</th>
           <th style="width: ${sourceWidth}; text-align: center;">Źródło definicji</th>
           <th style="width: ${contextWidth};">Kontekst</th>
@@ -241,6 +205,9 @@ export default function ExportButtons({
             <td class="nr-col">${index + 1}</td>
             <td class="term">${term.term}</td>
             <td class="occurrences">${term.occurrences}</td>
+            <td style="font-size: 0.85em; color: #6c757d;">
+              ${term.sourceDocument || fileName || 'Dokument'}
+            </td>
             <td class="definition">
               ${term.definition || '<span style="color: #adb5bd;">-</span>'}
             </td>
@@ -276,105 +243,29 @@ export default function ExportButtons({
     downloadFile(htmlContent, `${fileName}_glosariusz.html`, 'text/html;charset=utf-8;')
   }
 
-  const exportToJSON = () => {
-    const baseData: any = {
-      createdAt: new Date().toISOString(),
-      termsCount: terms.length,
-      glossaryMode: glossaryMode || 'monolingual'
-    }
-
-    if (isBilingual && hasTargetTerms) {
-      // Bilingual JSON
-      baseData.sourceFile = sourceFileName || fileName
-      baseData.targetFile = targetFileName
-      baseData.sourceLanguage = sourceLanguage
-      baseData.targetLanguage = targetLanguage
-      baseData.terms = terms.map(term => ({
-        sourceTerm: term.term,
-        sourceOccurrences: term.occurrences,
-        sourceContext: term.context,
-        sourcePositions: term.positions,
-        targetTerm: term.targetTerm,
-        targetOccurrences: term.targetOccurrences,
-        targetContext: term.targetContext,
-        targetPositions: term.targetPositions,
-        targetSource: term.targetSource
-      }))
-    } else {
-      // Monolingual JSON (original)
-      baseData.sourceFile = fileName
-      baseData.terms = terms.map(term => ({
-        term: term.term,
-        occurrences: term.occurrences,
-        context: term.context,
-        positions: term.positions,
-        definition: term.definition,
-        definitionSource: term.definitionSource
-      }))
-    }
-
-    const jsonContent = JSON.stringify(baseData, null, 2)
-
-    const filename = isBilingual && hasTargetTerms
-      ? `${sourceFileName || fileName}_${sourceLanguage}-${targetLanguage}_glossary.json`
-      : `${fileName}_glosariusz.json`
-
-    downloadFile(jsonContent, filename, 'application/json;charset=utf-8;')
-  }
-
   const exportToXLSX = () => {
-    let data: any[][]
-    let numCols = 6
-
-    if (isBilingual && hasTargetTerms) {
-      // Bilingual XLSX
-      numCols = 7
-      data = [
-        ['IURIDICO EJ GTEXTT', '', '', '', '', '', ''],
-        ['Bilingual Glossary', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', ''],
-        ['Source file:', sourceFileName || fileName, '', '', '', '', ''],
-        ['Target file:', targetFileName || '', '', '', '', '', ''],
-        ['Languages:', `${sourceLanguage} → ${targetLanguage}`, '', '', '', '', ''],
-        ['Date:', new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', '', ''],
-        ['Terms count:', terms.length.toString(), '', '', '', '', ''],
-        [],
-        ['No.', 'Source Term', 'Occ.', 'Target Term', 'Source Context', 'Target Context', 'Status'],
-        ...terms.map((term, index) => [
-          (index + 1).toString(),
-          term.term,
-          term.occurrences.toString(),
-          term.targetTerm || '',
-          term.context || '',
-          term.targetContext || '',
-          term.targetSource === 'document' ? 'Document' :
-           term.targetSource === 'ai' ? 'AI' :
-           term.targetSource === 'manual' ? 'Manual' : 'Missing'
-        ])
-      ]
-    } else {
-      // Monolingual XLSX (original)
-      data = [
-        ['IURIDICO EJ GTEXTT', '', '', '', '', ''],
-        ['Glossary and Terminology Extraction Tool', '', '', '', '', ''],
-        ['', '', '', '', '', ''],
-        ['Dokument źródłowy:', fileName, '', '', '', ''],
-        ['Data utworzenia:', new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', ''],
-        ['Liczba terminów:', terms.length.toString(), '', '', '', ''],
-        [],
-        ['Nr', 'Termin', 'Liczba wystąpień', 'Definicja', 'Źródło definicji', 'Kontekst'],
-        ...terms.map((term, index) => [
-          (index + 1).toString(),
-          term.term,
-          term.occurrences.toString(),
-          term.definition || '',
-          term.definitionSource === 'document' ? 'Z dokumentu' :
-           term.definitionSource === 'edited' ? 'Edytowano' :
-           term.definitionSource === 'ai' ? 'Wygenerowane AI' : '',
-          term.context || ''
-        ])
-      ]
-    }
+    const numCols = 7  // Zwiększone z 6 na 7 (dodana kolumna Dokument)
+    const data = [
+      ['IURIDICO EJ GTEXTT', '', '', '', '', '', ''],
+      ['Glossary and Terminology Extraction Tool', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['Dokument źródłowy:', fileName, '', '', '', '', ''],
+      ['Data utworzenia:', new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', '', '', ''],
+      ['Liczba terminów:', terms.length.toString(), '', '', '', '', '', ''],
+      [],
+      ['Nr', 'Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
+      ...terms.map((term, index) => [
+        (index + 1).toString(),
+        term.term,
+        term.occurrences.toString(),
+        term.sourceDocument || fileName || 'Dokument',
+        term.definition || '',
+        term.definitionSource === 'document' ? 'Z dokumentu' :
+         term.definitionSource === 'edited' ? 'Edytowano' :
+         term.definitionSource === 'ai' ? 'Wygenerowane AI' : '',
+        term.context || ''
+      ])
+    ]
 
     const ws = XLSX.utils.aoa_to_sheet(data)
 
@@ -385,34 +276,21 @@ export default function ExportButtons({
       { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } }  // Wiersz 2: Glossary/Bilingual Glossary
     ]
 
-    // Dynamiczne szerokości kolumn
-    if (isBilingual && hasTargetTerms) {
-      // Bilingual columns
-      ws['!cols'] = [
-        { wch: 8 },   // Nr
-        { wch: 30 },  // Source Term
-        { wch: 12 },  // Occurrences
-        { wch: 30 },  // Target Term
-        { wch: 40 },  // Source Context
-        { wch: 40 },  // Target Context
-        { wch: 15 }   // Status
-      ]
-    } else {
-      // Monolingual columns (original)
-      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
-      const definitionColWidth = hasDefinitions ? 70 : 12
-      const sourceColWidth = hasDefinitions ? 18 : 18
-      const contextColWidth = hasDefinitions ? 36 : 72
+    // Dynamiczne szerokości kolumn (z uwzględnieniem kolumny Dokument)
+    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+    const definitionColWidth = hasDefinitions ? 60 : 12
+    const sourceColWidth = hasDefinitions ? 18 : 18
+    const contextColWidth = hasDefinitions ? 32 : 64
 
-      ws['!cols'] = [
-        { wch: 20 },                 // Nr
-        { wch: 35 },                 // Termin
-        { wch: 18 },                 // Liczba wystąpień
-        { wch: definitionColWidth }, // Definicja (dynamiczna)
-        { wch: sourceColWidth },     // Źródło (dynamiczna)
-        { wch: contextColWidth }     // Kontekst (zwężona, z zawijaniem)
-      ]
-    }
+    ws['!cols'] = [
+      { wch: 8 },                  // Nr
+      { wch: 30 },                 // Termin
+      { wch: 12 },                 // Liczba wystąpień
+      { wch: 25 },                 // Dokument
+      { wch: definitionColWidth }, // Definicja (dynamiczna)
+      { wch: sourceColWidth },     // Źródło (dynamiczna)
+      { wch: contextColWidth }     // Kontekst (zwężona, z zawijaniem)
+    ]
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
     ws['!rows'] = []
@@ -563,10 +441,7 @@ export default function ExportButtons({
     XLSX.utils.book_append_sheet(wb, ws, 'Glosariusz')
 
     // Zapisz plik
-    const filename = isBilingual && hasTargetTerms
-      ? `${sourceFileName || fileName}_${sourceLanguage}-${targetLanguage}_glossary.xlsx`
-      : `${fileName}_glosariusz.xlsx`
-
+    const filename = `${fileName}_glosariusz.xlsx`
     XLSX.writeFile(wb, filename)
   }
 
@@ -769,13 +644,6 @@ export default function ExportButtons({
         className="w-[180px] px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
       >
         🌐 HTML
-      </button>
-
-      <button
-        onClick={exportToJSON}
-        className="w-[180px] px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2"
-      >
-        📄 JSON
       </button>
 
       <p className="text-xs text-gray-500 mt-2">
