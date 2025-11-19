@@ -2118,6 +2118,305 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Modal dla tworzenia glosariusza dwujęzycznego */}
+      {showBilingualDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                🌐 {language === 'pl' ? 'Tworzenie glosariusza dwujęzycznego' : 'Creating Bilingual Glossary'}
+              </h2>
+              <p className="text-blue-100 mt-2">
+                {bilingualDialogStep === 'language' && (language === 'pl' ? 'Krok 1: Wybierz język docelowy' : 'Step 1: Select target language')}
+                {bilingualDialogStep === 'document' && (language === 'pl' ? 'Krok 2: Załaduj dokument w języku docelowym' : 'Step 2: Load target language document')}
+                {bilingualDialogStep === 'columns' && (language === 'pl' ? 'Krok 3: Wybierz widok glosariusza' : 'Step 3: Choose glossary view')}
+                {bilingualDialogStep === 'processing' && (language === 'pl' ? 'Dopasowywanie terminów...' : 'Matching terms...')}
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              {/* Krok 1: Wybór języka */}
+              {bilingualDialogStep === 'language' && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 flex items-start gap-2">
+                      <span className="text-xl">ℹ️</span>
+                      <span>
+                        {language === 'pl'
+                          ? 'Wybierz język, w którym znajduje się dokument docelowy. System automatycznie dopasuje terminy na podstawie kontekstu i pozycji w dokumencie.'
+                          : 'Select the language of your target document. The system will automatically match terms based on context and position in the document.'}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {language === 'pl' ? 'Język docelowy:' : 'Target language:'}
+                    </label>
+                    <select
+                      value={selectedTargetLanguage}
+                      onChange={(e) => setSelectedTargetLanguage(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-lg"
+                    >
+                      <option value="">
+                        {language === 'pl' ? '-- Wybierz język --' : '-- Select language --'}
+                      </option>
+                      {TARGET_LANGUAGES.map(lang => (
+                        <option key={lang.code} value={lang.code}>
+                          {lang.name} ({lang.code.toUpperCase()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => setShowBilingualDialog(false)}
+                      className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                    >
+                      ❌ {language === 'pl' ? 'Anuluj' : 'Cancel'}
+                    </button>
+                    <button
+                      onClick={() => setBilingualDialogStep('document')}
+                      disabled={!selectedTargetLanguage}
+                      className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                    >
+                      ➡️ {language === 'pl' ? 'Dalej' : 'Next'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Krok 2: Załadowanie dokumentu */}
+              {bilingualDialogStep === 'document' && (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm text-green-800 flex items-start gap-2">
+                      <span className="text-xl">✅</span>
+                      <span>
+                        {language === 'pl'
+                          ? `Wybrany język: ${TARGET_LANGUAGES.find(l => l.code === selectedTargetLanguage)?.name || selectedTargetLanguage}`
+                          : `Selected language: ${TARGET_LANGUAGES.find(l => l.code === selectedTargetLanguage)?.name || selectedTargetLanguage}`}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 flex items-start gap-2">
+                      <span className="text-xl">📄</span>
+                      <span>
+                        {language === 'pl'
+                          ? 'Załaduj dokument w języku docelowym (format TXT lub PDF). Powinien to być ten sam dokument co źródłowy, ale w innym języku.'
+                          : 'Load a document in the target language (TXT or PDF format). It should be the same document as the source, but in a different language.'}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <input
+                      type="file"
+                      accept=".txt,.pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          setBilingualDialogStep('columns')
+                          // Store file for later processing
+                          ;(window as any).__bilingualTargetFile = file
+                        }
+                      }}
+                      className="hidden"
+                      id="bilingual-file-input"
+                    />
+                    <label
+                      htmlFor="bilingual-file-input"
+                      className="cursor-pointer inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-lg"
+                    >
+                      📁 {language === 'pl' ? 'Wybierz plik (TXT/PDF)' : 'Choose file (TXT/PDF)'}
+                    </label>
+                    <p className="text-gray-500 text-sm mt-3">
+                      {language === 'pl' ? 'lub przeciągnij plik tutaj' : 'or drag file here'}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => setBilingualDialogStep('language')}
+                      className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                    >
+                      ⬅️ {language === 'pl' ? 'Wstecz' : 'Back'}
+                    </button>
+                    <button
+                      onClick={() => setShowBilingualDialog(false)}
+                      className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                    >
+                      ❌ {language === 'pl' ? 'Anuluj' : 'Cancel'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Krok 3: Wybór widoku kolumn */}
+              {bilingualDialogStep === 'columns' && (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm text-green-800 flex items-start gap-2">
+                      <span className="text-xl">✅</span>
+                      <span>
+                        {language === 'pl'
+                          ? 'Dokument załadowany pomyślnie!'
+                          : 'Document loaded successfully!'}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 flex items-start gap-2">
+                      <span className="text-xl">👁️</span>
+                      <span>
+                        {language === 'pl'
+                          ? 'Wybierz jak chcesz wyświetlać glosariusz dwujęzyczny:'
+                          : 'Choose how you want to display the bilingual glossary:'}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {language === 'pl' ? 'Widok glosariusza:' : 'Glossary view:'}
+                    </label>
+
+                    <div
+                      onClick={() => setSelectedColumnView('2')}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                        selectedColumnView === '2'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          checked={selectedColumnView === '2'}
+                          onChange={() => setSelectedColumnView('2')}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg">
+                            📊 2 {language === 'pl' ? 'kolumny' : 'columns'}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {language === 'pl'
+                              ? 'Tylko terminy: Termin źródłowy | Termin docelowy'
+                              : 'Terms only: Source term | Target term'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setSelectedColumnView('4')}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                        selectedColumnView === '4'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          checked={selectedColumnView === '4'}
+                          onChange={() => setSelectedColumnView('4')}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg">
+                            📋 4 {language === 'pl' ? 'kolumny' : 'columns'}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {language === 'pl'
+                              ? 'Terminy + konteksty: Termin źródłowy | Kontekst źródłowy | Termin docelowy | Kontekst docelowy'
+                              : 'Terms + contexts: Source term | Source context | Target term | Target context'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setBilingualDialogStep('document')
+                        ;(window as any).__bilingualTargetFile = null
+                      }}
+                      className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                    >
+                      ⬅️ {language === 'pl' ? 'Wstecz' : 'Back'}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const file = (window as any).__bilingualTargetFile
+                        if (file) {
+                          await handleBilingualDocumentLoad(file)
+                        }
+                      }}
+                      className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    >
+                      🚀 {language === 'pl' ? 'Rozpocznij dopasowywanie' : 'Start matching'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Krok 4: Przetwarzanie */}
+              {bilingualDialogStep === 'processing' && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="animate-spin text-3xl">⚙️</div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg text-gray-800">
+                          {bilingualProgress.message}
+                        </h3>
+                        {bilingualProgress.total > 0 && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {language === 'pl' ? 'Przetworzono' : 'Processed'}: {bilingualProgress.current} / {bilingualProgress.total} {language === 'pl' ? 'terminów' : 'terms'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    {bilingualProgress.total > 0 && (
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${(bilingualProgress.current / bilingualProgress.total) * 100}%`
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800 flex items-start gap-2">
+                      <span className="text-xl">⏳</span>
+                      <span>
+                        {language === 'pl'
+                          ? 'Proszę czekać... Proces może potrwać kilka minut w zależności od liczby terminów.'
+                          : 'Please wait... The process may take a few minutes depending on the number of terms.'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
