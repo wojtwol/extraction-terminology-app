@@ -12,6 +12,12 @@ interface TerminologyTableProps {
   onTermSelect?: (term: Term) => void
   selectedTermId?: string | null
   fileName?: string
+  // Props dla glosariuszy dwujęzycznych
+  isBilingual?: boolean
+  sourceLanguage?: string
+  targetLanguage?: string
+  columnView?: '2' | '4'
+  targetDocumentText?: string
 }
 
 export default function TerminologyTable({
@@ -21,7 +27,12 @@ export default function TerminologyTable({
   apiKey,
   onTermSelect,
   selectedTermId,
-  fileName
+  fileName,
+  isBilingual = false,
+  sourceLanguage,
+  targetLanguage,
+  columnView = '4',
+  targetDocumentText
 }: TerminologyTableProps) {
   const { t, language } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
