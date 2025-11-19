@@ -11,51 +11,110 @@ interface ExportButtonsProps {
   fileName: string
   documentText: string
   onImportTerms?: (terms: Term[], source: string) => void  // Callback do importu terminów
+  // Props dla glosariuszy dwujęzycznych
+  isBilingual?: boolean
+  sourceLanguage?: string
+  targetLanguage?: string
+  columnView?: '2' | '4'
 }
 
 export default function ExportButtons({
   terms,
   fileName,
   documentText,
-  onImportTerms
+  onImportTerms,
+  isBilingual = false,
+  sourceLanguage,
+  targetLanguage,
+  columnView = '4'
 }: ExportButtonsProps) {
   const { language } = useLanguage()
 
   const exportToCSV = () => {
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
-
     let csvContent: string[][]
-    if (hasDefinitions) {
-      csvContent = [
-        ['Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
-        ...terms.map(term => [
-          term.term,
-          term.occurrences.toString(),
-          term.sourceDocument || fileName || 'Dokument',
-          term.definition || '',
-          term.definitionSource === 'document' ? 'Z dokumentu' :
-           term.definitionSource === 'edited' ? 'Edytowano' :
-           term.definitionSource === 'ai' ? 'AI' : '',
-          term.context || ''
-        ])
-      ]
+
+    // Format dwujęzyczny
+    if (isBilingual) {
+      if (columnView === '2') {
+        // Widok 2-kolumnowy: termin źr. | termin doc. | wystąpienia źr. | wystąpienia doc.
+        csvContent = [
+          [
+            `Termin ${sourceLanguage?.toUpperCase()}`,
+            `Termin ${targetLanguage?.toUpperCase()}`,
+            'Źródło terminu docelowego',
+            `Wystąpienia ${sourceLanguage?.toUpperCase()}`,
+            `Wystąpienia ${targetLanguage?.toUpperCase()}`
+          ],
+          ...terms.map(term => [
+            term.term,
+            term.targetTerm || 'Brak',
+            term.targetSource === 'document' ? 'Dokument' :
+             term.targetSource === 'ai' ? 'AI' :
+             term.targetSource === 'manual' ? 'Ręcznie' : 'Brak',
+            term.occurrences.toString(),
+            (term.targetOccurrences || 0).toString()
+          ])
+        ]
+      } else {
+        // Widok 4-kolumnowy: termin źr. | kontekst źr. | termin doc. | kontekst doc. | wystąpienia
+        csvContent = [
+          [
+            `Termin ${sourceLanguage?.toUpperCase()}`,
+            'Kontekst źródłowy',
+            `Termin ${targetLanguage?.toUpperCase()}`,
+            'Kontekst docelowy',
+            'Źródło terminu docelowego',
+            `Wystąpienia ${sourceLanguage?.toUpperCase()}`,
+            `Wystąpienia ${targetLanguage?.toUpperCase()}`
+          ],
+          ...terms.map(term => [
+            term.term,
+            term.context || '',
+            term.targetTerm || 'Brak',
+            term.targetContext || '',
+            term.targetSource === 'document' ? 'Dokument' :
+             term.targetSource === 'ai' ? 'AI' :
+             term.targetSource === 'manual' ? 'Ręcznie' : 'Brak',
+            term.occurrences.toString(),
+            (term.targetOccurrences || 0).toString()
+          ])
+        ]
+      }
     } else {
-      csvContent = [
-        ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
-        ...terms.map(term => [
-          term.term,
-          term.occurrences.toString(),
-          term.sourceDocument || fileName || 'Dokument',
-          term.context || ''
-        ])
-      ]
+      // Format jednojęzyczny (bez zmian)
+      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+      if (hasDefinitions) {
+        csvContent = [
+          ['Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
+          ...terms.map(term => [
+            term.term,
+            term.occurrences.toString(),
+            term.sourceDocument || fileName || 'Dokument',
+            term.definition || '',
+            term.definitionSource === 'document' ? 'Z dokumentu' :
+             term.definitionSource === 'edited' ? 'Edytowano' :
+             term.definitionSource === 'ai' ? 'AI' : '',
+            term.context || ''
+          ])
+        ]
+      } else {
+        csvContent = [
+          ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
+          ...terms.map(term => [
+            term.term,
+            term.occurrences.toString(),
+            term.sourceDocument || fileName || 'Dokument',
+            term.context || ''
+          ])
+        ]
+      }
     }
 
     const csvString = csvContent
       .map(row => row.map(cell => `"${cell}"`).join(','))
       .join('\n')
 
-    const filename = `${fileName}_glosariusz.csv`
+    const filename = `${fileName}_glosariusz${isBilingual ? '_dwujezyczny' : ''}.csv`
     downloadFile(csvString, filename, 'text/csv;charset=utf-8;')
   }
 
@@ -70,7 +129,9 @@ export default function ExportButtons({
 
     // Tłumaczenia
     const t = {
-      title: language === 'pl' ? 'Glosariusz' : 'Glossary',
+      title: isBilingual
+        ? (language === 'pl' ? `Glosariusz dwujęzyczny ${sourceLanguage?.toUpperCase()}-${targetLanguage?.toUpperCase()}` : `Bilingual Glossary ${sourceLanguage?.toUpperCase()}-${targetLanguage?.toUpperCase()}`)
+        : (language === 'pl' ? 'Glosariusz' : 'Glossary'),
       sourceDoc: language === 'pl' ? 'Dokument źródłowy:' : 'Source Document:',
       termCount: language === 'pl' ? 'Liczba terminów:' : 'Number of terms:',
       createdAt: language === 'pl' ? 'Data utworzenia:' : 'Created at:',
@@ -238,52 +299,119 @@ export default function ExportButtons({
       <thead>
         <tr>
           <th class="nr-col">${t.nr}</th>
-          <th style="width: 180px;">${t.term}</th>
-          <th style="width: 70px; text-align: center;">${t.occurrences}</th>
-          <th style="width: 150px;">${t.document}</th>
-          ${hasDefinitions ? `
-          <th style="width: ${definitionWidth};">${t.definition}</th>
-          <th style="width: ${sourceWidth}; text-align: center;">${t.defSource}</th>
-          ` : ''}
-          <th style="width: ${contextWidth};">${t.context}</th>
+          ${isBilingual ? (
+            columnView === '2' ? `
+              <th style="width: 25%;">Termin ${sourceLanguage?.toUpperCase()}</th>
+              <th style="width: 25%;">Termin ${targetLanguage?.toUpperCase()}</th>
+              <th style="width: 15%; text-align: center;">Źródło</th>
+              <th style="width: 10%; text-align: center;">${sourceLanguage?.toUpperCase()}</th>
+              <th style="width: 10%; text-align: center;">${targetLanguage?.toUpperCase()}</th>
+            ` : `
+              <th style="width: 18%;">Termin ${sourceLanguage?.toUpperCase()}</th>
+              <th style="width: 22%;">Kontekst źródłowy</th>
+              <th style="width: 18%;">Termin ${targetLanguage?.toUpperCase()}</th>
+              <th style="width: 22%;">Kontekst docelowy</th>
+              <th style="width: 15%; text-align: center;">Źródło/Wystąpienia</th>
+            `
+          ) : `
+            <th style="width: 180px;">${t.term}</th>
+            <th style="width: 70px; text-align: center;">${t.occurrences}</th>
+            <th style="width: 150px;">${t.document}</th>
+            ${hasDefinitions ? `
+            <th style="width: ${definitionWidth};">${t.definition}</th>
+            <th style="width: ${sourceWidth}; text-align: center;">${t.defSource}</th>
+            ` : ''}
+            <th style="width: ${contextWidth};">${t.context}</th>
+          `}
         </tr>
       </thead>
       <tbody>
-        ${terms.map((term, index) => `
-          <tr>
-            <td class="nr-col">${index + 1}</td>
-            <td class="term">${term.term}</td>
-            <td class="occurrences">${term.occurrences}</td>
-            <td style="font-size: 0.85em; color: #6c757d;">
-              ${term.sourceDocument || fileName || t.document}
-            </td>
-            ${hasDefinitions ? `
-            <td class="definition">
-              ${term.definition || '<span style="color: #adb5bd;">-</span>'}
-            </td>
-            <td style="text-align: center;">
-              ${term.definition ? `
-                <div class="source-badge ${
-                  term.definitionSource === 'document'
-                    ? 'source-document'
-                    : term.definitionSource === 'edited'
-                    ? 'source-edited'
-                    : 'source-ai'
-                }">
-                  ${
-                    term.definitionSource === 'document'
-                      ? t.fromDoc
-                      : term.definitionSource === 'edited'
-                      ? t.edited
-                      : t.ai
-                  }
-                </div>
-              ` : '<span style="color: #adb5bd;">-</span>'}
-            </td>
-            ` : ''}
-            <td class="context">${term.context || '-'}</td>
-          </tr>
-        `).join('')}
+        ${terms.map((term, index) => {
+          if (isBilingual) {
+            if (columnView === '2') {
+              return `
+                <tr>
+                  <td class="nr-col">${index + 1}</td>
+                  <td class="term">${term.term}</td>
+                  <td class="term">${term.targetTerm || '<span style="color: #dc3545; font-style: italic;">Brak</span>'}</td>
+                  <td style="text-align: center;">
+                    ${term.targetTerm ? `
+                      <div class="source-badge ${
+                        term.targetSource === 'document' ? 'source-document' :
+                        term.targetSource === 'ai' ? 'source-ai' :
+                        term.targetSource === 'manual' ? 'source-edited' : ''
+                      }">
+                        ${term.targetSource === 'document' ? '✅ Dok.' : term.targetSource === 'ai' ? '🤖 AI' : term.targetSource === 'manual' ? '✏️ Ręcz.' : '-'}
+                      </div>
+                    ` : '-'}
+                  </td>
+                  <td class="occurrences">${term.occurrences}</td>
+                  <td class="occurrences">${term.targetOccurrences || 0}</td>
+                </tr>
+              `
+            } else {
+              return `
+                <tr>
+                  <td class="nr-col">${index + 1}</td>
+                  <td class="term">${term.term}</td>
+                  <td class="context">${term.context || '-'}</td>
+                  <td class="term">${term.targetTerm || '<span style="color: #dc3545; font-style: italic;">Brak ekwiwalentu</span>'}</td>
+                  <td class="context">${term.targetContext || '-'}</td>
+                  <td style="font-size: 0.75em; text-align: center;">
+                    ${term.targetTerm ? `
+                      <div class="source-badge ${
+                        term.targetSource === 'document' ? 'source-document' :
+                        term.targetSource === 'ai' ? 'source-ai' :
+                        term.targetSource === 'manual' ? 'source-edited' : ''
+                      }">
+                        ${term.targetSource === 'document' ? '✅ Dokument' : term.targetSource === 'ai' ? '🤖 AI' : term.targetSource === 'manual' ? '✏️ Ręcznie' : '-'}
+                      </div>
+                    ` : '-'}
+                    <div style="margin-top: 5px; font-size: 0.9em;">
+                      ${sourceLanguage?.toUpperCase()}: ${term.occurrences} | ${targetLanguage?.toUpperCase()}: ${term.targetOccurrences || 0}
+                    </div>
+                  </td>
+                </tr>
+              `
+            }
+          } else {
+            return `
+              <tr>
+                <td class="nr-col">${index + 1}</td>
+                <td class="term">${term.term}</td>
+                <td class="occurrences">${term.occurrences}</td>
+                <td style="font-size: 0.85em; color: #6c757d;">
+                  ${term.sourceDocument || fileName || t.document}
+                </td>
+                ${hasDefinitions ? `
+                <td class="definition">
+                  ${term.definition || '<span style="color: #adb5bd;">-</span>'}
+                </td>
+                <td style="text-align: center;">
+                  ${term.definition ? `
+                    <div class="source-badge ${
+                      term.definitionSource === 'document'
+                        ? 'source-document'
+                        : term.definitionSource === 'edited'
+                        ? 'source-edited'
+                        : 'source-ai'
+                    }">
+                      ${
+                        term.definitionSource === 'document'
+                          ? t.fromDoc
+                          : term.definitionSource === 'edited'
+                          ? t.edited
+                          : t.ai
+                      }
+                    </div>
+                  ` : '<span style="color: #adb5bd;">-</span>'}
+                </td>
+                ` : ''}
+                <td class="context">${term.context || '-'}</td>
+              </tr>
+            `
+          }
+        }).join('')}
       </tbody>
     </table>
   </div>
@@ -291,13 +419,18 @@ export default function ExportButtons({
 </html>
     `
 
-    downloadFile(htmlContent, `${fileName}_glosariusz.html`, 'text/html;charset=utf-8;')
+    downloadFile(htmlContent, `${fileName}_glosariusz${isBilingual ? '_dwujezyczny' : ''}.html`, 'text/html;charset=utf-8;')
   }
 
   const exportToXLSX = () => {
-    // Sprawdź czy są jakieś definicje
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
-    const numCols = hasDefinitions ? 7 : 5  // 7 z definicjami, 5 bez
+    // Określ liczbę kolumn
+    let numCols: number
+    if (isBilingual) {
+      numCols = columnView === '2' ? 6 : 8  // 2-kol: 6 kolumn, 4-kol: 8 kolumn
+    } else {
+      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+      numCols = hasDefinitions ? 7 : 5
+    }
 
     // Tłumaczenia
     const t = {
@@ -321,32 +454,82 @@ export default function ExportButtons({
     // Przygotuj puste komórki dla scalania
     const emptyRow = Array(numCols).fill('')
 
-    // Przygotuj nagłówek i wiersze danych w zależności od hasDefinitions
+    // Przygotuj nagłówek i wiersze danych
     let headerRow: string[]
     let dataRows: (string | number)[][]
 
-    if (hasDefinitions) {
-      headerRow = [t.nr, t.term, t.occurrences, t.document, t.definition, t.defSource, t.context]
-      dataRows = terms.map((term, index) => [
-        (index + 1).toString(),
-        term.term,
-        term.occurrences.toString(),
-        term.sourceDocument || fileName || t.document,
-        term.definition || '',
-        term.definitionSource === 'document' ? t.fromDoc :
-         term.definitionSource === 'edited' ? t.edited :
-         term.definitionSource === 'ai' ? t.aiGenerated : '',
-        term.context || ''
-      ])
+    if (isBilingual) {
+      if (columnView === '2') {
+        // Widok 2-kolumnowy
+        headerRow = [
+          t.nr,
+          `Termin ${sourceLanguage?.toUpperCase()}`,
+          `Termin ${targetLanguage?.toUpperCase()}`,
+          'Źródło',
+          `Wyst. ${sourceLanguage?.toUpperCase()}`,
+          `Wyst. ${targetLanguage?.toUpperCase()}`
+        ]
+        dataRows = terms.map((term, index) => [
+          (index + 1).toString(),
+          term.term,
+          term.targetTerm || 'Brak',
+          term.targetSource === 'document' ? 'Dokument' :
+           term.targetSource === 'ai' ? 'AI' :
+           term.targetSource === 'manual' ? 'Ręcznie' : 'Brak',
+          term.occurrences.toString(),
+          (term.targetOccurrences || 0).toString()
+        ])
+      } else {
+        // Widok 4-kolumnowy
+        headerRow = [
+          t.nr,
+          `Termin ${sourceLanguage?.toUpperCase()}`,
+          'Kontekst źródłowy',
+          `Termin ${targetLanguage?.toUpperCase()}`,
+          'Kontekst docelowy',
+          'Źródło',
+          `Wyst. ${sourceLanguage?.toUpperCase()}`,
+          `Wyst. ${targetLanguage?.toUpperCase()}`
+        ]
+        dataRows = terms.map((term, index) => [
+          (index + 1).toString(),
+          term.term,
+          term.context || '',
+          term.targetTerm || 'Brak ekwiwalentu',
+          term.targetContext || '',
+          term.targetSource === 'document' ? 'Dokument' :
+           term.targetSource === 'ai' ? 'AI' :
+           term.targetSource === 'manual' ? 'Ręcznie' : 'Brak',
+          term.occurrences.toString(),
+          (term.targetOccurrences || 0).toString()
+        ])
+      }
     } else {
-      headerRow = [t.nr, t.term, t.occurrences, t.document, t.context]
-      dataRows = terms.map((term, index) => [
-        (index + 1).toString(),
-        term.term,
-        term.occurrences.toString(),
-        term.sourceDocument || fileName || t.document,
-        term.context || ''
-      ])
+      // Format jednojęzyczny
+      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+      if (hasDefinitions) {
+        headerRow = [t.nr, t.term, t.occurrences, t.document, t.definition, t.defSource, t.context]
+        dataRows = terms.map((term, index) => [
+          (index + 1).toString(),
+          term.term,
+          term.occurrences.toString(),
+          term.sourceDocument || fileName || t.document,
+          term.definition || '',
+          term.definitionSource === 'document' ? t.fromDoc :
+           term.definitionSource === 'edited' ? t.edited :
+           term.definitionSource === 'ai' ? t.aiGenerated : '',
+          term.context || ''
+        ])
+      } else {
+        headerRow = [t.nr, t.term, t.occurrences, t.document, t.context]
+        dataRows = terms.map((term, index) => [
+          (index + 1).toString(),
+          term.term,
+          term.occurrences.toString(),
+          term.sourceDocument || fileName || t.document,
+          term.context || ''
+        ])
+      }
     }
 
     const data = [
@@ -363,7 +546,9 @@ export default function ExportButtons({
 
     // Ustaw tytuły w pierwszym i drugim wierszu
     data[0][0] = 'IURIDICO EJ GTEXTT'
-    data[1][0] = 'Glossary and Terminology Extraction Tool'
+    data[1][0] = isBilingual
+      ? `Bilingual Glossary ${sourceLanguage?.toUpperCase()}-${targetLanguage?.toUpperCase()}`
+      : 'Glossary and Terminology Extraction Tool'
 
     const ws = XLSX.utils.aoa_to_sheet(data)
 
@@ -375,24 +560,49 @@ export default function ExportButtons({
     ]
 
     // Dynamiczne szerokości kolumn
-    if (hasDefinitions) {
-      ws['!cols'] = [
-        { wch: 8 },   // Nr
-        { wch: 30 },  // Termin
-        { wch: 12 },  // Liczba wystąpień
-        { wch: 25 },  // Dokument
-        { wch: 60 },  // Definicja
-        { wch: 18 },  // Źródło definicji
-        { wch: 32 }   // Kontekst
-      ]
+    if (isBilingual) {
+      if (columnView === '2') {
+        ws['!cols'] = [
+          { wch: 8 },   // Nr
+          { wch: 30 },  // Termin źródłowy
+          { wch: 30 },  // Termin docelowy
+          { wch: 15 },  // Źródło
+          { wch: 12 },  // Wyst. źr.
+          { wch: 12 }   // Wyst. doc.
+        ]
+      } else {
+        ws['!cols'] = [
+          { wch: 8 },   // Nr
+          { wch: 25 },  // Termin źródłowy
+          { wch: 35 },  // Kontekst źródłowy
+          { wch: 25 },  // Termin docelowy
+          { wch: 35 },  // Kontekst docelowy
+          { wch: 15 },  // Źródło
+          { wch: 12 },  // Wyst. źr.
+          { wch: 12 }   // Wyst. doc.
+        ]
+      }
     } else {
-      ws['!cols'] = [
-        { wch: 8 },   // Nr
-        { wch: 30 },  // Termin
-        { wch: 12 },  // Liczba wystąpień
-        { wch: 25 },  // Dokument
-        { wch: 80 }   // Kontekst (szersza bez definicji)
-      ]
+      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+      if (hasDefinitions) {
+        ws['!cols'] = [
+          { wch: 8 },   // Nr
+          { wch: 30 },  // Termin
+          { wch: 12 },  // Liczba wystąpień
+          { wch: 25 },  // Dokument
+          { wch: 60 },  // Definicja
+          { wch: 18 },  // Źródło definicji
+          { wch: 32 }   // Kontekst
+        ]
+      } else {
+        ws['!cols'] = [
+          { wch: 8 },   // Nr
+          { wch: 30 },  // Termin
+          { wch: 12 },  // Liczba wystąpień
+          { wch: 25 },  // Dokument
+          { wch: 80 }   // Kontekst (szersza bez definicji)
+        ]
+      }
     }
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
@@ -544,7 +754,7 @@ export default function ExportButtons({
     XLSX.utils.book_append_sheet(wb, ws, 'Glosariusz')
 
     // Zapisz plik
-    const filename = `${fileName}_glosariusz.xlsx`
+    const filename = `${fileName}_glosariusz${isBilingual ? '_dwujezyczny' : ''}.xlsx`
     XLSX.writeFile(wb, filename)
   }
 
@@ -587,36 +797,83 @@ export default function ExportButtons({
     doc.text(`Date: ${dateStr}`, pageWidth / 2, 25)
     doc.text(`Terms: ${terms.length}`, pageWidth - margin - 20, 25)
 
-    // Sprawdź czy są definicje
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+    // Przygotuj dane dla tabeli
+    let tableHeaders: string[][]
+    let tableData: (string | number)[][]
+    let colWidths: Record<number, number>
 
-    // Przygotuj dane dla tabeli - dane są już w UTF-8, jsPDF autoTable je obsłuży
-    const tableData = terms.map((term, index) => {
-      let sourceText = '-'
-      if (term.definitionSource === 'document') sourceText = 'Document'
-      else if (term.definitionSource === 'edited') sourceText = 'Edited'
-      else if (term.definitionSource === 'ai') sourceText = 'AI'
+    if (isBilingual) {
+      if (columnView === '2') {
+        // Widok 2-kolumnowy
+        tableHeaders = [[
+          'No.',
+          `Term ${sourceLanguage?.toUpperCase()}`,
+          `Term ${targetLanguage?.toUpperCase()}`,
+          'Source',
+          `${sourceLanguage?.toUpperCase()}`,
+          `${targetLanguage?.toUpperCase()}`
+        ]]
+        tableData = terms.map((term, index) => [
+          String(index + 1),
+          term.term || '',
+          term.targetTerm || 'Missing',
+          term.targetSource === 'document' ? 'Doc' :
+           term.targetSource === 'ai' ? 'AI' :
+           term.targetSource === 'manual' ? 'Manual' : '-',
+          String(term.occurrences),
+          String(term.targetOccurrences || 0)
+        ])
+        colWidths = { 0: 10, 1: 60, 2: 60, 3: 22, 4: 22, 5: 22 }
+      } else {
+        // Widok 4-kolumnowy
+        tableHeaders = [[
+          'No.',
+          `Term ${sourceLanguage?.toUpperCase()}`,
+          `Context ${sourceLanguage?.toUpperCase()}`,
+          `Term ${targetLanguage?.toUpperCase()}`,
+          `Context ${targetLanguage?.toUpperCase()}`,
+          'Source'
+        ]]
+        tableData = terms.map((term, index) => [
+          String(index + 1),
+          term.term || '',
+          term.context || '-',
+          term.targetTerm || 'Missing',
+          term.targetContext || '-',
+          term.targetSource === 'document' ? 'Doc' :
+           term.targetSource === 'ai' ? 'AI' :
+           term.targetSource === 'manual' ? 'Manual' : '-'
+        ])
+        colWidths = { 0: 10, 1: 45, 2: 55, 3: 45, 4: 55, 5: 22 }
+      }
+    } else {
+      // Format jednojęzyczny
+      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+      tableHeaders = [['No.', 'Term', 'Number of\noccurrences', 'Definition', 'Source of\ndefinition', 'Context']]
+      tableData = terms.map((term, index) => {
+        let sourceText = '-'
+        if (term.definitionSource === 'document') sourceText = 'Document'
+        else if (term.definitionSource === 'edited') sourceText = 'Edited'
+        else if (term.definitionSource === 'ai') sourceText = 'AI'
 
-      return [
-        String(index + 1),
-        term.term || '',
-        String(term.occurrences),
-        term.definition || '-',
-        sourceText,
-        term.context || '-'
-      ]
-    })
-
-    // Optymalne szerokości kolumn (A4 landscape = 297mm, dostępne ~277mm)
-    // Suma kolumn musi być < 277mm aby uniknąć wychodzenia poza stronę
-    const colWidths = hasDefinitions
-      ? { 0: 10, 1: 42, 2: 18, 3: 60, 4: 22, 5: 70 }  // Z definicjami: 222mm
-      : { 0: 10, 1: 45, 2: 18, 3: 18, 4: 22, 5: 105 } // Bez definicji: 218mm
+        return [
+          String(index + 1),
+          term.term || '',
+          String(term.occurrences),
+          term.definition || '-',
+          sourceText,
+          term.context || '-'
+        ]
+      })
+      colWidths = hasDefinitions
+        ? { 0: 10, 1: 42, 2: 18, 3: 60, 4: 22, 5: 70 }
+        : { 0: 10, 1: 45, 2: 18, 3: 18, 4: 22, 5: 105 }
+    }
 
     // Tabela z danymi
     autoTable(doc, {
       startY: 28,
-      head: [['No.', 'Term', 'Number of\noccurrences', 'Definition', 'Source of\ndefinition', 'Context']],
+      head: tableHeaders,
       body: tableData,
 
       // Podstawowe style
@@ -704,7 +961,7 @@ export default function ExportButtons({
     })
 
     // Zapisz PDF
-    doc.save(`${fileName}_glossary.pdf`)
+    doc.save(`${fileName}_glossary${isBilingual ? '_bilingual' : ''}.pdf`)
   }
 
   const exportToJSON = () => {

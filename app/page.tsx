@@ -1875,6 +1875,10 @@ export default function Home() {
                     fileName={fileName}
                     documentText={documentText}
                     onImportTerms={handleImportTerms}
+                    isBilingual={currentGlossary?.isBilingual || false}
+                    sourceLanguage={currentGlossary?.sourceLanguage}
+                    targetLanguage={currentGlossary?.targetLanguage}
+                    columnView={currentGlossary?.columnView || '4'}
                   />
                 </div>
               </div>
