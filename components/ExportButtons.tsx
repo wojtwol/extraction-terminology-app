@@ -22,20 +22,41 @@ export default function ExportButtons({
   const { language } = useLanguage()
 
   const exportToCSV = () => {
-    const csvContent = [
-      ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
-      ...terms.map(term => [
-        term.term,
-        term.occurrences.toString(),
-        term.sourceDocument || fileName || 'Dokument',
-        term.context || ''
-      ])
-    ]
+    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+
+    let csvContent: string[][]
+    if (hasDefinitions) {
+      csvContent = [
+        ['Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
+        ...terms.map(term => [
+          term.term,
+          term.occurrences.toString(),
+          term.sourceDocument || fileName || 'Dokument',
+          term.definition || '',
+          term.definitionSource === 'document' ? 'Z dokumentu' :
+           term.definitionSource === 'edited' ? 'Edytowano' :
+           term.definitionSource === 'ai' ? 'AI' : '',
+          term.context || ''
+        ])
+      ]
+    } else {
+      csvContent = [
+        ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
+        ...terms.map(term => [
+          term.term,
+          term.occurrences.toString(),
+          term.sourceDocument || fileName || 'Dokument',
+          term.context || ''
+        ])
+      ]
+    }
+
+    const csvString = csvContent
       .map(row => row.map(cell => `"${cell}"`).join(','))
       .join('\n')
 
     const filename = `${fileName}_glosariusz.csv`
-    downloadFile(csvContent, filename, 'text/csv;charset=utf-8;')
+    downloadFile(csvString, filename, 'text/csv;charset=utf-8;')
   }
 
   const exportToHTML = () => {
@@ -220,8 +241,10 @@ export default function ExportButtons({
           <th style="width: 180px;">${t.term}</th>
           <th style="width: 70px; text-align: center;">${t.occurrences}</th>
           <th style="width: 150px;">${t.document}</th>
+          ${hasDefinitions ? `
           <th style="width: ${definitionWidth};">${t.definition}</th>
           <th style="width: ${sourceWidth}; text-align: center;">${t.defSource}</th>
+          ` : ''}
           <th style="width: ${contextWidth};">${t.context}</th>
         </tr>
       </thead>
@@ -234,6 +257,7 @@ export default function ExportButtons({
             <td style="font-size: 0.85em; color: #6c757d;">
               ${term.sourceDocument || fileName || t.document}
             </td>
+            ${hasDefinitions ? `
             <td class="definition">
               ${term.definition || '<span style="color: #adb5bd;">-</span>'}
             </td>
@@ -256,6 +280,7 @@ export default function ExportButtons({
                 </div>
               ` : '<span style="color: #adb5bd;">-</span>'}
             </td>
+            ` : ''}
             <td class="context">${term.context || '-'}</td>
           </tr>
         `).join('')}
@@ -270,7 +295,9 @@ export default function ExportButtons({
   }
 
   const exportToXLSX = () => {
-    const numCols = 7  // Zwiększone z 6 na 7 (dodana kolumna Dokument)
+    // Sprawdź czy są jakieś definicje
+    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+    const numCols = hasDefinitions ? 7 : 5  // 7 z definicjami, 5 bez
 
     // Tłumaczenia
     const t = {
@@ -291,16 +318,16 @@ export default function ExportButtons({
 
     const locale = language === 'pl' ? 'pl-PL' : 'en-US'
 
-    const data = [
-      ['IURIDICO EJ GTEXTT', '', '', '', '', '', ''],
-      ['Glossary and Terminology Extraction Tool', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', ''],
-      [t.sourceDoc, fileName, '', '', '', '', ''],
-      [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', '', '', ''],
-      [t.termCount, terms.length.toString(), '', '', '', '', '', ''],
-      [],
-      [t.nr, t.term, t.occurrences, t.document, t.definition, t.defSource, t.context],
-      ...terms.map((term, index) => [
+    // Przygotuj puste komórki dla scalania
+    const emptyRow = Array(numCols).fill('')
+
+    // Przygotuj nagłówek i wiersze danych w zależności od hasDefinitions
+    let headerRow: string[]
+    let dataRows: (string | number)[][]
+
+    if (hasDefinitions) {
+      headerRow = [t.nr, t.term, t.occurrences, t.document, t.definition, t.defSource, t.context]
+      dataRows = terms.map((term, index) => [
         (index + 1).toString(),
         term.term,
         term.occurrences.toString(),
@@ -311,7 +338,32 @@ export default function ExportButtons({
          term.definitionSource === 'ai' ? t.aiGenerated : '',
         term.context || ''
       ])
+    } else {
+      headerRow = [t.nr, t.term, t.occurrences, t.document, t.context]
+      dataRows = terms.map((term, index) => [
+        (index + 1).toString(),
+        term.term,
+        term.occurrences.toString(),
+        term.sourceDocument || fileName || t.document,
+        term.context || ''
+      ])
+    }
+
+    const data = [
+      emptyRow,  // Wiersz 1 - tytuł
+      emptyRow,  // Wiersz 2 - podtytuł
+      emptyRow,  // Wiersz 3 - pusty
+      [t.sourceDoc, fileName, ...Array(numCols - 2).fill('')],
+      [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), ...Array(numCols - 2).fill('')],
+      [t.termCount, terms.length.toString(), ...Array(numCols - 2).fill('')],
+      emptyRow,  // Pusty wiersz
+      headerRow,
+      ...dataRows
     ]
+
+    // Ustaw tytuły w pierwszym i drugim wierszu
+    data[0][0] = 'IURIDICO EJ GTEXTT'
+    data[1][0] = 'Glossary and Terminology Extraction Tool'
 
     const ws = XLSX.utils.aoa_to_sheet(data)
 
@@ -322,21 +374,26 @@ export default function ExportButtons({
       { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } }  // Wiersz 2: Glossary/Bilingual Glossary
     ]
 
-    // Dynamiczne szerokości kolumn (z uwzględnieniem kolumny Dokument)
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
-    const definitionColWidth = hasDefinitions ? 60 : 12
-    const sourceColWidth = hasDefinitions ? 18 : 18
-    const contextColWidth = hasDefinitions ? 32 : 64
-
-    ws['!cols'] = [
-      { wch: 8 },                  // Nr
-      { wch: 30 },                 // Termin
-      { wch: 12 },                 // Liczba wystąpień
-      { wch: 25 },                 // Dokument
-      { wch: definitionColWidth }, // Definicja (dynamiczna)
-      { wch: sourceColWidth },     // Źródło (dynamiczna)
-      { wch: contextColWidth }     // Kontekst (zwężona, z zawijaniem)
-    ]
+    // Dynamiczne szerokości kolumn
+    if (hasDefinitions) {
+      ws['!cols'] = [
+        { wch: 8 },   // Nr
+        { wch: 30 },  // Termin
+        { wch: 12 },  // Liczba wystąpień
+        { wch: 25 },  // Dokument
+        { wch: 60 },  // Definicja
+        { wch: 18 },  // Źródło definicji
+        { wch: 32 }   // Kontekst
+      ]
+    } else {
+      ws['!cols'] = [
+        { wch: 8 },   // Nr
+        { wch: 30 },  // Termin
+        { wch: 12 },  // Liczba wystąpień
+        { wch: 25 },  // Dokument
+        { wch: 80 }   // Kontekst (szersza bez definicji)
+      ]
+    }
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
     ws['!rows'] = []

@@ -347,8 +347,8 @@ export default function TerminologyTable({
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
                 {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
               </th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '18%' : '16%'}}>{t.definition}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '26%' : '30%'}}>{t.context}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '16%' : '14%'}}>{t.definition}</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '32%'}}>{t.context}</th>
               <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
             </tr>
           </thead>
@@ -480,13 +480,13 @@ export default function TerminologyTable({
                           <button
                             onClick={() => handleGenerateDefinitionClick(term.id, term.term)}
                             disabled={loadingDefinitions.has(term.id)}
-                            className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 w-full"
+                            className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 whitespace-nowrap"
                           >
                             {loadingDefinitions.has(term.id) ? t.generating : t.generateAI}
                           </button>
                           <button
                             onClick={() => handleManualDefinition(term.id)}
-                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 w-full"
+                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 whitespace-nowrap"
                           >
                             {t.addManually}
                           </button>
