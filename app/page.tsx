@@ -1252,7 +1252,7 @@ export default function Home() {
             </h2>
 
             {/* Przycisk nowego projektu */}
-            <div className="mb-6 space-y-3 max-w-md mx-auto">
+            <div className="mb-6 space-y-3 max-w-md">
               <button
                 onClick={() => {
                   // Generuj domyślną nazwę z numerem porządkowym
