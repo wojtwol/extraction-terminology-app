@@ -361,6 +361,72 @@ export default function Home() {
     refreshGlossary()
   }
 
+  // Handler dla importu terminów z plików JSON/XLSX
+  const handleImportTerms = (importedTerms: Term[], source: string) => {
+    if (!currentProject || !currentGlossary) {
+      alert(language === 'pl'
+        ? 'Brak projektu. Utwórz projekt przed importem.'
+        : 'No project. Create a project before importing.')
+      return
+    }
+
+    // Merge logic - deduplikacja po polu term (case-sensitive)
+    const existingTermsMap = new Map<string, Term>()
+
+    // Najpierw dodaj istniejące terminy
+    terms.forEach(term => {
+      existingTermsMap.set(term.term, term)
+    })
+
+    // Następnie dodaj/nadpisz z importowanych terminów
+    let addedCount = 0
+    let updatedCount = 0
+
+    importedTerms.forEach(importedTerm => {
+      if (existingTermsMap.has(importedTerm.term)) {
+        // Termin już istnieje - możemy zdecydować czy nadpisać czy pominąć
+        // Tutaj pomijamy (nie nadpisujemy istniejących terminów)
+        updatedCount++
+      } else {
+        // Nowy termin
+        existingTermsMap.set(importedTerm.term, importedTerm)
+        addedCount++
+      }
+    })
+
+    // Konwertuj mapę z powrotem na tablicę
+    const mergedTerms = Array.from(existingTermsMap.values())
+
+    // Zapisz jako nową wersję
+    const description = language === 'pl'
+      ? `Import z ${source}: +${addedCount} nowych, ${updatedCount} pominiętych (duplikaty)`
+      : `Import from ${source}: +${addedCount} new, ${updatedCount} skipped (duplicates)`
+
+    projectStorage.addVersion(
+      currentProject.id,
+      currentGlossary.id,
+      mergedTerms,
+      description,
+      currentVersion?.extractionParams,
+      false
+    )
+
+    // Odśwież projekt
+    const updatedProject = projectStorage.getById(currentProject.id)
+    if (updatedProject) {
+      setCurrentProject(updatedProject)
+    }
+    refreshGlossary()
+
+    // Pokaż komunikat
+    const message = language === 'pl'
+      ? `Import zakończony!\n\nDodano: ${addedCount} nowych terminów\nPominięto: ${updatedCount} duplikatów\n\nŁącznie terminów: ${mergedTerms.length}`
+      : `Import completed!\n\nAdded: ${addedCount} new terms\nSkipped: ${updatedCount} duplicates\n\nTotal terms: ${mergedTerms.length}`
+
+    alert(message)
+    console.log(`✅ ${description}`)
+  }
+
   // Obsługa ręcznego dodawania terminu
   const handleManualAddTerm = (termText: string) => {
     if (!termText || !documentText || !currentProject || !currentGlossary) {
@@ -1040,28 +1106,12 @@ export default function Home() {
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">
                     {language === 'pl' ? 'Import / Eksport' : 'Import / Export'}
                   </h3>
-                  <div className="space-y-2">
-                    {terms.length > 0 ? (
-                      <ExportButtons
-                        terms={terms}
-                        fileName={fileName}
-                        documentText={documentText}
-                      />
-                    ) : (
-                      <div className="text-sm text-gray-600">
-                        <p className="mb-3">
-                          {language === 'pl'
-                            ? 'Załaduj dokument i wyekstrahuj terminy, aby móc je eksportować.'
-                            : 'Load a document and extract terms to export them.'}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {language === 'pl'
-                            ? 'Formaty: XLSX, PDF, CSV, HTML'
-                            : 'Formats: XLSX, PDF, CSV, HTML'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  <ExportButtons
+                    terms={terms}
+                    fileName={fileName}
+                    documentText={documentText}
+                    onImportTerms={handleImportTerms}
+                  />
                 </div>
               </div>
 

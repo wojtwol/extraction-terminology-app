@@ -9,12 +9,14 @@ interface ExportButtonsProps {
   terms: Term[]
   fileName: string
   documentText: string
+  onImportTerms?: (terms: Term[], source: string) => void  // Callback do importu terminów
 }
 
 export default function ExportButtons({
   terms,
   fileName,
-  documentText
+  documentText,
+  onImportTerms
 }: ExportButtonsProps) {
   const exportToCSV = () => {
     const csvContent = [
@@ -616,39 +618,240 @@ export default function ExportButtons({
     URL.revokeObjectURL(url)
   }
 
+  const handleImportJSON = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const text = await file.text()
+        const data = JSON.parse(text)
+
+        // Walidacja: sprawdź czy to jest poprawny format glosariusza
+        if (!Array.isArray(data)) {
+          alert('Błąd: Plik JSON musi zawierać tablicę terminów.')
+          return
+        }
+
+        // Walidacja każdego terminu
+        const importedTerms: Term[] = data.filter((item: any) => {
+          return item && typeof item === 'object' && typeof item.term === 'string'
+        }).map((item: any) => ({
+          id: item.id || `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          term: item.term,
+          context: item.context || '',
+          occurrences: item.occurrences || 0,
+          positions: Array.isArray(item.positions) ? item.positions : [],
+          definition: item.definition || '',
+          definitionSource: item.definitionSource || null,
+          sourceDocument: item.sourceDocument || file.name
+        }))
+
+        if (importedTerms.length === 0) {
+          alert('Błąd: Nie znaleziono poprawnych terminów w pliku JSON.')
+          return
+        }
+
+        // Wywołaj callback z zaimportowanymi terminami
+        if (onImportTerms) {
+          onImportTerms(importedTerms, file.name)
+        }
+
+        console.log(`✅ Zaimportowano ${importedTerms.length} terminów z JSON`)
+      } catch (error) {
+        console.error('Błąd importu JSON:', error)
+        alert('Błąd podczas importu pliku JSON. Sprawdź czy plik jest poprawny.')
+      }
+    }
+    input.click()
+  }
+
+  const handleImportXLSX = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.xlsx,.xls'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const data = await file.arrayBuffer()
+        const workbook = XLSX.read(data, { type: 'array' })
+
+        // Pobierz pierwszy arkusz
+        const firstSheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[firstSheetName]
+
+        // Konwertuj arkusz do JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+
+        if (jsonData.length < 2) {
+          alert('Błąd: Plik XLSX jest pusty lub nie zawiera danych.')
+          return
+        }
+
+        // Znajdź wiersz nagłówka (zazwyczaj wiersz 8, ale szukamy po słowie "Termin")
+        let headerRowIndex = -1
+        let termColIndex = -1
+        let occurrencesColIndex = -1
+        let documentColIndex = -1
+        let definitionColIndex = -1
+        let sourceColIndex = -1
+        let contextColIndex = -1
+
+        for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
+          const row = jsonData[i]
+          termColIndex = row.findIndex((cell: any) =>
+            typeof cell === 'string' && cell.toLowerCase().includes('termin')
+          )
+
+          if (termColIndex !== -1) {
+            headerRowIndex = i
+            occurrencesColIndex = row.findIndex((cell: any) =>
+              typeof cell === 'string' && cell.toLowerCase().includes('wystąpień')
+            )
+            documentColIndex = row.findIndex((cell: any) =>
+              typeof cell === 'string' && cell.toLowerCase().includes('dokument')
+            )
+            definitionColIndex = row.findIndex((cell: any) =>
+              typeof cell === 'string' && cell.toLowerCase().includes('definicja')
+            )
+            sourceColIndex = row.findIndex((cell: any) =>
+              typeof cell === 'string' && cell.toLowerCase().includes('źródło')
+            )
+            contextColIndex = row.findIndex((cell: any) =>
+              typeof cell === 'string' && cell.toLowerCase().includes('kontekst')
+            )
+            break
+          }
+        }
+
+        if (headerRowIndex === -1 || termColIndex === -1) {
+          alert('Błąd: Nie znaleziono kolumny "Termin" w pliku XLSX.')
+          return
+        }
+
+        // Parsuj wiersze danych
+        const importedTerms: Term[] = []
+        for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+          const row = jsonData[i]
+          const termValue = row[termColIndex]
+
+          if (termValue && typeof termValue === 'string' && termValue.trim() !== '') {
+            const term: Term = {
+              id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              term: termValue.trim(),
+              context: contextColIndex !== -1 ? (row[contextColIndex] || '') : '',
+              occurrences: occurrencesColIndex !== -1 ? parseInt(row[occurrencesColIndex]) || 0 : 0,
+              positions: [],
+              definition: definitionColIndex !== -1 ? (row[definitionColIndex] || '') : '',
+              definitionSource: null,
+              sourceDocument: documentColIndex !== -1 ? (row[documentColIndex] || file.name) : file.name
+            }
+
+            // Ustaw definitionSource na podstawie kolumny źródła
+            if (sourceColIndex !== -1 && row[sourceColIndex]) {
+              const source = row[sourceColIndex].toString().toLowerCase()
+              if (source.includes('dokument') || source.includes('document')) {
+                term.definitionSource = 'document'
+              } else if (source.includes('ai')) {
+                term.definitionSource = 'ai'
+              } else if (source.includes('edytowano') || source.includes('edited')) {
+                term.definitionSource = 'edited'
+              }
+            }
+
+            importedTerms.push(term)
+          }
+        }
+
+        if (importedTerms.length === 0) {
+          alert('Błąd: Nie znaleziono poprawnych terminów w pliku XLSX.')
+          return
+        }
+
+        // Wywołaj callback z zaimportowanymi terminami
+        if (onImportTerms) {
+          onImportTerms(importedTerms, file.name)
+        }
+
+        console.log(`✅ Zaimportowano ${importedTerms.length} terminów z XLSX`)
+      } catch (error) {
+        console.error('Błąd importu XLSX:', error)
+        alert('Błąd podczas importu pliku XLSX. Sprawdź czy plik jest poprawny.')
+      }
+    }
+    input.click()
+  }
+
+  const hasTerms = terms.length > 0
+
   return (
-    <div className="flex flex-col gap-2 items-start">
-      <button
-        onClick={exportToXLSX}
-        className="w-[180px] px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2"
-      >
-        📊 Excel (XLSX)
-      </button>
+    <div className="flex flex-col gap-3 items-start w-full">
+      {/* Import Section - Always Active */}
+      <div className="w-full">
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">Import</h4>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleImportJSON}
+            className="w-[180px] px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm flex items-center gap-2"
+          >
+            📥 Import JSON
+          </button>
 
-      <button
-        onClick={exportToPDF}
-        className="w-[180px] px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2"
-      >
-        📄 PDF
-      </button>
+          <button
+            onClick={handleImportXLSX}
+            className="w-[180px] px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2"
+          >
+            📥 Import XLSX
+          </button>
+        </div>
+      </div>
 
-      <button
-        onClick={exportToCSV}
-        className="w-[180px] px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2"
-      >
-        📊 CSV
-      </button>
+      {/* Export Section - Disabled when no terms */}
+      <div className="w-full border-t border-gray-200 pt-3">
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">Eksport</h4>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={exportToXLSX}
+            disabled={!hasTerms}
+            className="w-[180px] px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            📊 Excel (XLSX)
+          </button>
 
-      <button
-        onClick={exportToHTML}
-        className="w-[180px] px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
-      >
-        🌐 HTML
-      </button>
+          <button
+            onClick={exportToPDF}
+            disabled={!hasTerms}
+            className="w-[180px] px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            📄 PDF
+          </button>
 
-      <p className="text-xs text-gray-500 mt-2">
-        <strong>XLSX, PDF i HTML</strong> zawierają definicje
-      </p>
+          <button
+            onClick={exportToCSV}
+            disabled={!hasTerms}
+            className="w-[180px] px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            📊 CSV
+          </button>
+
+          <button
+            onClick={exportToHTML}
+            disabled={!hasTerms}
+            className="w-[180px] px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            🌐 HTML
+          </button>
+
+          <p className="text-xs text-gray-500 mt-1">
+            <strong>XLSX, PDF i HTML</strong> zawierają definicje
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
