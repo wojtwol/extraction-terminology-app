@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
@@ -219,7 +219,7 @@ export default function Home() {
   }
 
   // Odśwież aktualny glosariusz i wersję
-  const refreshGlossary = () => {
+  const refreshGlossary = useCallback(() => {
     if (!currentProject || !currentProject.currentGlossaryId) {
       setCurrentGlossary(null)
       setCurrentVersion(null)
@@ -235,7 +235,7 @@ export default function Home() {
     } else {
       setCurrentVersion(null)
     }
-  }
+  }, [currentProject])
 
   // Generuj definicje dla wszystkich terminów (bulk)
   const handleBulkGenerateDefinitions = async (termsToProcess: Term[]) => {
@@ -1190,7 +1190,7 @@ export default function Home() {
   // Odśwież glosariusz gdy projekt się zmieni
   useEffect(() => {
     refreshGlossary()
-  }, [currentProject, refreshKey])
+  }, [refreshGlossary, refreshKey])
 
   // Automatyczne zapisywanie metadanych projektu
   useEffect(() => {
@@ -1202,7 +1202,7 @@ export default function Home() {
         detectedLanguage
       })
     }
-  }, [projectName, documentText, fileName, detectedLanguage])
+  }, [currentProject, projectName, documentText, fileName, detectedLanguage])
 
   // Zapisz jako nowy projekt
   const handleSaveProject = () => {
@@ -1502,7 +1502,7 @@ export default function Home() {
                     })
                     setCurrentProject(newProject)
                     setProjectName(newProject.name)
-                    refreshGlossary()
+                    // refreshGlossary zostanie wywołane automatycznie przez useEffect gdy currentProject się zmieni
                   }
                 }}
                 className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
@@ -1658,7 +1658,7 @@ export default function Home() {
             projectStorage.setCurrentGlossary(data.projectId, data.glossaryId)
             const updated = projectStorage.getById(data.projectId)
             if (updated) setCurrentProject(updated)
-            refreshGlossary()
+            // refreshGlossary zostanie wywołane automatycznie przez useEffect gdy currentProject się zmieni
           }
         }
         // Wyczyść dane
