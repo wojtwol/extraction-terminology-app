@@ -1376,7 +1376,7 @@ export default function Home() {
             )}
 
             {allProjects.length === 0 && (
-              <p className="text-center text-gray-500 mt-8">
+              <p className="text-left text-gray-500 mt-8">
                 {language === 'pl'
                   ? 'Brak zapisanych projektów. Utwórz pierwszy projekt, aby rozpocząć!'
                   : 'No saved projects. Create your first project to get started!'}
