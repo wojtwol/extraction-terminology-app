@@ -38,6 +38,7 @@ export default function SnapshotButton({ projectId, glossaryId, onSnapshotCreate
         onClick={() => setShowDialog(true)}
         className="w-[180px] px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-medium flex items-center gap-2"
         title={t.createSnapshot}
+        data-snapshot-button
       >
         {t.createSnapshot}
       </button>

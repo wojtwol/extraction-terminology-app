@@ -427,6 +427,29 @@ export default function Home() {
     console.log(`✅ ${description}`)
   }
 
+  // Lokalne zapisanie glosariusza jako JSON
+  const handleLocalSaveGlossary = () => {
+    if (terms.length === 0) {
+      alert(language === 'pl'
+        ? 'Brak terminów do zapisania.'
+        : 'No terms to save.')
+      return
+    }
+
+    const jsonContent = JSON.stringify(terms, null, 2)
+    const blob = new Blob([jsonContent], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${fileName || 'glosariusz'}_lokalny.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    console.log(`✅ Zapisano glosariusz lokalnie: ${terms.length} terminów`)
+  }
+
   // Obsługa ręcznego dodawania terminu
   const handleManualAddTerm = (termText: string) => {
     if (!termText || !documentText || !currentProject || !currentGlossary) {
@@ -1002,9 +1025,81 @@ export default function Home() {
                     {language === 'pl' ? 'Akcje' : 'Actions'}
                   </h3>
 
-                  {/* Snapshot Button */}
+                  <select
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (value === 'snapshot') {
+                        // Trigger snapshot creation
+                        const snapshotBtn = document.querySelector('[data-snapshot-button]') as HTMLButtonElement
+                        if (snapshotBtn) snapshotBtn.click()
+                      } else if (value === 'add-term') {
+                        promptManualAddTerm()
+                      } else if (value === 'save-project') {
+                        handleSaveProject()
+                      } else if (value === 'local-save') {
+                        handleLocalSaveGlossary()
+                      } else if (value === 'approve-base') {
+                        const confirmMsg = language === 'pl'
+                          ? 'Zatwierdzić glosariusz bazowy i przejść do wyszukiwania ekwiwalentów?'
+                          : 'Approve base glossary and proceed to finding equivalents?'
+                        if (confirm(confirmMsg)) {
+                          setBilingualStage(2)
+                          console.log('✅ Glosariusz bazowy zatwierdzony, przejście do Stage 2')
+                        }
+                      } else if (value === 'find-equivalents') {
+                        handleFindAllEquivalents()
+                      } else if (value === 'back-stage1') {
+                        const confirmMsg = language === 'pl'
+                          ? 'Wrócić do edycji glosariusza bazowego?'
+                          : 'Return to editing base glossary?'
+                        if (confirm(confirmMsg)) {
+                          setBilingualStage(1)
+                        }
+                      }
+                      // Reset select
+                      e.target.value = ''
+                    }}
+                    className="w-full px-4 py-2.5 bg-white border-2 border-purple-500 text-gray-700 rounded-lg hover:border-purple-600 focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition-all font-medium text-sm cursor-pointer"
+                  >
+                    <option value="">Wybierz akcję...</option>
+
+                    {currentProject && currentGlossary && (
+                      <option value="snapshot">📸 Utwórz snapshot</option>
+                    )}
+
+                    {documentText && (
+                      <option value="add-term">➕ Dodaj termin ręcznie</option>
+                    )}
+
+                    <option value="save-project" disabled={terms.length === 0}>
+                      💾 {currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt'}
+                    </option>
+
+                    <option value="local-save" disabled={terms.length === 0}>
+                      💾 Zapisz lokalnie (JSON)
+                    </option>
+
+                    {glossaryMode === 'bilingual' && bilingualStage === 1 && (
+                      <option value="approve-base" disabled={terms.length === 0}>
+                        ✓ Zatwierdź glosariusz bazowy
+                      </option>
+                    )}
+
+                    {glossaryMode === 'bilingual' && bilingualStage === 2 && (
+                      <>
+                        <option value="find-equivalents" disabled={isLoading || terms.length === 0}>
+                          🔍 Znajdź wszystkie ekwiwalenty
+                        </option>
+                        <option value="back-stage1">
+                          ← Powrót do Etapu 1
+                        </option>
+                      </>
+                    )}
+                  </select>
+
+                  {/* Hidden SnapshotButton for functionality */}
                   {currentProject && currentGlossary && (
-                    <div className="mb-2">
+                    <div className="hidden">
                       <SnapshotButton
                         projectId={currentProject.id}
                         glossaryId={currentGlossary.id}
@@ -1017,87 +1112,25 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Manual Add Term Button */}
-                  {documentText && (
-                    <button
-                      onClick={promptManualAddTerm}
-                      className="w-[180px] mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
-                      title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
-                    >
-                      <span>➕</span>
-                      <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleSaveProject}
-                    disabled={terms.length === 0}
-                    className="w-[180px] px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
-                  >
-                    {language === 'pl'
-                      ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
-                      : (currentProject ? 'Save changes' : 'Save as project')}
-                  </button>
-
-                  {/* Bilingual Workflow Buttons - Stage 1 */}
+                  {/* Bilingual info - Stage 1 */}
                   {glossaryMode === 'bilingual' && bilingualStage === 1 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-3">
-                        {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 1' : 'Bilingual Glossary - Stage 1'}
-                      </p>
-                      <button
-                        onClick={() => {
-                          const confirmMsg = language === 'pl'
-                            ? 'Zatwierdzić glosariusz bazowy i przejść do wyszukiwania ekwiwalentów?'
-                            : 'Approve base glossary and proceed to finding equivalents?'
-                          if (confirm(confirmMsg)) {
-                            setBilingualStage(2)
-                            console.log('✅ Glosariusz bazowy zatwierdzony, przejście do Stage 2')
-                          }
-                        }}
-                        disabled={terms.length === 0}
-                        className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
-                      >
-                        ✓ {language === 'pl' ? 'Zatwierdź glosariusz bazowy' : 'Approve Base Glossary'}
-                      </button>
+                    <div className="mt-3 pt-3 border-t border-gray-200">
                       <p className="text-xs text-gray-500 italic">
                         {language === 'pl'
-                          ? 'Po zatwierdzeniu będziesz mógł wyszukiwać ekwiwalenty w dokumencie docelowym'
-                          : 'After approval you can find equivalents in target document'}
+                          ? 'Glosariusz dwujęzyczny - Etap 1: Po zatwierdzeniu będziesz mógł wyszukiwać ekwiwalenty'
+                          : 'Bilingual Glossary - Stage 1: After approval you can find equivalents'}
                       </p>
                     </div>
                   )}
 
-                  {/* Bilingual Workflow Buttons - Stage 2 */}
+                  {/* Bilingual info - Stage 2 */}
                   {glossaryMode === 'bilingual' && bilingualStage === 2 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-3">
-                        {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 2' : 'Bilingual Glossary - Stage 2'}
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 italic">
+                        {language === 'pl'
+                          ? 'Glosariusz dwujęzyczny - Etap 2: Wyszukiwanie ekwiwalentów'
+                          : 'Bilingual Glossary - Stage 2: Finding equivalents'}
                       </p>
-                      <button
-                        onClick={handleFindAllEquivalents}
-                        disabled={isLoading || terms.length === 0}
-                        className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
-                      >
-                        {isLoading ? (
-                          <>⏳ {language === 'pl' ? 'Wyszukiwanie...' : 'Finding...'}</>
-                        ) : (
-                          <>🔍 {language === 'pl' ? 'Znajdź wszystkie ekwiwalenty' : 'Find All Equivalents'}</>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          const confirmMsg = language === 'pl'
-                            ? 'Wrócić do edycji glosariusza bazowego?'
-                            : 'Return to editing base glossary?'
-                          if (confirm(confirmMsg)) {
-                            setBilingualStage(1)
-                          }
-                        }}
-                        className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-                      >
-                        ← {language === 'pl' ? 'Powrót do Etapu 1' : 'Back to Stage 1'}
-                      </button>
                     </div>
                   )}
                 </div>

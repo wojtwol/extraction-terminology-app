@@ -606,6 +606,12 @@ export default function ExportButtons({
     doc.save(`${fileName}_glossary.pdf`)
   }
 
+  const exportToJSON = () => {
+    const jsonContent = JSON.stringify(terms, null, 2)
+    const filename = `${fileName}_glosariusz.json`
+    downloadFile(jsonContent, filename, 'application/json')
+  }
+
   const downloadFile = (content: string, filename: string, mimeType: string) => {
     const blob = new Blob([content], { type: mimeType })
     const url = URL.createObjectURL(blob)
@@ -789,68 +795,71 @@ export default function ExportButtons({
 
   const hasTerms = terms.length > 0
 
-  return (
-    <div className="flex flex-col gap-3 items-start w-full">
-      {/* Import Section - Always Active */}
-      <div className="w-full">
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Import</h4>
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={handleImportJSON}
-            className="w-[180px] px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm flex items-center gap-2"
-          >
-            📥 Import JSON
-          </button>
+  const handleImportChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value
+    if (value === 'json') {
+      handleImportJSON()
+    } else if (value === 'xlsx') {
+      handleImportXLSX()
+    }
+    // Reset select
+    e.target.value = ''
+  }
 
-          <button
-            onClick={handleImportXLSX}
-            className="w-[180px] px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center gap-2"
-          >
-            📥 Import XLSX
-          </button>
-        </div>
+  const handleExportChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value
+    if (value === 'xlsx') {
+      exportToXLSX()
+    } else if (value === 'pdf') {
+      exportToPDF()
+    } else if (value === 'csv') {
+      exportToCSV()
+    } else if (value === 'html') {
+      exportToHTML()
+    } else if (value === 'json') {
+      exportToJSON()
+    }
+    // Reset select
+    e.target.value = ''
+  }
+
+  return (
+    <div className="flex flex-col gap-3 w-full">
+      {/* Import Dropdown - Always Active */}
+      <div className="w-full">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Import
+        </label>
+        <select
+          onChange={handleImportChange}
+          className="w-full px-4 py-2.5 bg-white border-2 border-indigo-500 text-gray-700 rounded-lg hover:border-indigo-600 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 transition-all font-medium text-sm cursor-pointer"
+        >
+          <option value="">Wybierz format...</option>
+          <option value="json">📥 Import JSON</option>
+          <option value="xlsx">📥 Import XLSX</option>
+        </select>
       </div>
 
-      {/* Export Section - Disabled when no terms */}
-      <div className="w-full border-t border-gray-200 pt-3">
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Eksport</h4>
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={exportToXLSX}
-            disabled={!hasTerms}
-            className="w-[180px] px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            📊 Excel (XLSX)
-          </button>
-
-          <button
-            onClick={exportToPDF}
-            disabled={!hasTerms}
-            className="w-[180px] px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            📄 PDF
-          </button>
-
-          <button
-            onClick={exportToCSV}
-            disabled={!hasTerms}
-            className="w-[180px] px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            📊 CSV
-          </button>
-
-          <button
-            onClick={exportToHTML}
-            disabled={!hasTerms}
-            className="w-[180px] px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            🌐 HTML
-          </button>
-
-          <p className="text-xs text-gray-500 mt-1">
-            <strong>XLSX, PDF i HTML</strong> zawierają definicje
-          </p>
-        </div>
+      {/* Export Dropdown - Disabled when no terms */}
+      <div className="w-full">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Eksport
+        </label>
+        <select
+          onChange={handleExportChange}
+          disabled={!hasTerms}
+          className="w-full px-4 py-2.5 bg-white border-2 border-emerald-500 text-gray-700 rounded-lg hover:border-emerald-600 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 transition-all font-medium text-sm cursor-pointer disabled:bg-gray-200 disabled:border-gray-300 disabled:cursor-not-allowed disabled:text-gray-500"
+        >
+          <option value="">Wybierz format...</option>
+          <option value="xlsx">📊 Excel (XLSX)</option>
+          <option value="pdf">📄 PDF</option>
+          <option value="csv">📊 CSV</option>
+          <option value="html">🌐 HTML</option>
+          <option value="json">💾 JSON</option>
+        </select>
+        <p className="text-xs text-gray-500 mt-2">
+          <strong>XLSX, PDF i HTML</strong> zawierają definicje
+        </p>
       </div>
     </div>
   )
