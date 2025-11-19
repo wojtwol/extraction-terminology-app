@@ -34,6 +34,14 @@ export interface Glossary {
   updatedAt: string
   currentVersionId: string
   versions: GlossaryVersion[]
+
+  // Dla glosariuszy dwujęzycznych
+  isBilingual?: boolean
+  sourceLanguage?: string  // np. 'pl', 'en'
+  targetLanguage?: string  // np. 'en', 'de'
+  sourceDocumentText?: string // Tekst dokumentu źródłowego
+  targetDocumentText?: string // Tekst dokumentu docelowego
+  columnView?: '2' | '4'  // Widok: 2 kolumny (terminy) lub 4 kolumny (terminy + konteksty)
 }
 
 // Projekt - może mieć wiele glosariuszy
