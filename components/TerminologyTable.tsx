@@ -480,13 +480,13 @@ export default function TerminologyTable({
                           <button
                             onClick={() => handleGenerateDefinitionClick(term.id, term.term)}
                             disabled={loadingDefinitions.has(term.id)}
-                            className="w-1/2 px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 whitespace-nowrap"
+                            className="w-[60%] px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 whitespace-nowrap"
                           >
                             {loadingDefinitions.has(term.id) ? t.generating : t.generateAI}
                           </button>
                           <button
                             onClick={() => handleManualDefinition(term.id)}
-                            className="w-1/2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 whitespace-nowrap"
+                            className="w-[60%] px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 whitespace-nowrap"
                           >
                             {t.addManually}
                           </button>
