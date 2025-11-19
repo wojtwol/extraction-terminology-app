@@ -312,7 +312,7 @@ export default function TerminologyTable({
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            {language === 'pl' ? 'Alfabetycznie' : 'Alphabetically'}
+            {language === 'pl' ? 'Alfabetycznie' : 'In alphabetic order'}
           </button>
           <button
             onClick={() => setSortBy('occurrences')}
