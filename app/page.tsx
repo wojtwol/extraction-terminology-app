@@ -2,12 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
-import BilingualFileUpload from '@/components/BilingualFileUpload'
-import ModeSelector from '@/components/ModeSelector'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
 import DocumentViewer from '@/components/DocumentViewer'
-import DocumentSplitView from '@/components/DocumentSplitView'
 import GlossaryManager from '@/components/GlossaryManager'
 import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
@@ -696,23 +693,6 @@ export default function Home() {
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
 
-    // Najpierw pokaż ModeSelector jeśli tryb nie został wybrany
-    if (glossaryMode === null) {
-      return (
-        <>
-          <LanguageSwitch />
-          <ModeSelector
-            onSelectMode={(mode) => {
-              setGlossaryMode(mode)
-              if (mode === 'bilingual') {
-                setBilingualStage(1)
-              }
-            }}
-          />
-        </>
-      )
-    }
-
     return (
       <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
         <div className="max-w-4xl mx-auto">
@@ -938,19 +918,11 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Left side - Upload & Projects */}
           <div className="lg:col-span-2 space-y-4">
-            {glossaryMode === 'bilingual' ? (
-              <BilingualFileUpload
-                onExtract={handleBilingualExtract}
-                isLoading={isLoading}
-                savedApiKey={apiKey}
-              />
-            ) : (
-              <FileUpload
-                onExtract={handleFileLoaded}
-                isLoading={isLoading}
-                savedApiKey={apiKey}
-              />
-            )}
+            <FileUpload
+              onExtract={handleFileLoaded}
+              isLoading={isLoading}
+              savedApiKey={apiKey}
+            />
 
             {/* Akcje i Eksport pod FileUpload */}
             {terms.length > 0 && (
@@ -1322,27 +1294,10 @@ export default function Home() {
               apiKey={apiKey}
               onTermSelect={setSelectedTerm}
               selectedTermId={selectedTerm?.id}
-              glossaryMode={glossaryMode}
-              bilingualStage={bilingualStage}
-              sourceDocument={sourceDocumentText}
-              targetDocument={targetDocumentText}
-              sourceLanguage={sourceLanguage}
-              targetLanguage={targetLanguage}
             />
 
-            {/* Document viewers - bilingual vs monolingual */}
-            {glossaryMode === 'bilingual' && bilingualStage === 2 && sourceDocumentText && targetDocumentText ? (
-              <DocumentSplitView
-                sourceDocument={sourceDocumentText}
-                targetDocument={targetDocumentText}
-                sourceLanguage={sourceLanguage}
-                targetLanguage={targetLanguage}
-                terms={terms}
-                selectedTerm={selectedTerm}
-                onQuickAddTarget={handleQuickAddTarget}
-                onTermSelect={setSelectedTerm}
-              />
-            ) : documentText ? (
+            {/* Document viewer */}
+            {documentText && (
               <DocumentViewer
                 documentText={documentText}
                 selectedTerm={selectedTerm}
@@ -1350,7 +1305,7 @@ export default function Home() {
                 terms={terms}
                 onAddTermFromSelection={handleManualAddTerm}
               />
-            ) : null}
+            )}
           </div>
         )}
 
