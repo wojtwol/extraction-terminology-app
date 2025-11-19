@@ -10,6 +10,8 @@ interface GlossaryManagerProps {
   currentGlossaryId: string | null
   onGlossaryChange: (glossaryId: string) => void
   onRefresh: () => void
+  onOpenInNewTab?: (glossaryId: string) => void
+  onCompareMode?: (glossaryId: string) => void
 }
 
 export default function GlossaryManager({
@@ -17,7 +19,9 @@ export default function GlossaryManager({
   glossaries,
   currentGlossaryId,
   onGlossaryChange,
-  onRefresh
+  onRefresh,
+  onOpenInNewTab,
+  onCompareMode
 }: GlossaryManagerProps) {
   const { t, language } = useLanguage()
   const [showNewGlossaryDialog, setShowNewGlossaryDialog] = useState(false)
@@ -165,10 +169,20 @@ export default function GlossaryManager({
                     </div>
                   ) : (
                     <>
-                      <div className="font-semibold text-gray-800 flex items-center gap-2">
+                      <div className="font-semibold text-gray-800 flex items-center gap-2 flex-wrap">
                         {glossary.name}
                         {currentGlossaryId === glossary.id && (
                           <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">{t.active}</span>
+                        )}
+                        {glossary.isBilingual && (
+                          <span className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded flex items-center gap-1">
+                            🌐 {glossary.sourceLanguage?.toUpperCase() || '?'} ↔ {glossary.targetLanguage?.toUpperCase() || '?'}
+                          </span>
+                        )}
+                        {glossary.columnView && (
+                          <span className="text-xs bg-gray-500 text-white px-2 py-0.5 rounded">
+                            {glossary.columnView === '2' ? '📊 2 col' : '📋 4 col'}
+                          </span>
                         )}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
@@ -181,6 +195,24 @@ export default function GlossaryManager({
                   )}
                 </div>
                 <div className="flex gap-1 ml-2" onClick={e => e.stopPropagation()}>
+                  {onOpenInNewTab && (
+                    <button
+                      onClick={() => onOpenInNewTab(glossary.id)}
+                      className="px-2 py-1 text-gray-600 hover:text-green-600 text-xs"
+                      title={language === 'pl' ? 'Otwórz w nowej karcie' : 'Open in new tab'}
+                    >
+                      🗗
+                    </button>
+                  )}
+                  {onCompareMode && glossaries.length > 1 && (
+                    <button
+                      onClick={() => onCompareMode(glossary.id)}
+                      className="px-2 py-1 text-gray-600 hover:text-purple-600 text-xs"
+                      title={language === 'pl' ? 'Porównaj z obecnym' : 'Compare with current'}
+                    >
+                      ⚏
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setEditingGlossaryId(glossary.id)

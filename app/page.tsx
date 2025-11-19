@@ -163,6 +163,10 @@ export default function Home() {
   const [selectedColumnView, setSelectedColumnView] = useState<'2' | '4'>('4')
   const [bilingualProgress, setBilingualProgress] = useState({ current: 0, total: 0, message: '' })
 
+  // Tryb porównania glosariuszy
+  const [compareMode, setCompareMode] = useState(false)
+  const [comparedGlossaryId, setComparedGlossaryId] = useState<string | null>(null)
+
   // Skrót do terminów z aktualnej wersji
   const terms = currentVersion?.terms || []
 
@@ -1608,6 +1612,63 @@ export default function Home() {
     )
   }
 
+  // Otwórz glosariusz w nowej karcie
+  const handleOpenInNewTab = (glossaryId: string) => {
+    if (!currentProject) return
+
+    // Zapisz ID projektu i glosariusza w localStorage
+    const data = {
+      projectId: currentProject.id,
+      glossaryId: glossaryId,
+      timestamp: Date.now()
+    }
+    localStorage.setItem('__openGlossary', JSON.stringify(data))
+
+    // Otwórz nową kartę
+    window.open(window.location.origin + window.location.pathname, '_blank')
+  }
+
+  // Włącz tryb porównania
+  const handleCompareMode = (glossaryId: string) => {
+    if (!currentProject) return
+
+    if (compareMode && comparedGlossaryId === glossaryId) {
+      // Wyłącz tryb porównania
+      setCompareMode(false)
+      setComparedGlossaryId(null)
+    } else {
+      // Włącz tryb porównania
+      setCompareMode(true)
+      setComparedGlossaryId(glossaryId)
+    }
+  }
+
+  // Obsługa załadowania glosariusza z nowej karty
+  useEffect(() => {
+    const dataStr = localStorage.getItem('__openGlossary')
+    if (dataStr) {
+      try {
+        const data = JSON.parse(dataStr)
+        // Sprawdź czy to świeże (max 5 sekund)
+        if (Date.now() - data.timestamp < 5000) {
+          // Załaduj projekt i glosariusz
+          const project = projectStorage.getById(data.projectId)
+          if (project) {
+            setCurrentProject(project)
+            projectStorage.setCurrentGlossary(data.projectId, data.glossaryId)
+            const updated = projectStorage.getById(data.projectId)
+            if (updated) setCurrentProject(updated)
+            refreshGlossary()
+          }
+        }
+        // Wyczyść dane
+        localStorage.removeItem('__openGlossary')
+      } catch (e) {
+        console.error('Error loading glossary from localStorage:', e)
+      }
+    }
+  }, [])
+
   // Główny interfejs aplikacji - pokazuj gdy projekt jest wybrany
   return (
     <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
@@ -2019,6 +2080,8 @@ export default function Home() {
                   if (updated) setCurrentProject(updated)
                   setRefreshKey(prev => prev + 1)
                 }}
+                onOpenInNewTab={handleOpenInNewTab}
+                onCompareMode={handleCompareMode}
               />
             )}
 
@@ -2080,30 +2143,126 @@ export default function Home() {
               </div>
             )}
 
-            <TerminologyTable
-              terms={terms}
-              onUpdate={handleTermUpdate}
-              documentText={documentText}
-              apiKey={apiKey}
-              onTermSelect={setSelectedTerm}
-              selectedTermId={selectedTerm?.id}
-              fileName={fileName}
-              isBilingual={currentGlossary?.isBilingual || false}
-              sourceLanguage={currentGlossary?.sourceLanguage}
-              targetLanguage={currentGlossary?.targetLanguage}
-              columnView={currentGlossary?.columnView || '4'}
-              targetDocumentText={currentGlossary?.targetDocumentText}
-            />
+            {/* Tryb porównania */}
+            {compareMode && comparedGlossaryId && currentProject ? (() => {
+              const comparedGlossary = currentProject.glossaries.find(g => g.id === comparedGlossaryId)
+              const comparedVersion = comparedGlossary?.versions.find(v => v.id === comparedGlossary.currentVersionId)
+              const comparedTerms = comparedVersion?.terms || []
 
-            {/* Document viewer */}
-            {documentText && (
-              <DocumentViewer
-                documentText={documentText}
-                selectedTerm={selectedTerm}
-                fileName={fileName}
-                terms={terms}
-                onAddTermFromSelection={handleManualAddTerm}
-              />
+              return (
+                <div className="space-y-4">
+                  {/* Nagłówek trybu porównania */}
+                  <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">⚏</span>
+                      <div>
+                        <h3 className="font-semibold text-purple-900">
+                          {language === 'pl' ? 'Tryb porównania' : 'Compare Mode'}
+                        </h3>
+                        <p className="text-sm text-purple-700">
+                          {language === 'pl'
+                            ? `Porównujesz: "${currentGlossary?.name}" z "${comparedGlossary?.name}"`
+                            : `Comparing: "${currentGlossary?.name}" with "${comparedGlossary?.name}"`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setCompareMode(false)
+                        setComparedGlossaryId(null)
+                      }}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                    >
+                      ✕ {language === 'pl' ? 'Zamknij porównanie' : 'Close compare'}
+                    </button>
+                  </div>
+
+                  {/* Layout dwóch kolumn */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Lewy glosariusz (obecny) */}
+                    <div className="space-y-2">
+                      <div className="bg-blue-50 border border-blue-300 rounded-lg p-3">
+                        <h4 className="font-semibold text-blue-900 flex items-center gap-2">
+                          <span className="text-lg">📋</span>
+                          {currentGlossary?.name}
+                        </h4>
+                        <p className="text-xs text-blue-700 mt-1">
+                          {terms.length} {language === 'pl' ? 'terminów' : 'terms'}
+                        </p>
+                      </div>
+                      <TerminologyTable
+                        terms={terms}
+                        onUpdate={handleTermUpdate}
+                        documentText={documentText}
+                        apiKey={apiKey}
+                        onTermSelect={setSelectedTerm}
+                        selectedTermId={selectedTerm?.id}
+                        fileName={fileName}
+                        isBilingual={currentGlossary?.isBilingual || false}
+                        sourceLanguage={currentGlossary?.sourceLanguage}
+                        targetLanguage={currentGlossary?.targetLanguage}
+                        columnView={currentGlossary?.columnView || '4'}
+                        targetDocumentText={currentGlossary?.targetDocumentText}
+                      />
+                    </div>
+
+                    {/* Prawy glosariusz (porównywany) */}
+                    <div className="space-y-2">
+                      <div className="bg-green-50 border border-green-300 rounded-lg p-3">
+                        <h4 className="font-semibold text-green-900 flex items-center gap-2">
+                          <span className="text-lg">📋</span>
+                          {comparedGlossary?.name}
+                        </h4>
+                        <p className="text-xs text-green-700 mt-1">
+                          {comparedTerms.length} {language === 'pl' ? 'terminów' : 'terms'}
+                        </p>
+                      </div>
+                      <TerminologyTable
+                        terms={comparedTerms}
+                        onUpdate={() => {}} // Read-only w trybie porównania
+                        documentText={currentProject.documentText}
+                        apiKey={apiKey}
+                        fileName={comparedGlossary?.name || ''}
+                        isBilingual={comparedGlossary?.isBilingual || false}
+                        sourceLanguage={comparedGlossary?.sourceLanguage}
+                        targetLanguage={comparedGlossary?.targetLanguage}
+                        columnView={comparedGlossary?.columnView || '4'}
+                        targetDocumentText={comparedGlossary?.targetDocumentText}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )
+            })() : (
+              <>
+                {/* Normalny widok - pojedynczy glosariusz */}
+                <TerminologyTable
+                  terms={terms}
+                  onUpdate={handleTermUpdate}
+                  documentText={documentText}
+                  apiKey={apiKey}
+                  onTermSelect={setSelectedTerm}
+                  selectedTermId={selectedTerm?.id}
+                  fileName={fileName}
+                  isBilingual={currentGlossary?.isBilingual || false}
+                  sourceLanguage={currentGlossary?.sourceLanguage}
+                  targetLanguage={currentGlossary?.targetLanguage}
+                  columnView={currentGlossary?.columnView || '4'}
+                  targetDocumentText={currentGlossary?.targetDocumentText}
+                />
+
+                {/* Document viewer */}
+                {documentText && (
+                  <DocumentViewer
+                    documentText={documentText}
+                    selectedTerm={selectedTerm}
+                    fileName={fileName}
+                    terms={terms}
+                    onAddTermFromSelection={handleManualAddTerm}
+                  />
+                )}
+              </>
             )}
           </div>
         )}
