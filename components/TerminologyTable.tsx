@@ -389,11 +389,47 @@ export default function TerminologyTable({
     }
   }
 
+  // Sprawdź czy są nowe terminy
+  const hasNewTerms = terms.some(t => t.isNew)
+  const newTermsCount = terms.filter(t => t.isNew).length
+
+  // Funkcja do usunięcia flagi "isNew" ze wszystkich terminów
+  const handleClearNewFlags = () => {
+    const confirmMessage = language === 'pl'
+      ? `Czy na pewno chcesz usunąć oznaczenie "NOWY" ze wszystkich ${newTermsCount} terminów?`
+      : `Are you sure you want to remove "NEW" marking from all ${newTermsCount} terms?`
+
+    if (confirm(confirmMessage)) {
+      const updatedTerms = terms.map(t => ({
+        ...t,
+        isNew: false
+      }))
+      onUpdate(updatedTerms)
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-        {t.extractedTerms} ({terms.length})
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-semibold text-gray-800">
+          {t.extractedTerms} ({terms.length})
+          {hasNewTerms && (
+            <span className="ml-3 text-sm font-normal text-green-700 bg-green-100 px-3 py-1 rounded-full">
+              ✨ {newTermsCount} {language === 'pl' ? 'nowych' : 'new'}
+            </span>
+          )}
+        </h2>
+        {hasNewTerms && (
+          <button
+            onClick={handleClearNewFlags}
+            className="px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+            title={language === 'pl' ? 'Usuń oznaczenia "NOWY" ze wszystkich terminów' : 'Remove "NEW" markings from all terms'}
+          >
+            <span>✓</span>
+            <span>{language === 'pl' ? 'Zaakceptuj nowe' : 'Accept new'}</span>
+          </button>
+        )}
+      </div>
 
       <div className="mb-4 space-y-3">
         <input
@@ -474,6 +510,8 @@ export default function TerminologyTable({
                 key={term.id}
                 className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${
                   selectedTermId === term.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                } ${
+                  term.isNew ? 'bg-green-50 border-l-4 border-l-green-500' : ''
                 }`}
               >
                 <td className="px-2 py-3 text-sm text-gray-600">{index + 1}</td>
@@ -506,16 +544,23 @@ export default function TerminologyTable({
                           </button>
                         </div>
                       ) : (
-                        <span
-                          onClick={() => onTermSelect?.(term)}
-                          className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors break-words ${
-                            selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
-                          }`}
-                          title={language === 'pl' ? 'Kliknij, aby wyświetlić w dokumencie' : 'Click to show in document'}
-                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                        >
-                          {term.term}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            onClick={() => onTermSelect?.(term)}
+                            className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors break-words ${
+                              selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
+                            }`}
+                            title={language === 'pl' ? 'Kliknij, aby wyświetlić w dokumencie' : 'Click to show in document'}
+                            style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                          >
+                            {term.term}
+                          </span>
+                          {term.isNew && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800 border border-green-300 animate-pulse">
+                              ✨ {language === 'pl' ? 'NOWY' : 'NEW'}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
 
@@ -627,17 +672,24 @@ export default function TerminologyTable({
                           </button>
                         </div>
                       ) : (
-                        <span
-                          onClick={() => onTermSelect?.(term)}
-                          className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
-                            term.term.split(' ').length >= 4 ? 'break-words' : ''
-                          } ${selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
-                          }`}
-                          title="Kliknij, aby wyświetlić w dokumencie"
-                          style={term.term.split(' ').length >= 4 ? { wordBreak: 'break-word', overflowWrap: 'break-word' } : {}}
-                        >
-                          {term.term}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            onClick={() => onTermSelect?.(term)}
+                            className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
+                              term.term.split(' ').length >= 4 ? 'break-words' : ''
+                            } ${selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
+                            }`}
+                            title="Kliknij, aby wyświetlić w dokumencie"
+                            style={term.term.split(' ').length >= 4 ? { wordBreak: 'break-word', overflowWrap: 'break-word' } : {}}
+                          >
+                            {term.term}
+                          </span>
+                          {term.isNew && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800 border border-green-300 animate-pulse">
+                              ✨ {language === 'pl' ? 'NOWY' : 'NEW'}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
 

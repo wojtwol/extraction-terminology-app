@@ -45,6 +45,10 @@ export interface Term {
   targetOccurrences?: number
   targetPositions?: number[]
   targetSource?: 'document' | 'ai' | 'manual' | 'missing'
+
+  // Dla incremental extraction mode
+  isNew?: boolean  // Oznaczenie nowo dodanego terminu podczas rozbudowy
+  addedAt?: string  // Timestamp dodania terminu
 }
 
 // Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście (case sensitive)
@@ -146,6 +150,8 @@ export default function Home() {
   const [maxTerms, setMaxTerms] = useState(30)
   const [minLength, setMinLength] = useState(3)
   const [minOccurrences, setMinOccurrences] = useState(1)
+  const [generateDefinitions, setGenerateDefinitions] = useState(false)
+  const [incrementalMode, setIncrementalMode] = useState(false) // Tryb rozbudowy glosariusza
 
   // Wybrany termin do podświetlenia w dokumencie
   const [selectedTerm, setSelectedTerm] = useState<Term | null>(null)
@@ -291,14 +297,51 @@ export default function Home() {
         return
       }
 
+      // Tryb rozbudowy - merge z istniejącymi terminami
+      let finalTerms: Term[]
+      let addedCount = 0
+
+      if (incrementalMode && terms.length > 0) {
+        // Tryb rozbudowy - dodaj tylko nowe terminy
+        const existingTermTexts = new Set(terms.map(t => t.term.toLowerCase()))
+        const newTerms = data.terms
+          .filter((t: Term) => !existingTermTexts.has(t.term.toLowerCase()))
+          .map((t: Term) => ({
+            ...t,
+            isNew: true,
+            addedAt: new Date().toISOString()
+          }))
+
+        addedCount = newTerms.length
+
+        // Usuń flagę isNew ze starych terminów (jeśli była)
+        const existingTermsWithoutNewFlag = terms.map(t => ({
+          ...t,
+          isNew: false
+        }))
+
+        finalTerms = [...existingTermsWithoutNewFlag, ...newTerms]
+
+        console.log(`🔄 Tryb rozbudowy: Dodano ${addedCount} nowych terminów (${data.terms.length - addedCount} duplikatów pominięto)`)
+      } else {
+        // Normalny tryb - wszystkie terminy są "nowe"
+        finalTerms = data.terms.map((t: Term) => ({
+          ...t,
+          isNew: false,
+          addedAt: new Date().toISOString()
+        }))
+      }
+
       // Zapisz wyniki jako nową wersję glosariusza
       const extractionParams = { minTerms, maxTerms, minLength, minOccurrences }
-      const description = `Ekstrakcja: ${minTerms}-${maxTerms} terminów`
+      const description = incrementalMode
+        ? `Rozbudowa: +${addedCount} nowych terminów`
+        : `Ekstrakcja: ${minTerms}-${maxTerms} terminów`
 
       projectStorage.addVersion(
         currentProject.id,
         currentGlossary.id,
-        data.terms,
+        finalTerms,
         description,
         extractionParams,
         false // nie jest snapshotem
@@ -310,6 +353,98 @@ export default function Home() {
         setCurrentProject(updatedProject)
       }
       refreshGlossary()
+
+      // Komunikat o wyniku rozbudowy
+      if (incrementalMode && terms.length > 0) {
+        const message = language === 'pl'
+          ? `✅ Rozbudowa glosariusza:\n\n• Dodano: ${addedCount} nowych terminów\n• Pominięto: ${data.terms.length - addedCount} duplikatów\n• Łącznie: ${finalTerms.length} terminów`
+          : `✅ Glossary expansion:\n\n• Added: ${addedCount} new terms\n• Skipped: ${data.terms.length - addedCount} duplicates\n• Total: ${finalTerms.length} terms`
+
+        alert(message)
+      }
+
+      // Jeśli włączono automatyczne generowanie definicji
+      if (generateDefinitions && finalTerms.length > 0) {
+        const termsToDefine = incrementalMode
+          ? finalTerms.filter(t => t.isNew) // Tylko nowe terminy w trybie rozbudowy
+          : finalTerms // Wszystkie w normalnym trybie
+
+        console.log(`🔮 Rozpoczynam automatyczne generowanie definicji dla ${termsToDefine.length} terminów...`)
+
+        const termsWithDefinitions = [...finalTerms]
+        let successCount = 0
+        let errorCount = 0
+
+        for (let i = 0; i < termsToDefine.length; i++) {
+          const term = termsToDefine[i]
+          const progressPercent = Math.round((i / termsToDefine.length) * 100)
+          setProgress(progressPercent)
+
+          try {
+            const defResponse = await fetch('/api/generate-definition', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                apiKey,
+                term: term.term,
+                context: term.context,
+                documentText: loadedText,
+                language: detectedLanguage || 'pl'
+              })
+            })
+
+            if (defResponse.ok) {
+              const defData = await defResponse.json()
+              // Znajdź i zaktualizuj termin w termsWithDefinitions
+              const termIndex = termsWithDefinitions.findIndex(t => t.id === term.id)
+              if (termIndex !== -1) {
+                termsWithDefinitions[termIndex] = {
+                  ...termsWithDefinitions[termIndex],
+                  definition: defData.definition,
+                  definitionSource: 'ai' as const
+                }
+              }
+              successCount++
+              console.log(`✅ [${i + 1}/${termsToDefine.length}] Wygenerowano definicję dla "${term.term}"`)
+            } else {
+              errorCount++
+              console.warn(`⚠️ [${i + 1}/${termsToDefine.length}] Błąd generowania definicji dla "${term.term}"`)
+            }
+          } catch (error) {
+            errorCount++
+            console.error(`❌ [${i + 1}/${termsToDefine.length}] Wyjątek podczas generowania definicji dla "${term.term}":`, error)
+          }
+        }
+
+        // Zapisz terminy z definicjami jako nową wersję
+        const defDescription = incrementalMode
+          ? `Rozbudowa: +${addedCount} nowych terminów (z definicjami: ${successCount}/${termsToDefine.length})`
+          : `Ekstrakcja: ${minTerms}-${maxTerms} terminów (z definicjami: ${successCount}/${termsWithDefinitions.length})`
+
+        projectStorage.addVersion(
+          currentProject.id,
+          currentGlossary.id,
+          termsWithDefinitions,
+          defDescription,
+          extractionParams,
+          false
+        )
+
+        // Odśwież ponownie aby pokazać definicje
+        const projectWithDefinitions = projectStorage.getById(currentProject.id)
+        if (projectWithDefinitions) {
+          setCurrentProject(projectWithDefinitions)
+        }
+        refreshGlossary()
+
+        console.log(`✅ Wygenerowano ${successCount} definicji, ${errorCount} błędów`)
+
+        if (errorCount > 0) {
+          alert(language === 'pl'
+            ? `Wygenerowano definicje: ${successCount}/${termsWithDefinitions.length}\nBłędy: ${errorCount}`
+            : `Generated definitions: ${successCount}/${termsWithDefinitions.length}\nErrors: ${errorCount}`)
+        }
+      }
 
       setProgress(100)
       console.log(`✅ Wyekstrahowano ${data.terms.length} terminów`)
@@ -1214,6 +1349,63 @@ export default function Home() {
                       ? 'Aplikacja będzie dążyć do maksymalnej liczby terminów spełniających kryteria.'
                       : 'The application will aim for the maximum number of terms meeting the criteria.'}
                   </p>
+
+                  {/* Checkboxy dla trybu rozbudowy i automatycznego generowania definicji */}
+                  <div className="mt-3 pt-3 border-t border-blue-200 space-y-3">
+                    <div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={incrementalMode}
+                          onChange={(e) => setIncrementalMode(e.target.checked)}
+                          disabled={terms.length === 0}
+                          className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 focus:ring-2 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <span className="text-sm text-gray-700 font-medium">
+                          {language === 'pl'
+                            ? '🔄 Tryb rozbudowy glosariusza'
+                            : '🔄 Glossary expansion mode'}
+                        </span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1 ml-6">
+                        {language === 'pl'
+                          ? 'Dodaj tylko nowe terminy do istniejącego glosariusza, nie usuwając dotychczasowych. Nowe terminy zostaną oznaczone.'
+                          : 'Add only new terms to existing glossary without removing current ones. New terms will be marked.'}
+                      </p>
+                      {terms.length === 0 && (
+                        <p className="text-xs text-orange-600 font-semibold mt-1 ml-6">
+                          ⚠️ {language === 'pl'
+                            ? 'Tryb rozbudowy dostępny tylko gdy glosariusz już zawiera terminy'
+                            : 'Expansion mode available only when glossary already contains terms'}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={generateDefinitions}
+                          onChange={(e) => setGenerateDefinitions(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-700 font-medium">
+                          {language === 'pl'
+                            ? 'Generuj definicje automatycznie'
+                            : 'Generate definitions automatically'}
+                        </span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1 ml-6">
+                        {language === 'pl'
+                          ? incrementalMode
+                            ? 'Automatycznie generuj definicje tylko dla nowo dodanych terminów'
+                            : 'Po ekstrakcji terminów automatycznie wygeneruj dla nich definicje (zwiększa czas przetwarzania)'
+                          : incrementalMode
+                            ? 'Automatically generate definitions only for newly added terms'
+                            : 'After extracting terms, automatically generate definitions for them (increases processing time)'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <button
