@@ -64,6 +64,49 @@ export default function TerminologyTable({
   // Check if any term has a definition
   const hasDefinitions = terms.some(t => t.definition)
 
+  // Funkcja do wyróżnienia terminu w kontekście
+  const highlightTermInContext = (context: string, termText: string) => {
+    if (!context || !termText) return context
+
+    const parts: JSX.Element[] = []
+    const lowerContext = context.toLowerCase()
+    const lowerTerm = termText.toLowerCase()
+
+    let lastIndex = 0
+    let searchIndex = 0
+
+    while ((searchIndex = lowerContext.indexOf(lowerTerm, lastIndex)) !== -1) {
+      // Dodaj tekst przed terminem
+      if (searchIndex > lastIndex) {
+        parts.push(
+          <span key={`text-${lastIndex}`}>
+            {context.substring(lastIndex, searchIndex)}
+          </span>
+        )
+      }
+
+      // Dodaj wyróżniony termin
+      parts.push(
+        <span key={`term-${searchIndex}`} className="text-red-600 font-semibold">
+          {context.substring(searchIndex, searchIndex + termText.length)}
+        </span>
+      )
+
+      lastIndex = searchIndex + termText.length
+    }
+
+    // Dodaj pozostały tekst po ostatnim wystąpieniu
+    if (lastIndex < context.length) {
+      parts.push(
+        <span key={`text-${lastIndex}`}>
+          {context.substring(lastIndex)}
+        </span>
+      )
+    }
+
+    return parts.length > 0 ? <>{parts}</> : context
+  }
+
   const handleDelete = (id: string) => {
     const confirmMessage = language === 'pl'
       ? 'Czy na pewno chcesz usunąć ten termin?'
@@ -347,8 +390,8 @@ export default function TerminologyTable({
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
                 {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
               </th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '14%' : '14%'}}>{t.definition}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '30%' : '32%'}}>{t.context}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '9%' : '14%'}}>{t.definition}</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '35%' : '32%'}}>{t.context}</th>
               <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
             </tr>
           </thead>
@@ -498,7 +541,7 @@ export default function TerminologyTable({
                 <td className="px-3 py-3 text-sm text-gray-600 break-words">
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
-                      {term.context}
+                      {highlightTermInContext(term.context, term.term)}
                     </div>
                     <button
                       onClick={() => handleOpenModal(term)}
