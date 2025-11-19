@@ -156,6 +156,13 @@ export default function Home() {
   // Sugestia dotycząca liczby terminów
   const [extractionSuggestion, setExtractionSuggestion] = useState<string | null>(null)
 
+  // Dialogi dla glosariuszy dwujęzycznych
+  const [showBilingualDialog, setShowBilingualDialog] = useState(false)
+  const [bilingualDialogStep, setBilingualDialogStep] = useState<'language' | 'document' | 'columns' | 'processing'>('language')
+  const [selectedTargetLanguage, setSelectedTargetLanguage] = useState('')
+  const [selectedColumnView, setSelectedColumnView] = useState<'2' | '4'>('4')
+  const [bilingualProgress, setBilingualProgress] = useState({ current: 0, total: 0, message: '' })
+
   // Skrót do terminów z aktualnej wersji
   const terms = currentVersion?.terms || []
 
@@ -468,174 +475,217 @@ export default function Home() {
     }
   }
 
+  // Lista języków UE + dodatkowe
+  const TARGET_LANGUAGES = [
+    { code: 'bg', name: language === 'pl' ? 'Bułgarski' : 'Bulgarian' },
+    { code: 'cs', name: language === 'pl' ? 'Czeski' : 'Czech' },
+    { code: 'da', name: language === 'pl' ? 'Duński' : 'Danish' },
+    { code: 'de', name: language === 'pl' ? 'Niemiecki' : 'German' },
+    { code: 'el', name: language === 'pl' ? 'Grecki' : 'Greek' },
+    { code: 'en', name: language === 'pl' ? 'Angielski' : 'English' },
+    { code: 'es', name: language === 'pl' ? 'Hiszpański' : 'Spanish' },
+    { code: 'et', name: language === 'pl' ? 'Estoński' : 'Estonian' },
+    { code: 'fi', name: language === 'pl' ? 'Fiński' : 'Finnish' },
+    { code: 'fr', name: language === 'pl' ? 'Francuski' : 'French' },
+    { code: 'ga', name: language === 'pl' ? 'Irlandzki' : 'Irish' },
+    { code: 'hr', name: language === 'pl' ? 'Chorwacki' : 'Croatian' },
+    { code: 'hu', name: language === 'pl' ? 'Węgierski' : 'Hungarian' },
+    { code: 'it', name: language === 'pl' ? 'Włoski' : 'Italian' },
+    { code: 'lt', name: language === 'pl' ? 'Litewski' : 'Lithuanian' },
+    { code: 'lv', name: language === 'pl' ? 'Łotewski' : 'Latvian' },
+    { code: 'mt', name: language === 'pl' ? 'Maltański' : 'Maltese' },
+    { code: 'nl', name: language === 'pl' ? 'Niderlandzki' : 'Dutch' },
+    { code: 'pl', name: language === 'pl' ? 'Polski' : 'Polish' },
+    { code: 'pt', name: language === 'pl' ? 'Portugalski' : 'Portuguese' },
+    { code: 'ro', name: language === 'pl' ? 'Rumuński' : 'Romanian' },
+    { code: 'sk', name: language === 'pl' ? 'Słowacki' : 'Slovak' },
+    { code: 'sl', name: language === 'pl' ? 'Słoweński' : 'Slovenian' },
+    { code: 'sv', name: language === 'pl' ? 'Szwedzki' : 'Swedish' },
+    // Języki dodatkowe
+    { code: 'tr', name: language === 'pl' ? 'Turecki' : 'Turkish' },
+    { code: 'sr', name: language === 'pl' ? 'Serbski' : 'Serbian' },
+    { code: 'sq', name: language === 'pl' ? 'Albański' : 'Albanian' },
+    { code: 'uk', name: language === 'pl' ? 'Ukraiński' : 'Ukrainian' },
+    { code: 'ru', name: language === 'pl' ? 'Rosyjski' : 'Russian' },
+  ]
+
   // Tworzenie glosariusza dwujęzycznego na bazie jednojęzycznego
-  const handleCreateBilingualGlossary = async () => {
+  const handleCreateBilingualGlossary = () => {
     if (!currentProject || !currentGlossary || !documentText) {
-      alert(language === 'pl'
-        ? 'Brak glosariusza bazowego. Utwórz najpierw glosariusz jednojęzyczny.'
-        : 'No base glossary. Create a monolingual glossary first.')
       return
     }
 
-    // Krok 1: Wybór języka docelowego
-    const targetLangPrompt = language === 'pl'
-      ? 'Wybierz język docelowy (wpisz kod języka, np. en, de, fr, es):'
-      : 'Select target language (enter language code, e.g. en, de, fr, es):'
+    // Otwórz dialog z pierwszym krokiem (wybór języka)
+    setSelectedTargetLanguage('')
+    setSelectedColumnView('4')
+    setBilingualDialogStep('language')
+    setShowBilingualDialog(true)
+  }
 
-    const targetLanguage = prompt(targetLangPrompt, 'en')
-    if (!targetLanguage) return
+  // Obsługa załadowania dokumentu docelowego
+  const handleBilingualDocumentLoad = async (file: File) => {
+    try {
+      setIsLoading(true)
+      let targetDocText = ''
 
-    // Krok 2: Załaduj dokument docelowy
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.txt,.pdf'
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (!file) return
+      if (file.name.endsWith('.pdf')) {
+        // Pobierz tekst z PDF
+        const formData = new FormData()
+        formData.append('file', file)
 
-      try {
-        setIsLoading(true)
-        let targetDocText = ''
-
-        if (file.name.endsWith('.pdf')) {
-          // Pobierz tekst z PDF
-          const formData = new FormData()
-          formData.append('file', file)
-
-          const response = await fetch('/api/extract-pdf-text', {
-            method: 'POST',
-            body: formData
-          })
-
-          if (!response.ok) {
-            throw new Error('Błąd wczytywania PDF')
-          }
-
-          const data = await response.json()
-          targetDocText = data.text
-        } else {
-          // Tekst z pliku TXT
-          targetDocText = await file.text()
-        }
-
-        if (!targetDocText || targetDocText.trim().length === 0) {
-          alert(language === 'pl'
-            ? 'Dokument docelowy jest pusty'
-            : 'Target document is empty')
-          setIsLoading(false)
-          return
-        }
-
-        // Krok 3: Wybór widoku (2 lub 4 kolumny)
-        const viewChoice = prompt(
-          language === 'pl'
-            ? 'Wybierz widok glosariusza:\n2 - Tylko terminy (2 kolumny)\n4 - Terminy + konteksty (4 kolumny)'
-            : 'Choose glossary view:\n2 - Terms only (2 columns)\n4 - Terms + contexts (4 columns)',
-          '4'
-        )
-
-        const columnView = (viewChoice === '2' || viewChoice === '4') ? viewChoice : '4'
-
-        // Krok 4: Wywołaj API do dopasowania terminów
-        console.log('🔄 Rozpoczynam dopasowywanie terminów...')
-        setProgress(10)
-
-        const response = await fetch('/api/match-bilingual-terms', {
+        const response = await fetch('/api/extract-pdf-text', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sourceTerms: terms,
-            sourceText: documentText,
-            targetText: targetDocText,
-            sourceLanguage: detectedLanguage || 'unknown',
-            targetLanguage: targetLanguage,
-            apiKey: apiKey
-          })
+          body: formData
         })
-
-        setProgress(80)
 
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Błąd dopasowywania terminów')
+          throw new Error('Błąd wczytywania PDF')
         }
 
-        const { matchedTerms } = await response.json()
-
-        setProgress(90)
-
-        // Krok 5: Utwórz nowy glosariusz dwujęzyczny
-        const bilingualGlossaryName = `${currentGlossary.name} (${detectedLanguage || 'source'}-${targetLanguage})`
-
-        const newGlossary: Glossary = {
-          id: `glossary-${Date.now()}`,
-          name: bilingualGlossaryName,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          currentVersionId: '',
-          versions: [],
-          isBilingual: true,
-          sourceLanguage: detectedLanguage || 'unknown',
-          targetLanguage: targetLanguage,
-          sourceDocumentText: documentText,
-          targetDocumentText: targetDocText,
-          columnView: columnView as '2' | '4'
-        }
-
-        const initialVersion: GlossaryVersion = {
-          id: `version-${Date.now()}-1`,
-          versionNumber: 1,
-          createdAt: new Date().toISOString(),
-          description: language === 'pl'
-            ? `Glosariusz dwujęzyczny utworzony z: ${currentGlossary.name}`
-            : `Bilingual glossary created from: ${currentGlossary.name}`,
-          terms: matchedTerms
-        }
-
-        newGlossary.versions = [initialVersion]
-        newGlossary.currentVersionId = initialVersion.id
-
-        // Dodaj nowy glosariusz do projektu
-        const updatedProject = { ...currentProject }
-        updatedProject.glossaries.push(newGlossary)
-        updatedProject.currentGlossaryId = newGlossary.id
-        updatedProject.updatedAt = new Date().toISOString()
-
-        // Zapisz zaktualizowany projekt
-        projectStorage.update(currentProject.id, {
-          glossaries: updatedProject.glossaries,
-          currentGlossaryId: newGlossary.id
-        })
-
-        // Pobierz zaktualizowany projekt z storage
-        const refreshedProject = projectStorage.getById(currentProject.id)
-        if (!refreshedProject) {
-          throw new Error('Failed to refresh project')
-        }
-
-        setCurrentProject(refreshedProject)
-        setCurrentGlossary(newGlossary)
-        refreshGlossary()
-
-        setProgress(100)
-        console.log(`✅ Utworzono glosariusz dwujęzyczny: ${matchedTerms.length} terminów`)
-
-        alert(language === 'pl'
-          ? `Utworzono glosariusz dwujęzyczny!\n\nDopasowano: ${matchedTerms.length} terminów\nWidok: ${columnView} kolumny`
-          : `Bilingual glossary created!\n\nMatched: ${matchedTerms.length} terms\nView: ${columnView} columns`)
-
-        setTimeout(() => setProgress(0), 1000)
-
-      } catch (error) {
-        console.error('❌ Błąd tworzenia glosariusza dwujęzycznego:', error)
-        const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
-        alert(`❌ Błąd:\n\n${errorMessage}`)
-      } finally {
-        setIsLoading(false)
+        const data = await response.json()
+        targetDocText = data.text
+      } else {
+        // Tekst z pliku TXT
+        targetDocText = await file.text()
       }
-    }
 
-    input.click()
+      if (!targetDocText || targetDocText.trim().length === 0) {
+        alert(language === 'pl'
+          ? 'Dokument docelowy jest pusty'
+          : 'Target document is empty')
+        setIsLoading(false)
+        return
+      }
+
+      // Przejdź do procesu dopasowywania
+      await processBilingualMatching(targetDocText)
+
+    } catch (error) {
+      console.error('❌ Błąd wczytywania dokumentu:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
+      alert(`❌ Błąd:\n\n${errorMessage}`)
+      setIsLoading(false)
+      setShowBilingualDialog(false)
+    }
+  }
+
+  // Proces dopasowywania terminów dwujęzycznych
+  const processBilingualMatching = async (targetDocText: string) => {
+    if (!currentProject || !currentGlossary || !documentText || !apiKey) return
+
+    try {
+      setBilingualDialogStep('processing')
+      setBilingualProgress({ current: 0, total: terms.length, message: language === 'pl' ? 'Rozpoczynam dopasowywanie...' : 'Starting matching...' })
+
+      console.log('🔄 Rozpoczynam dopasowywanie terminów...')
+      setProgress(10)
+
+      const response = await fetch('/api/match-bilingual-terms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceTerms: terms,
+          sourceText: documentText,
+          targetText: targetDocText,
+          sourceLanguage: detectedLanguage || 'unknown',
+          targetLanguage: selectedTargetLanguage,
+          apiKey: apiKey
+        })
+      })
+
+      setProgress(80)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Błąd dopasowywania terminów')
+      }
+
+      const { matchedTerms } = await response.json()
+
+      setProgress(90)
+
+      // Utwórz nowy glosariusz dwujęzyczny
+      const bilingualGlossaryName = `${currentGlossary.name} (${detectedLanguage || 'source'}-${selectedTargetLanguage})`
+
+      const newGlossary: Glossary = {
+        id: `glossary-${Date.now()}`,
+        name: bilingualGlossaryName,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        currentVersionId: '',
+        versions: [],
+        isBilingual: true,
+        sourceLanguage: detectedLanguage || 'unknown',
+        targetLanguage: selectedTargetLanguage,
+        sourceDocumentText: documentText,
+        targetDocumentText: targetDocText,
+        columnView: selectedColumnView
+      }
+
+      const initialVersion: GlossaryVersion = {
+        id: `version-${Date.now()}-1`,
+        versionNumber: 1,
+        createdAt: new Date().toISOString(),
+        description: language === 'pl'
+          ? `Glosariusz dwujęzyczny utworzony z: ${currentGlossary.name}`
+          : `Bilingual glossary created from: ${currentGlossary.name}`,
+        terms: matchedTerms
+      }
+
+      newGlossary.versions = [initialVersion]
+      newGlossary.currentVersionId = initialVersion.id
+
+      // Dodaj nowy glosariusz do projektu
+      const updatedProject = { ...currentProject }
+      updatedProject.glossaries.push(newGlossary)
+      updatedProject.currentGlossaryId = newGlossary.id
+      updatedProject.updatedAt = new Date().toISOString()
+
+      // Zapisz zaktualizowany projekt
+      projectStorage.update(currentProject.id, {
+        glossaries: updatedProject.glossaries,
+        currentGlossaryId: newGlossary.id
+      })
+
+      // Pobierz zaktualizowany projekt z storage
+      const refreshedProject = projectStorage.getById(currentProject.id)
+      if (!refreshedProject) {
+        throw new Error('Failed to refresh project')
+      }
+
+      setCurrentProject(refreshedProject)
+      setCurrentGlossary(newGlossary)
+      refreshGlossary()
+
+      setProgress(100)
+      setBilingualProgress({
+        current: matchedTerms.length,
+        total: terms.length,
+        message: language === 'pl' ? 'Zakończono!' : 'Completed!'
+      })
+
+      console.log(`✅ Utworzono glosariusz dwujęzyczny: ${matchedTerms.length} terminów`)
+
+      setTimeout(() => {
+        setProgress(0)
+        setShowBilingualDialog(false)
+        setIsLoading(false)
+      }, 2000)
+
+    } catch (error) {
+      console.error('❌ Błąd tworzenia glosariusza dwujęzycznego:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
+      setBilingualProgress({
+        current: 0,
+        total: 0,
+        message: `❌ ${errorMessage}`
+      })
+      setIsLoading(false)
+
+      setTimeout(() => {
+        setShowBilingualDialog(false)
+      }, 3000)
+    }
   }
 
   // Rozpocznij ekstrakcję (po kliknięciu przycisku)
@@ -1692,9 +1742,9 @@ export default function Home() {
                       🔍 {language === 'pl' ? 'Rozbuduj (automatycznie)' : 'Expand (automatic)'}
                     </option>
 
-                    {/* Opcja tworzenia glosariusza dwujęzycznego - dostępna gdy jest jednojęzyczny glosariusz */}
-                    {currentGlossary && !currentGlossary.isBilingual && terms.length > 0 && (
-                      <option value="create-bilingual">
+                    {/* Opcja tworzenia glosariusza dwujęzycznego - widoczna zawsze, aktywna gdy są terminy */}
+                    {currentGlossary && !currentGlossary.isBilingual && (
+                      <option value="create-bilingual" disabled={terms.length === 0}>
                         🌐 {language === 'pl' ? 'Stwórz glosariusz dwujęzyczny' : 'Create bilingual glossary'}
                       </option>
                     )}
