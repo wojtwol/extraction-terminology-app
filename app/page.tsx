@@ -225,6 +225,149 @@ export default function Home() {
     }
   }
 
+  // Rozbudowa glosariusza - automatyczne poszukiwanie nowych terminów
+  const handleExpandGlossary = async () => {
+    if (!documentText || !apiKey || !currentProject || !currentGlossary) {
+      alert(language === 'pl'
+        ? 'Brak dokumentu lub projektu. Załaduj dokument i utwórz projekt przed rozbudową.'
+        : 'No document or project. Load a document and create a project before expanding.')
+      return
+    }
+
+    // Prompt użytkownika o nowe parametry
+    const newMaxTermsStr = prompt(
+      language === 'pl'
+        ? `Rozbudowa glosariusza\n\nAktualnie: ${terms.length} terminów\n\nPodaj nową maksymalną liczbę terminów (większą niż obecna):`
+        : `Glossary expansion\n\nCurrent: ${terms.length} terms\n\nEnter new maximum number of terms (greater than current):`,
+      Math.max(maxTerms, terms.length + 20).toString()
+    )
+
+    if (!newMaxTermsStr) return
+
+    const newMaxTerms = parseInt(newMaxTermsStr, 10)
+    if (isNaN(newMaxTerms) || newMaxTerms <= terms.length) {
+      alert(language === 'pl'
+        ? 'Nowa maksymalna liczba terminów musi być większa niż obecna liczba terminów.'
+        : 'New maximum number of terms must be greater than current number of terms.')
+      return
+    }
+
+    setIsLoading(true)
+    setExtractionSuggestion(null)
+    setProgress(0)
+
+    try {
+      console.log(`📤 Rozbudowa glosariusza: obecne ${terms.length} -> docelowe ${newMaxTerms} terminów`)
+
+      setProgress(10)
+
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) return prev
+          return prev + 5
+        })
+      }, 500)
+
+      const response = await fetch('/api/extract-terminology', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: documentText,
+          apiKey,
+          minTerms: terms.length + 5, // Minimum to co już mamy + 5
+          maxTerms: newMaxTerms,
+          minLength,
+          minOccurrences,
+          detectedLanguage,
+          caseSensitive: false
+        }),
+      })
+
+      clearInterval(progressInterval)
+      setProgress(95)
+
+      console.log(`📥 Status odpowiedzi: ${response.status}`)
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text()
+        console.error('❌ Odpowiedź nie jest JSON:', textResponse.substring(0, 500))
+        throw new Error(`Serwer zwrócił błąd (status ${response.status}). Sprawdź logi Vercel lub konsolę.`)
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        const errorMessage = data.error || 'Nieznany błąd podczas ekstrakcji'
+        console.error('❌ Błąd API:', errorMessage)
+        throw new Error(errorMessage)
+      }
+
+      if (!data.terms || data.terms.length === 0) {
+        alert(language === 'pl' ? 'Nie znaleziono nowych terminów.' : 'No new terms found.')
+        setProgress(0)
+        return
+      }
+
+      // Merge z istniejącymi terminami (deduplikacja)
+      const existingTermsMap = new Map<string, Term>()
+      terms.forEach(term => existingTermsMap.set(term.term, term))
+
+      let addedCount = 0
+      let skippedCount = 0
+
+      data.terms.forEach((newTerm: Term) => {
+        if (existingTermsMap.has(newTerm.term)) {
+          skippedCount++
+        } else {
+          existingTermsMap.set(newTerm.term, { ...newTerm, isNew: true, addedAt: new Date().toISOString() })
+          addedCount++
+        }
+      })
+
+      const expandedTerms = Array.from(existingTermsMap.values())
+
+      // Zapisz jako nową wersję
+      const description = language === 'pl'
+        ? `Rozbudowa: +${addedCount} nowych terminów (${skippedCount} pominiętych duplikatów)`
+        : `Expansion: +${addedCount} new terms (${skippedCount} duplicates skipped)`
+
+      projectStorage.addVersion(
+        currentProject.id,
+        currentGlossary.id,
+        expandedTerms,
+        description,
+        { minTerms, maxTerms: newMaxTerms, minLength, minOccurrences },
+        false
+      )
+
+      const updatedProject = projectStorage.getById(currentProject.id)
+      if (updatedProject) {
+        setCurrentProject(updatedProject)
+      }
+      refreshGlossary()
+
+      setProgress(100)
+      console.log(`✅ Rozbudowano glosariusz: +${addedCount} terminów (łącznie: ${expandedTerms.length})`)
+
+      alert(language === 'pl'
+        ? `Rozbudowano glosariusz!\n\nDodano: ${addedCount} nowych terminów\nPominięto: ${skippedCount} duplikatów\n\nŁącznie terminów: ${expandedTerms.length}`
+        : `Glossary expanded!\n\nAdded: ${addedCount} new terms\nSkipped: ${skippedCount} duplicates\n\nTotal terms: ${expandedTerms.length}`)
+
+      setTimeout(() => setProgress(0), 1000)
+
+    } catch (error) {
+      console.error('❌ Błąd rozbudowy:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
+      alert(`❌ Błąd rozbudowy:\n\n${errorMessage}`)
+      setProgress(0)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Rozpocznij ekstrakcję (po kliknięciu przycisku)
   const handleStartExtraction = async () => {
     if (!loadedText || !apiKey || !currentProject || !currentGlossary) return
@@ -448,6 +591,189 @@ export default function Home() {
     URL.revokeObjectURL(url)
 
     console.log(`✅ Zapisano glosariusz lokalnie: ${terms.length} terminów`)
+  }
+
+  // Łączenie wielu glosariuszy (do 3 plików JSON lub XLSX)
+  const handleMergeMultipleGlossaries = () => {
+    if (!currentProject || !currentGlossary) {
+      alert(language === 'pl'
+        ? 'Brak projektu. Utwórz projekt przed łączeniem glosariuszy.'
+        : 'No project. Create a project before merging glossaries.')
+      return
+    }
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json,.xlsx,.xls'
+    input.multiple = true
+    input.onchange = async (e) => {
+      const files = Array.from((e.target as HTMLInputElement).files || [])
+
+      if (files.length === 0) return
+      if (files.length > 3) {
+        alert(language === 'pl'
+          ? 'Możesz połączyć maksymalnie 3 glosariusze naraz.'
+          : 'You can merge maximum 3 glossaries at once.')
+        return
+      }
+
+      try {
+        const allImportedTerms: Term[] = []
+
+        for (const file of files) {
+          const ext = file.name.toLowerCase()
+
+          if (ext.endsWith('.json')) {
+            const text = await file.text()
+            const data = JSON.parse(text)
+
+            if (Array.isArray(data)) {
+              const parsedTerms: Term[] = data.filter((item: any) =>
+                item && typeof item === 'object' && typeof item.term === 'string'
+              ).map((item: any) => ({
+                id: item.id || `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                term: item.term,
+                context: item.context || '',
+                occurrences: item.occurrences || 0,
+                positions: Array.isArray(item.positions) ? item.positions : [],
+                definition: item.definition || '',
+                definitionSource: item.definitionSource || null,
+                sourceDocument: item.sourceDocument || file.name
+              }))
+
+              allImportedTerms.push(...parsedTerms)
+            }
+          } else if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
+            const XLSX = await import('xlsx-js-style')
+            const data = await file.arrayBuffer()
+            const workbook = XLSX.read(data, { type: 'array' })
+            const firstSheetName = workbook.SheetNames[0]
+            const worksheet = workbook.Sheets[firstSheetName]
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+
+            if (jsonData.length >= 2) {
+              let headerRowIndex = -1
+              let termColIndex = -1
+              let occurrencesColIndex = -1
+              let documentColIndex = -1
+              let definitionColIndex = -1
+              let sourceColIndex = -1
+              let contextColIndex = -1
+
+              for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
+                const row = jsonData[i]
+                termColIndex = row.findIndex((cell: any) =>
+                  typeof cell === 'string' && (cell.toLowerCase().includes('termin') || cell.toLowerCase().includes('term'))
+                )
+
+                if (termColIndex !== -1) {
+                  headerRowIndex = i
+                  occurrencesColIndex = row.findIndex((cell: any) =>
+                    typeof cell === 'string' && (cell.toLowerCase().includes('wystąpień') || cell.toLowerCase().includes('occurrence'))
+                  )
+                  documentColIndex = row.findIndex((cell: any) =>
+                    typeof cell === 'string' && cell.toLowerCase().includes('dokument')
+                  )
+                  definitionColIndex = row.findIndex((cell: any) =>
+                    typeof cell === 'string' && (cell.toLowerCase().includes('definicja') || cell.toLowerCase().includes('definition'))
+                  )
+                  sourceColIndex = row.findIndex((cell: any) =>
+                    typeof cell === 'string' && cell.toLowerCase().includes('źródło')
+                  )
+                  contextColIndex = row.findIndex((cell: any) =>
+                    typeof cell === 'string' && (cell.toLowerCase().includes('kontekst') || cell.toLowerCase().includes('context'))
+                  )
+                  break
+                }
+              }
+
+              if (headerRowIndex !== -1 && termColIndex !== -1) {
+                for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+                  const row = jsonData[i]
+                  const termValue = row[termColIndex]
+
+                  if (termValue && typeof termValue === 'string' && termValue.trim() !== '') {
+                    const term: Term = {
+                      id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      term: termValue.trim(),
+                      context: contextColIndex !== -1 ? (row[contextColIndex] || '') : '',
+                      occurrences: occurrencesColIndex !== -1 ? parseInt(row[occurrencesColIndex]) || 0 : 0,
+                      positions: [],
+                      definition: definitionColIndex !== -1 ? (row[definitionColIndex] || '') : '',
+                      definitionSource: null,
+                      sourceDocument: documentColIndex !== -1 ? (row[documentColIndex] || file.name) : file.name
+                    }
+
+                    if (sourceColIndex !== -1 && row[sourceColIndex]) {
+                      const source = row[sourceColIndex].toString().toLowerCase()
+                      if (source.includes('dokument') || source.includes('document')) {
+                        term.definitionSource = 'document'
+                      } else if (source.includes('ai')) {
+                        term.definitionSource = 'ai'
+                      } else if (source.includes('edytowano') || source.includes('edited')) {
+                        term.definitionSource = 'edited'
+                      }
+                    }
+
+                    allImportedTerms.push(term)
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Merge z deduplikacją
+        const existingTermsMap = new Map<string, Term>()
+        terms.forEach(term => existingTermsMap.set(term.term, term))
+
+        let addedCount = 0
+        let skippedCount = 0
+
+        allImportedTerms.forEach(importedTerm => {
+          if (existingTermsMap.has(importedTerm.term)) {
+            skippedCount++
+          } else {
+            existingTermsMap.set(importedTerm.term, importedTerm)
+            addedCount++
+          }
+        })
+
+        const mergedTerms = Array.from(existingTermsMap.values())
+
+        // Zapisz jako nową wersję
+        const description = language === 'pl'
+          ? `Połączono ${files.length} glosariuszy: +${addedCount} nowych, ${skippedCount} pominiętych`
+          : `Merged ${files.length} glossaries: +${addedCount} new, ${skippedCount} skipped`
+
+        projectStorage.addVersion(
+          currentProject.id,
+          currentGlossary.id,
+          mergedTerms,
+          description,
+          currentVersion?.extractionParams,
+          false
+        )
+
+        const updatedProject = projectStorage.getById(currentProject.id)
+        if (updatedProject) {
+          setCurrentProject(updatedProject)
+        }
+        refreshGlossary()
+
+        alert(language === 'pl'
+          ? `Połączono ${files.length} glosariuszy!\n\nDodano: ${addedCount} nowych terminów\nPominięto: ${skippedCount} duplikatów\n\nŁącznie terminów: ${mergedTerms.length}`
+          : `Merged ${files.length} glossaries!\n\nAdded: ${addedCount} new terms\nSkipped: ${skippedCount} duplicates\n\nTotal terms: ${mergedTerms.length}`)
+
+        console.log(`✅ ${description}`)
+      } catch (error) {
+        console.error('Błąd łączenia glosariuszy:', error)
+        alert(language === 'pl'
+          ? 'Błąd podczas łączenia glosariuszy. Sprawdź czy pliki są poprawne.'
+          : 'Error merging glossaries. Check if the files are valid.')
+      }
+    }
+    input.click()
   }
 
   // Obsługa ręcznego dodawania terminu
@@ -1038,6 +1364,10 @@ export default function Home() {
                         handleSaveProject()
                       } else if (value === 'local-save') {
                         handleLocalSaveGlossary()
+                      } else if (value === 'merge-glossaries') {
+                        handleMergeMultipleGlossaries()
+                      } else if (value === 'expand-auto') {
+                        handleExpandGlossary()
                       } else if (value === 'approve-base') {
                         const confirmMsg = language === 'pl'
                           ? 'Zatwierdzić glosariusz bazowy i przejść do wyszukiwania ekwiwalentów?'
@@ -1077,6 +1407,14 @@ export default function Home() {
 
                     <option value="local-save" disabled={terms.length === 0}>
                       💾 Zapisz lokalnie (JSON)
+                    </option>
+
+                    <option value="merge-glossaries">
+                      🔗 {language === 'pl' ? 'Połącz glosariusze (do 3)' : 'Merge glossaries (up to 3)'}
+                    </option>
+
+                    <option value="expand-auto" disabled={!documentText || isLoading}>
+                      🔍 {language === 'pl' ? 'Rozbuduj (automatycznie)' : 'Expand (automatic)'}
                     </option>
 
                     {glossaryMode === 'bilingual' && bilingualStage === 1 && (
@@ -1395,6 +1733,7 @@ export default function Home() {
               apiKey={apiKey}
               onTermSelect={setSelectedTerm}
               selectedTermId={selectedTerm?.id}
+              fileName={fileName}
             />
 
             {/* Document viewer */}

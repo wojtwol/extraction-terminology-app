@@ -11,6 +11,7 @@ interface TerminologyTableProps {
   apiKey: string
   onTermSelect?: (term: Term) => void
   selectedTermId?: string | null
+  fileName?: string
 }
 
 export default function TerminologyTable({
@@ -19,7 +20,8 @@ export default function TerminologyTable({
   documentText,
   apiKey,
   onTermSelect,
-  selectedTermId
+  selectedTermId,
+  fileName
 }: TerminologyTableProps) {
   const { t, language } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
@@ -343,10 +345,10 @@ export default function TerminologyTable({
               <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
-                {language === 'pl' ? 'Dokument' : 'Document'}
+                {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
               </th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '22%' : '18%'}}>{t.definition}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '22%' : '28%'}}>{t.context}</th>
+              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '18%' : '16%'}}>{t.definition}</th>
+              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '26%' : '30%'}}>{t.context}</th>
               <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
             </tr>
           </thead>
@@ -417,8 +419,8 @@ export default function TerminologyTable({
 
                     {/* Dokument źródłowy */}
                     <td className="px-2 py-3 text-sm text-gray-600">
-                      <div className="text-xs text-gray-500 truncate" title={term.sourceDocument || ''}>
-                        {term.sourceDocument || '-'}
+                      <div className="text-xs text-gray-500 truncate" title={term.sourceDocument || fileName || ''}>
+                        {term.sourceDocument || fileName || '-'}
                       </div>
                     </td>
 
@@ -474,17 +476,17 @@ export default function TerminologyTable({
                           </div>
                         </div>
                       ) : (
-                        <div className="flex gap-1">
+                        <div className="flex flex-col gap-1">
                           <button
                             onClick={() => handleGenerateDefinitionClick(term.id, term.term)}
                             disabled={loadingDefinitions.has(term.id)}
-                            className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400"
+                            className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:bg-gray-400 w-full"
                           >
                             {loadingDefinitions.has(term.id) ? t.generating : t.generateAI}
                           </button>
                           <button
                             onClick={() => handleManualDefinition(term.id)}
-                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 w-full"
                           >
                             {t.addManually}
                           </button>

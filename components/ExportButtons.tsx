@@ -4,6 +4,7 @@ import { Term } from '@/app/page'
 import * as XLSX from 'xlsx-js-style'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface ExportButtonsProps {
   terms: Term[]
@@ -18,6 +19,8 @@ export default function ExportButtons({
   documentText,
   onImportTerms
 }: ExportButtonsProps) {
+  const { language } = useLanguage()
+
   const exportToCSV = () => {
     const csvContent = [
       ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
@@ -44,13 +47,34 @@ export default function ExportButtons({
     const sourceWidth = '100px'
     const contextWidth = hasDefinitions ? '26%' : '38%'     // Zmniejszone o miejsce dla kolumny Dokument
 
+    // Tłumaczenia
+    const t = {
+      title: language === 'pl' ? 'Glosariusz' : 'Glossary',
+      sourceDoc: language === 'pl' ? 'Dokument źródłowy:' : 'Source Document:',
+      termCount: language === 'pl' ? 'Liczba terminów:' : 'Number of terms:',
+      createdAt: language === 'pl' ? 'Data utworzenia:' : 'Created at:',
+      nr: language === 'pl' ? 'Nr' : 'No.',
+      term: language === 'pl' ? 'Termin' : 'Term',
+      occurrences: language === 'pl' ? 'Liczba wystąpień' : 'Number of occurrences',
+      document: language === 'pl' ? 'Dokument' : 'Document',
+      definition: language === 'pl' ? 'Definicja' : 'Definition',
+      defSource: language === 'pl' ? 'Źródło definicji' : 'Definition source',
+      context: language === 'pl' ? 'Kontekst' : 'Context',
+      fromDoc: language === 'pl' ? 'Dokument' : 'Document',
+      edited: language === 'pl' ? 'Edytowano' : 'Edited',
+      ai: 'AI'
+    }
+
+    const locale = language === 'pl' ? 'pl-PL' : 'en-US'
+    const lang = language === 'pl' ? 'pl' : 'en'
+
     const htmlContent = `
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="${lang}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Glosariusz - ${fileName}</title>
+  <title>${t.title} - ${fileName}</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -176,29 +200,29 @@ export default function ExportButtons({
 
     <div class="metadata">
       <div class="metadata-item">
-        <span class="metadata-label">Dokument źródłowy:</span>
+        <span class="metadata-label">${t.sourceDoc}</span>
         <span>${fileName}</span>
       </div>
       <div class="metadata-item">
-        <span class="metadata-label">Liczba terminów:</span>
+        <span class="metadata-label">${t.termCount}</span>
         <span>${terms.length}</span>
       </div>
       <div class="metadata-item">
-        <span class="metadata-label">Data utworzenia:</span>
-        <span>${new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="metadata-label">${t.createdAt}</span>
+        <span>${new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
       </div>
     </div>
 
     <table>
       <thead>
         <tr>
-          <th class="nr-col">Nr</th>
-          <th style="width: 180px;">Termin</th>
-          <th style="width: 70px; text-align: center;">Liczba wystąpień</th>
-          <th style="width: 150px;">Dokument</th>
-          <th style="width: ${definitionWidth};">Definicja</th>
-          <th style="width: ${sourceWidth}; text-align: center;">Źródło definicji</th>
-          <th style="width: ${contextWidth};">Kontekst</th>
+          <th class="nr-col">${t.nr}</th>
+          <th style="width: 180px;">${t.term}</th>
+          <th style="width: 70px; text-align: center;">${t.occurrences}</th>
+          <th style="width: 150px;">${t.document}</th>
+          <th style="width: ${definitionWidth};">${t.definition}</th>
+          <th style="width: ${sourceWidth}; text-align: center;">${t.defSource}</th>
+          <th style="width: ${contextWidth};">${t.context}</th>
         </tr>
       </thead>
       <tbody>
@@ -208,7 +232,7 @@ export default function ExportButtons({
             <td class="term">${term.term}</td>
             <td class="occurrences">${term.occurrences}</td>
             <td style="font-size: 0.85em; color: #6c757d;">
-              ${term.sourceDocument || fileName || 'Dokument'}
+              ${term.sourceDocument || fileName || t.document}
             </td>
             <td class="definition">
               ${term.definition || '<span style="color: #adb5bd;">-</span>'}
@@ -224,10 +248,10 @@ export default function ExportButtons({
                 }">
                   ${
                     term.definitionSource === 'document'
-                      ? 'Dokument'
+                      ? t.fromDoc
                       : term.definitionSource === 'edited'
-                      ? 'Edytowano'
-                      : 'AI'
+                      ? t.edited
+                      : t.ai
                   }
                 </div>
               ` : '<span style="color: #adb5bd;">-</span>'}
@@ -247,24 +271,44 @@ export default function ExportButtons({
 
   const exportToXLSX = () => {
     const numCols = 7  // Zwiększone z 6 na 7 (dodana kolumna Dokument)
+
+    // Tłumaczenia
+    const t = {
+      sourceDoc: language === 'pl' ? 'Dokument źródłowy:' : 'Source Document:',
+      createdAt: language === 'pl' ? 'Data utworzenia:' : 'Created at:',
+      termCount: language === 'pl' ? 'Liczba terminów:' : 'Number of terms:',
+      nr: language === 'pl' ? 'Nr' : 'No.',
+      term: language === 'pl' ? 'Termin' : 'Term',
+      occurrences: language === 'pl' ? 'Liczba wystąpień' : 'Number of occurrences',
+      document: language === 'pl' ? 'Dokument' : 'Document',
+      definition: language === 'pl' ? 'Definicja' : 'Definition',
+      defSource: language === 'pl' ? 'Źródło definicji' : 'Definition source',
+      context: language === 'pl' ? 'Kontekst' : 'Context',
+      fromDoc: language === 'pl' ? 'Z dokumentu' : 'From document',
+      edited: language === 'pl' ? 'Edytowano' : 'Edited',
+      aiGenerated: language === 'pl' ? 'Wygenerowane AI' : 'AI Generated'
+    }
+
+    const locale = language === 'pl' ? 'pl-PL' : 'en-US'
+
     const data = [
       ['IURIDICO EJ GTEXTT', '', '', '', '', '', ''],
       ['Glossary and Terminology Extraction Tool', '', '', '', '', '', ''],
       ['', '', '', '', '', '', ''],
-      ['Dokument źródłowy:', fileName, '', '', '', '', ''],
-      ['Data utworzenia:', new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', '', '', ''],
-      ['Liczba terminów:', terms.length.toString(), '', '', '', '', '', ''],
+      [t.sourceDoc, fileName, '', '', '', '', ''],
+      [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), '', '', '', '', '', ''],
+      [t.termCount, terms.length.toString(), '', '', '', '', '', ''],
       [],
-      ['Nr', 'Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
+      [t.nr, t.term, t.occurrences, t.document, t.definition, t.defSource, t.context],
       ...terms.map((term, index) => [
         (index + 1).toString(),
         term.term,
         term.occurrences.toString(),
-        term.sourceDocument || fileName || 'Dokument',
+        term.sourceDocument || fileName || t.document,
         term.definition || '',
-        term.definitionSource === 'document' ? 'Z dokumentu' :
-         term.definitionSource === 'edited' ? 'Edytowano' :
-         term.definitionSource === 'ai' ? 'Wygenerowane AI' : '',
+        term.definitionSource === 'document' ? t.fromDoc :
+         term.definitionSource === 'edited' ? t.edited :
+         term.definitionSource === 'ai' ? t.aiGenerated : '',
         term.context || ''
       ])
     ]
