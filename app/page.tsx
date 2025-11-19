@@ -1240,21 +1240,9 @@ export default function Home() {
               <p className="text-gray-600 text-lg">
                 {t.subtitle}
               </p>
-              <p className="text-sm text-gray-500 mt-2">
-                {language === 'pl' ? 'Tryb:' : 'Mode:'} {glossaryMode === 'monolingual' ? (language === 'pl' ? 'Jednojęzyczny' : 'Monolingual') : (language === 'pl' ? 'Dwujęzyczny' : 'Bilingual')}
-              </p>
             </div>
-            <div className="ml-4 flex flex-col gap-2">
+            <div className="ml-4">
               <LanguageSwitch />
-              <button
-                onClick={() => {
-                  setGlossaryMode(null)
-                  setBilingualStage(1)
-                }}
-                className="text-sm px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-              >
-                {language === 'pl' ? 'Zmień tryb' : 'Change mode'}
-              </button>
             </div>
           </div>
 
@@ -1264,7 +1252,7 @@ export default function Home() {
             </h2>
 
             {/* Przycisk nowego projektu */}
-            <div className="mb-6 space-y-3">
+            <div className="mb-6 space-y-3 max-w-md mx-auto">
               <button
                 onClick={() => {
                   // Generuj domyślną nazwę z numerem porządkowym
