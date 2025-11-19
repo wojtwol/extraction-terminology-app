@@ -395,14 +395,62 @@ export default function TerminologyTable({
         <table className="w-full border-collapse table-fixed">
           <thead>
             <tr className="bg-gray-100 border-b-2 border-gray-300">
+              {/* Numer - zawsze */}
               <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
-                {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
-              </th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '9%' : '14%'}}>{t.definition}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '35%' : '32%'}}>{t.context}</th>
+
+              {/* Widok dwujęzyczny - 2 kolumny */}
+              {isBilingual && columnView === '2' && (
+                <>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '25%'}}>
+                    {language === 'pl' ? 'Termin źródłowy' : 'Source Term'} ({sourceLanguage?.toUpperCase()})
+                  </th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '25%'}}>
+                    {language === 'pl' ? 'Termin docelowy' : 'Target Term'} ({targetLanguage?.toUpperCase()})
+                  </th>
+                  <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '90px'}}>
+                    {language === 'pl' ? 'Wyst. źr.' : 'Src. Occ.'}
+                  </th>
+                  <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '90px'}}>
+                    {language === 'pl' ? 'Wyst. doc.' : 'Tgt. Occ.'}
+                  </th>
+                </>
+              )}
+
+              {/* Widok dwujęzyczny - 4 kolumny */}
+              {isBilingual && columnView === '4' && (
+                <>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '18%'}}>
+                    {language === 'pl' ? 'Termin źródłowy' : 'Source Term'} ({sourceLanguage?.toUpperCase()})
+                  </th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '22%'}}>
+                    {language === 'pl' ? 'Kontekst źródłowy' : 'Source Context'}
+                  </th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '18%'}}>
+                    {language === 'pl' ? 'Termin docelowy' : 'Target Term'} ({targetLanguage?.toUpperCase()})
+                  </th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '22%'}}>
+                    {language === 'pl' ? 'Kontekst docelowy' : 'Target Context'}
+                  </th>
+                  <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '100px'}}>
+                    {language === 'pl' ? 'Wystąpienia' : 'Occurrences'}
+                  </th>
+                </>
+              )}
+
+              {/* Widok jednojęzyczny (standardowy) */}
+              {!isBilingual && (
+                <>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
+                    {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
+                  </th>
+                  <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '9%' : '14%'}}>{t.definition}</th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '35%' : '32%'}}>{t.context}</th>
+                </>
+              )}
+
+              {/* Akcje - zawsze */}
               <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
             </tr>
           </thead>
@@ -416,7 +464,142 @@ export default function TerminologyTable({
                   term.isNew ? 'bg-green-50 border-l-4 border-l-green-500' : ''
                 }`}
               >
+                {/* Numer - zawsze */}
                 <td className="px-2 py-3 text-sm text-gray-600">{index + 1}</td>
+
+                {/* ========== WIDOK DWUJĘZYCZNY - 2 KOLUMNY ========== */}
+                {isBilingual && columnView === '2' && (
+                  <>
+                    {/* Termin źródłowy */}
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-800">{term.term}</span>
+                        {term.isNew && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800 border border-green-300 animate-pulse">
+                            ✨ {language === 'pl' ? 'NOWY' : 'NEW'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Termin docelowy */}
+                    <td className="px-3 py-3">
+                      {term.targetTerm ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-800">{term.targetTerm}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            term.targetSource === 'document'
+                              ? 'bg-green-100 text-green-800'
+                              : term.targetSource === 'ai'
+                              ? 'bg-blue-100 text-blue-800'
+                              : term.targetSource === 'manual'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {term.targetSource === 'document' && '✅'}
+                            {term.targetSource === 'ai' && '🤖'}
+                            {term.targetSource === 'manual' && '✏️'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-red-600 italic">
+                          ❌ {language === 'pl' ? 'Brak' : 'Missing'}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Wystąpienia źródłowe */}
+                    <td className="px-2 py-3 text-center">
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        {term.occurrences}
+                      </span>
+                    </td>
+
+                    {/* Wystąpienia docelowe */}
+                    <td className="px-2 py-3 text-center">
+                      <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                        {term.targetOccurrences || 0}
+                      </span>
+                    </td>
+                  </>
+                )}
+
+                {/* ========== WIDOK DWUJĘZYCZNY - 4 KOLUMNY ========== */}
+                {isBilingual && columnView === '4' && (
+                  <>
+                    {/* Termin źródłowy */}
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-800">{term.term}</span>
+                        {term.isNew && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800 border border-green-300 animate-pulse">
+                            ✨ {language === 'pl' ? 'NOWY' : 'NEW'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Kontekst źródłowy */}
+                    <td className="px-3 py-3 text-sm text-gray-600 break-words">
+                      {highlightTermInContext(term.context, term.term)}
+                    </td>
+
+                    {/* Termin docelowy */}
+                    <td className="px-3 py-3">
+                      {term.targetTerm ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-800">{term.targetTerm}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              term.targetSource === 'document'
+                                ? 'bg-green-100 text-green-800'
+                                : term.targetSource === 'ai'
+                                ? 'bg-blue-100 text-blue-800'
+                                : term.targetSource === 'manual'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {term.targetSource === 'document' && `✅ ${language === 'pl' ? 'Dokument' : 'Document'}`}
+                              {term.targetSource === 'ai' && '🤖 AI'}
+                              {term.targetSource === 'manual' && `✏️ ${language === 'pl' ? 'Ręcznie' : 'Manual'}`}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-red-600 italic">
+                          ❌ {language === 'pl' ? 'Brak ekwiwalentu' : 'No equivalent'}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Kontekst docelowy */}
+                    <td className="px-3 py-3 text-sm text-gray-600 break-words">
+                      {term.targetContext ? (
+                        highlightTermInContext(term.targetContext, term.targetTerm || '')
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">-</span>
+                      )}
+                    </td>
+
+                    {/* Wystąpienia (źr. / doc.) */}
+                    <td className="px-2 py-3 text-center">
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                          {sourceLanguage?.toUpperCase()}: {term.occurrences}
+                        </span>
+                        <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                          {targetLanguage?.toUpperCase()}: {term.targetOccurrences || 0}
+                        </span>
+                      </div>
+                    </td>
+                  </>
+                )}
+
+                {/* ========== WIDOK JEDNOJĘZYCZNY (STANDARDOWY) ========== */}
+                {!isBilingual && (
+                  <>
 
                 {/* Termin */}
                 <td className={`px-3 py-3 ${term.term.split(' ').length >= 4 ? 'max-w-xs' : ''}`}>
@@ -563,8 +746,10 @@ export default function TerminologyTable({
                     </button>
                   </div>
                 </td>
+                  </>
+                )}
 
-                {/* Akcje */}
+                {/* ========== AKCJE - WSPÓLNE DLA WSZYSTKICH WIDOKÓW ========== */}
                 <td className="px-2 py-3 text-center">
                   <div className="flex justify-center gap-1">
                     <button
