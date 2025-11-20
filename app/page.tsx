@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
@@ -219,7 +219,7 @@ export default function Home() {
   }
 
   // Odśwież aktualny glosariusz i wersję
-  const refreshGlossary = useCallback(() => {
+  const refreshGlossary = () => {
     if (!currentProject || !currentProject.currentGlossaryId) {
       setCurrentGlossary(null)
       setCurrentVersion(null)
@@ -235,7 +235,7 @@ export default function Home() {
     } else {
       setCurrentVersion(null)
     }
-  }, [currentProject])
+  }
 
   // Generuj definicje dla wszystkich terminów (bulk)
   const handleBulkGenerateDefinitions = async (termsToProcess: Term[]) => {
@@ -1190,7 +1190,8 @@ export default function Home() {
   // Odśwież glosariusz gdy projekt się zmieni
   useEffect(() => {
     refreshGlossary()
-  }, [refreshGlossary, refreshKey])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProject?.id, currentProject?.currentGlossaryId, refreshKey])
 
   // Automatyczne zapisywanie metadanych projektu - USUNIĘTE aby uniknąć nieskończonej pętli
   // Metadane będą zapisywane explicite przy akcjach użytkownika
