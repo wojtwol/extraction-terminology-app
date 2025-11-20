@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Term } from '@/app/page'
 import { useLanguage } from '@/contexts/LanguageContext'
 
@@ -11,6 +11,7 @@ interface SplitDocumentViewerProps {
   selectedTerm: Term | null
   sourceLanguage?: string
   targetLanguage?: string
+  onAddManualTerm?: (targetTerm: string) => void
 }
 
 export default function SplitDocumentViewer({
@@ -19,11 +20,18 @@ export default function SplitDocumentViewer({
   terms,
   selectedTerm,
   sourceLanguage,
-  targetLanguage
+  targetLanguage,
+  onAddManualTerm
 }: SplitDocumentViewerProps) {
   const { language } = useLanguage()
   const [sourceHtml, setSourceHtml] = useState('')
   const [targetHtml, setTargetHtml] = useState('')
+  const [syncScroll, setSyncScroll] = useState(false)
+  const [selectedText, setSelectedText] = useState('')
+  const [showAddButton, setShowAddButton] = useState(false)
+  const sourceRef = useRef<HTMLDivElement>(null)
+  const targetRef = useRef<HTMLDivElement>(null)
+  const isScrollingRef = useRef(false)
 
   useEffect(() => {
     // Przygotuj HTML dla dokumentu źródłowego
@@ -82,11 +90,80 @@ export default function SplitDocumentViewer({
     }
   }, [selectedTerm])
 
+  // Synchronized scrolling handler
+  const handleScroll = (source: 'source' | 'target') => (e: React.UIEvent<HTMLDivElement>) => {
+    if (!syncScroll || isScrollingRef.current) return
+
+    const scrollingDiv = e.currentTarget
+    const targetDiv = source === 'source' ? targetRef.current : sourceRef.current
+
+    if (!targetDiv) return
+
+    isScrollingRef.current = true
+
+    // Calculate scroll percentage
+    const scrollPercentage = scrollingDiv.scrollTop / (scrollingDiv.scrollHeight - scrollingDiv.clientHeight)
+
+    // Apply to target div
+    targetDiv.scrollTop = scrollPercentage * (targetDiv.scrollHeight - targetDiv.clientHeight)
+
+    // Reset flag after a short delay
+    setTimeout(() => {
+      isScrollingRef.current = false
+    }, 50)
+  }
+
+  // Handle text selection in target document
+  const handleTextSelection = () => {
+    const selection = window.getSelection()
+    const text = selection?.toString().trim() || ''
+
+    if (text && targetRef.current?.contains(selection?.anchorNode || null)) {
+      setSelectedText(text)
+      setShowAddButton(true)
+    } else {
+      setShowAddButton(false)
+    }
+  }
+
+  // Add manual term
+  const handleAddTerm = () => {
+    if (selectedText && onAddManualTerm) {
+      onAddManualTerm(selectedText)
+      setSelectedText('')
+      setShowAddButton(false)
+      window.getSelection()?.removeAllRanges()
+    }
+  }
+
+  // Listen for text selection
+  useEffect(() => {
+    document.addEventListener('selectionchange', handleTextSelection)
+    return () => {
+      document.removeEventListener('selectionchange', handleTextSelection)
+    }
+  }, [])
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-        {language === 'pl' ? 'Podgląd dokumentów' : 'Document Preview'}
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-semibold text-gray-800">
+          {language === 'pl' ? 'Podgląd dokumentów' : 'Document Preview'}
+        </h2>
+
+        {/* Synchronized scrolling checkbox */}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={syncScroll}
+            onChange={(e) => setSyncScroll(e.target.checked)}
+            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700">
+            {language === 'pl' ? 'Synchroniczne przewijanie' : 'Synchronized scrolling'}
+          </span>
+        </label>
+      </div>
 
       <div className="grid grid-cols-2 gap-6">
         {/* Source Document */}
@@ -101,8 +178,10 @@ export default function SplitDocumentViewer({
             </h3>
           </div>
           <div
+            ref={sourceRef}
             className="p-4 bg-gray-50 overflow-y-auto max-h-[600px] text-sm leading-relaxed"
             dangerouslySetInnerHTML={{ __html: sourceHtml }}
+            onScroll={handleScroll('source')}
           />
         </div>
 
@@ -118,11 +197,32 @@ export default function SplitDocumentViewer({
             </h3>
           </div>
           <div
+            ref={targetRef}
             className="p-4 bg-gray-50 overflow-y-auto max-h-[600px] text-sm leading-relaxed"
             dangerouslySetInnerHTML={{ __html: targetHtml }}
+            onScroll={handleScroll('target')}
           />
         </div>
       </div>
+
+      {/* Floating add button */}
+      {showAddButton && selectedText && onAddManualTerm && (
+        <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 bg-white rounded-lg shadow-2xl border-2 border-green-500 p-4">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-gray-700 mb-1">
+              {language === 'pl' ? 'Zaznaczony tekst:' : 'Selected text:'}
+            </span>
+            <span className="text-sm text-gray-600 max-w-xs truncate">"{selectedText}"</span>
+          </div>
+          <button
+            onClick={handleAddTerm}
+            className="bg-green-500 hover:bg-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold shadow-lg transition-all hover:scale-110"
+            title={language === 'pl' ? 'Dodaj termin do glosariusza' : 'Add term to glossary'}
+          >
+            +
+          </button>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="mt-4 flex items-center gap-6 text-sm text-gray-600">

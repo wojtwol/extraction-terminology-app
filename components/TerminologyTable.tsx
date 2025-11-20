@@ -347,17 +347,14 @@ export default function TerminologyTable({
 
   // Funkcja do usunięcia flagi "isNew" ze wszystkich terminów
   const handleClearNewFlags = () => {
-    const confirmMessage = language === 'pl'
-      ? `Czy na pewno chcesz usunąć oznaczenie "NOWY" ze wszystkich ${newTermsCount} terminów?`
-      : `Are you sure you want to remove "NEW" marking from all ${newTermsCount} terms?`
+    const updatedTerms = terms.map(t => ({
+      ...t,
+      isNew: false
+    }))
+    onUpdate(updatedTerms)
 
-    if (confirm(confirmMessage)) {
-      const updatedTerms = terms.map(t => ({
-        ...t,
-        isNew: false
-      }))
-      onUpdate(updatedTerms)
-    }
+    // Pokaż feedback użytkownikowi
+    console.log(`✅ ${language === 'pl' ? 'Zaakceptowano' : 'Accepted'} ${newTermsCount} ${language === 'pl' ? 'nowych terminów' : 'new terms'}`)
   }
 
   return (

@@ -164,8 +164,21 @@ export default function Home() {
   const [selectedColumnView, setSelectedColumnView] = useState<'2' | '4'>('4')
   const [bilingualProgress, setBilingualProgress] = useState({ current: 0, total: 0, message: '' })
 
+  // Notification state
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string, details?: string } | null>(null)
+
   // Skrót do terminów z aktualnej wersji
   const terms = currentVersion?.terms || []
+
+  // Auto-hide notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [notification])
 
   // Wczytaj zapisany klucz API przy starcie
   useEffect(() => {
@@ -460,9 +473,13 @@ export default function Home() {
       setProgress(100)
       console.log(`✅ Rozbudowano glosariusz: +${addedCount} terminów (łącznie: ${expandedTerms.length})`)
 
-      alert(language === 'pl'
-        ? `Rozbudowano glosariusz!\n\nDodano: ${addedCount} nowych terminów\nPominięto: ${skippedCount} duplikatów\n\nŁącznie terminów: ${expandedTerms.length}`
-        : `Glossary expanded!\n\nAdded: ${addedCount} new terms\nSkipped: ${skippedCount} duplicates\n\nTotal terms: ${expandedTerms.length}`)
+      setNotification({
+        type: 'success',
+        message: language === 'pl' ? 'Rozbudowano glosariusz!' : 'Glossary expanded!',
+        details: language === 'pl'
+          ? `Dodano: ${addedCount} nowych terminów | Pominięto: ${skippedCount} duplikatów | Łącznie: ${expandedTerms.length} terminów`
+          : `Added: ${addedCount} new terms | Skipped: ${skippedCount} duplicates | Total: ${expandedTerms.length} terms`
+      })
 
       setTimeout(() => setProgress(0), 1000)
 
@@ -863,6 +880,11 @@ export default function Home() {
   const handleTermUpdate = (updatedTerms: Term[]) => {
     if (!currentProject || !currentGlossary) return
 
+    // Sprawdź czy użytkownik zaakceptował nowe terminy
+    const previousNewTermsCount = terms.filter(t => t.isNew).length
+    const currentNewTermsCount = updatedTerms.filter(t => t.isNew).length
+    const acceptedNewTerms = previousNewTermsCount > 0 && currentNewTermsCount === 0
+
     // Zapisz jako nową wersję (auto-save)
     projectStorage.addVersion(
       currentProject.id,
@@ -879,6 +901,70 @@ export default function Home() {
       setCurrentProject(updatedProject)
     }
     refreshGlossary()
+
+    // Pokaż notification jeśli zaakceptowano nowe terminy
+    if (acceptedNewTerms) {
+      setNotification({
+        type: 'success',
+        message: language === 'pl' ? 'Zaakceptowano nowe terminy!' : 'New terms accepted!',
+        details: language === 'pl'
+          ? `Oznaczenie "NOWY" zostało usunięte z ${previousNewTermsCount} terminów`
+          : `"NEW" marking removed from ${previousNewTermsCount} terms`
+      })
+    }
+  }
+
+  // Handler dla ręcznego dodawania terminów z dokumentu docelowego
+  const handleAddManualTerm = (targetTerm: string) => {
+    if (!currentProject || !currentGlossary || !currentGlossary.targetDocumentText) return
+
+    const targetDoc = currentGlossary.targetDocumentText
+
+    // Znajdź pozycje i kontekst w dokumencie docelowym
+    const targetOccurrences = findTermOccurrences(targetDoc, targetTerm)
+
+    // Sprawdź czy istnieje już termin bez targetTerm który możemy zaktualizować
+    const existingTermIndex = terms.findIndex(t => !t.targetTerm)
+
+    let updatedTerms: Term[]
+
+    if (existingTermIndex !== -1) {
+      // Aktualizuj istniejący termin bez targetTerm
+      updatedTerms = terms.map((t, index) =>
+        index === existingTermIndex
+          ? {
+              ...t,
+              targetTerm: targetTerm,
+              targetContext: targetOccurrences.context,
+              targetOccurrences: targetOccurrences.occurrences,
+              targetPositions: targetOccurrences.positions,
+              targetSource: 'manual' as const
+            }
+          : t
+      )
+    } else {
+      // Stwórz nowy termin z pustym source term
+      const newTerm: Term = {
+        id: `term-manual-${Date.now()}`,
+        term: '', // Pusty source term - użytkownik może go później wypełnić
+        context: '',
+        occurrences: 0,
+        positions: [],
+        targetTerm: targetTerm,
+        targetContext: targetOccurrences.context,
+        targetOccurrences: targetOccurrences.occurrences,
+        targetPositions: targetOccurrences.positions,
+        targetSource: 'manual' as const
+      }
+
+      updatedTerms = [...terms, newTerm]
+    }
+
+    // Zapisz zaktualizowane terminy
+    handleTermUpdate(updatedTerms)
+
+    // Pokaż komunikat sukcesu
+    console.log(`✅ Dodano termin ręcznie: "${targetTerm}"`)
   }
 
   // Handler dla importu terminów z plików JSON/XLSX
@@ -2157,6 +2243,7 @@ export default function Home() {
                 selectedTerm={selectedTerm}
                 sourceLanguage={currentGlossary.sourceLanguage}
                 targetLanguage={currentGlossary.targetLanguage}
+                onAddManualTerm={handleAddManualTerm}
               />
             )}
           </div>
@@ -2467,6 +2554,47 @@ export default function Home() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className="fixed top-8 right-8 z-50 animate-slide-in">
+          <div className={`rounded-lg shadow-2xl border-2 p-6 max-w-md ${
+            notification.type === 'success'
+              ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-500'
+              : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-500'
+          }`}>
+            <div className="flex items-start gap-4">
+              <span className="text-3xl flex-shrink-0">
+                {notification.type === 'success' ? '✅' : '❌'}
+              </span>
+              <div className="flex-1">
+                <h3 className={`font-bold text-lg mb-2 ${
+                  notification.type === 'success' ? 'text-green-800' : 'text-red-800'
+                }`}>
+                  {notification.message}
+                </h3>
+                {notification.details && (
+                  <p className={`text-sm ${
+                    notification.type === 'success' ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {notification.details}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setNotification(null)}
+                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-bold hover:scale-110 transition-transform ${
+                  notification.type === 'success'
+                    ? 'bg-green-200 text-green-800 hover:bg-green-300'
+                    : 'bg-red-200 text-red-800 hover:bg-red-300'
+                }`}
+              >
+                ×
+              </button>
             </div>
           </div>
         </div>
