@@ -5,6 +5,7 @@ import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
 import DocumentViewer from '@/components/DocumentViewer'
+import SplitDocumentViewer from '@/components/SplitDocumentViewer'
 import GlossaryManager from '@/components/GlossaryManager'
 import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
@@ -615,6 +616,10 @@ export default function Home() {
       }
 
       const { matchedTerms } = await response.json()
+
+      console.log('📊 Matched terms received:', matchedTerms.length)
+      console.log('📋 Sample matched term:', matchedTerms[0])
+      console.log('🎯 Terms with targetTerm:', matchedTerms.filter((t: Term) => t.targetTerm).length)
 
       setProgress(90)
 
@@ -2110,13 +2115,25 @@ export default function Home() {
             />
 
             {/* Document viewer */}
-            {documentText && (
+            {documentText && !currentGlossary?.isBilingual && (
               <DocumentViewer
                 documentText={documentText}
                 selectedTerm={selectedTerm}
                 fileName={fileName}
                 terms={terms}
                 onAddTermFromSelection={handleManualAddTerm}
+              />
+            )}
+
+            {/* Split document viewer for bilingual glossaries */}
+            {documentText && currentGlossary?.isBilingual && currentGlossary.targetDocumentText && (
+              <SplitDocumentViewer
+                sourceDocumentText={currentGlossary.sourceDocumentText || documentText}
+                targetDocumentText={currentGlossary.targetDocumentText}
+                terms={terms}
+                selectedTerm={selectedTerm}
+                sourceLanguage={currentGlossary.sourceLanguage}
+                targetLanguage={currentGlossary.targetLanguage}
               />
             )}
           </div>
