@@ -222,19 +222,30 @@ export default function Home() {
   // USUNIĘTO useCallback - powodował stale closure z nieaktualnym currentProject
   const refreshGlossary = () => {
     if (!currentProject || !currentProject.currentGlossaryId) {
-      setCurrentGlossary(null)
-      setCurrentVersion(null)
+      // Tylko jeśli aktualnie są ustawione, wyzeruj je
+      if (currentGlossary !== null || currentVersion !== null) {
+        setCurrentGlossary(null)
+        setCurrentVersion(null)
+      }
       return
     }
 
     const glossary = projectStorage.getCurrentGlossary(currentProject.id)
-    setCurrentGlossary(glossary)
+    // Ustaw tylko jeśli ID się zmieniło (unikamy niepotrzebnych re-renderów)
+    if (glossary?.id !== currentGlossary?.id) {
+      setCurrentGlossary(glossary)
+    }
 
     if (glossary) {
       const version = projectStorage.getCurrentVersion(currentProject.id, glossary.id)
-      setCurrentVersion(version)
+      // Ustaw tylko jeśli ID się zmieniło
+      if (version?.id !== currentVersion?.id) {
+        setCurrentVersion(version)
+      }
     } else {
-      setCurrentVersion(null)
+      if (currentVersion !== null) {
+        setCurrentVersion(null)
+      }
     }
   }
 
