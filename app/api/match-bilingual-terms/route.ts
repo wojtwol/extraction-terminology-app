@@ -108,8 +108,18 @@ export async function POST(request: NextRequest) {
       targetLanguage
     } = body
 
+    console.log('\n\n🚀 ===== BILINGUAL MATCHING STARTED =====')
+    console.log(`📊 Request details:`)
+    console.log(`   - Source terms: ${sourceTerms.length}`)
+    console.log(`   - Source text length: ${sourceText.length}`)
+    console.log(`   - Target text length: ${targetText.length}`)
+    console.log(`   - Source language: ${sourceLanguage}`)
+    console.log(`   - Target language: ${targetLanguage}`)
+    console.log(`   - API key: ${apiKey ? '✓ provided' : '✗ missing'}`)
+
     // Walidacja
     if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+      console.error('❌ Invalid API key')
       return NextResponse.json(
         { error: 'Invalid API key' },
         { status: 400 }
@@ -117,6 +127,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!sourceTerms || sourceTerms.length === 0) {
+      console.error('❌ No source terms provided')
       return NextResponse.json(
         { error: 'No source terms provided' },
         { status: 400 }
@@ -124,6 +135,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!sourceText || !targetText) {
+      console.error('❌ Source and target texts required')
       return NextResponse.json(
         { error: 'Source and target texts required' },
         { status: 400 }
@@ -248,7 +260,8 @@ Respond with just the target term or "NOT_FOUND".`
         }
 
       } catch (aiError: any) {
-        console.error(`   ❌ AI error for "${sourceTerm.term}":`, aiError.message)
+        console.error(`   ❌ AI error for "${sourceTerm.term}":`, aiError)
+        console.error(`   Full error:`, JSON.stringify(aiError, null, 2))
 
         // W przypadku błędu AI, oznacz jako missing
         matchedTerms.push({
@@ -264,6 +277,11 @@ Respond with just the target term or "NOT_FOUND".`
 
     const foundCount = matchedTerms.filter(t => t.targetTerm).length
     console.log(`\n✅ Completed: ${foundCount}/${sourceTerms.length} equivalents found`)
+    console.log(`📊 Final stats:`)
+    console.log(`   - Total: ${sourceTerms.length}`)
+    console.log(`   - Found: ${foundCount}`)
+    console.log(`   - Missing: ${sourceTerms.length - foundCount}`)
+    console.log('🏁 ===== BILINGUAL MATCHING COMPLETED =====\n\n')
 
     return NextResponse.json({
       success: true,
