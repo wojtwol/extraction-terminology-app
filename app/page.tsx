@@ -235,7 +235,8 @@ export default function Home() {
     } else {
       setCurrentVersion(null)
     }
-  }, [currentProject])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProject?.id, currentProject?.currentGlossaryId])
 
   // Generuj definicje dla wszystkich terminów (bulk)
   const handleBulkGenerateDefinitions = async (termsToProcess: Term[]) => {
