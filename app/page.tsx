@@ -610,16 +610,32 @@ export default function Home() {
 
       setProgress(80)
 
+      console.log('📡 API Response status:', response.status)
+      console.log('📡 API Response ok:', response.ok)
+
       if (!response.ok) {
         const error = await response.json()
+        console.error('❌ API Error response:', error)
         throw new Error(error.error || 'Błąd dopasowywania terminów')
       }
 
-      const { matchedTerms } = await response.json()
+      const fullResponse = await response.json()
+      console.log('📦 Full API response:', fullResponse)
+
+      const { matchedTerms, stats } = fullResponse
 
       console.log('📊 Matched terms received:', matchedTerms.length)
-      console.log('📋 Sample matched term:', matchedTerms[0])
+      console.log('📋 First 3 matched terms:', matchedTerms.slice(0, 3))
       console.log('🎯 Terms with targetTerm:', matchedTerms.filter((t: Term) => t.targetTerm).length)
+      console.log('📊 Stats from API:', stats)
+
+      // Check for terms without target
+      const missingTerms = matchedTerms.filter((t: Term) => !t.targetTerm)
+      if (missingTerms.length > 0) {
+        console.warn('⚠️ Terms without targetTerm:', missingTerms.length)
+        console.warn('⚠️ Sample missing term:', missingTerms[0])
+        console.warn('⚠️ Missing term targetSource values:', missingTerms.map((t: Term) => t.targetSource))
+      }
 
       setProgress(90)
 
