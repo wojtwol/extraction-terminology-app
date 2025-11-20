@@ -116,13 +116,39 @@ export default function SplitDocumentViewer({
   // Handle text selection in target document
   const handleTextSelection = () => {
     const selection = window.getSelection()
-    const text = selection?.toString().trim() || ''
+    if (!selection || selection.isCollapsed) {
+      setShowAddButton(false)
+      return
+    }
 
-    if (text && targetRef.current?.contains(selection?.anchorNode || null)) {
+    const text = selection.toString().trim()
+
+    // Sprawdź czy zaznaczenie jest w dokumencie docelowym
+    const isInTargetDoc = targetRef.current?.contains(selection.anchorNode || null) &&
+                          targetRef.current?.contains(selection.focusNode || null)
+
+    if (!isInTargetDoc) {
+      setShowAddButton(false)
+      return
+    }
+
+    // Walidacja zaznaczonego tekstu:
+    // 1. Nie może być pusty
+    // 2. Nie może być dłuższy niż 200 znaków (typowy termin to max kilkadziesiąt znaków)
+    // 3. Nie może zawierać więcej niż 3 nowych linii (zapobiega zaznaczaniu całych akapitów)
+    const newLineCount = (text.match(/\n/g) || []).length
+
+    if (text && text.length > 0 && text.length <= 200 && newLineCount <= 3) {
       setSelectedText(text)
       setShowAddButton(true)
     } else {
       setShowAddButton(false)
+      if (text.length > 200) {
+        console.warn('⚠️ Zaznaczony tekst jest zbyt długi (max 200 znaków)')
+      }
+      if (newLineCount > 3) {
+        console.warn('⚠️ Zaznaczony tekst zawiera zbyt wiele nowych linii (max 3)')
+      }
     }
   }
 

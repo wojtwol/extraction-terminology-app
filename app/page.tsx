@@ -349,9 +349,13 @@ export default function Home() {
   // Rozbudowa glosariusza - automatyczne poszukiwanie nowych terminów
   const handleExpandGlossary = async () => {
     if (!documentText || !apiKey || !currentProject || !currentGlossary) {
-      alert(language === 'pl'
-        ? 'Brak dokumentu lub projektu. Załaduj dokument i utwórz projekt przed rozbudową.'
-        : 'No document or project. Load a document and create a project before expanding.')
+      setNotification({
+        type: 'error',
+        message: language === 'pl' ? 'Nie można rozbudować glosariusza' : 'Cannot expand glossary',
+        details: language === 'pl'
+          ? 'Brak dokumentu lub projektu. Załaduj dokument i utwórz projekt przed rozbudową.'
+          : 'No document or project. Load a document and create a project before expanding.'
+      })
       return
     }
 
@@ -367,9 +371,13 @@ export default function Home() {
 
     const newMaxTerms = parseInt(newMaxTermsStr, 10)
     if (isNaN(newMaxTerms) || newMaxTerms <= terms.length) {
-      alert(language === 'pl'
-        ? 'Nowa maksymalna liczba terminów musi być większa niż obecna liczba terminów.'
-        : 'New maximum number of terms must be greater than current number of terms.')
+      setNotification({
+        type: 'error',
+        message: language === 'pl' ? 'Nieprawidłowa liczba terminów' : 'Invalid number of terms',
+        details: language === 'pl'
+          ? `Nowa maksymalna liczba terminów musi być większa niż obecna (${terms.length}).`
+          : `New maximum number of terms must be greater than current (${terms.length}).`
+      })
       return
     }
 
@@ -427,7 +435,13 @@ export default function Home() {
       }
 
       if (!data.terms || data.terms.length === 0) {
-        alert(language === 'pl' ? 'Nie znaleziono nowych terminów.' : 'No new terms found.')
+        setNotification({
+          type: 'error',
+          message: language === 'pl' ? 'Nie znaleziono nowych terminów' : 'No new terms found',
+          details: language === 'pl'
+            ? 'Spróbuj zwiększyć maksymalną liczbę terminów lub zmienić parametry wyszukiwania.'
+            : 'Try increasing the maximum number of terms or changing search parameters.'
+        })
         setProgress(0)
         return
       }
@@ -605,12 +619,30 @@ export default function Home() {
   const processBilingualMatching = async (targetDocText: string) => {
     if (!currentProject || !currentGlossary || !documentText || !apiKey) return
 
+    let progressInterval: NodeJS.Timeout | null = null
+
     try {
       setBilingualDialogStep('processing')
       setBilingualProgress({ current: 0, total: terms.length, message: language === 'pl' ? 'Rozpoczynam dopasowywanie...' : 'Starting matching...' })
 
       console.log('🔄 Rozpoczynam dopasowywanie terminów...')
       setProgress(10)
+
+      // Symulowany postęp - aktualizacja co 500ms (czas przetwarzania jednego terminu w API)
+      let currentTermIndex = 0
+      progressInterval = setInterval(() => {
+        currentTermIndex++
+        if (currentTermIndex <= terms.length) {
+          const currentTerm = terms[currentTermIndex - 1]?.term || ''
+          setBilingualProgress({
+            current: currentTermIndex,
+            total: terms.length,
+            message: language === 'pl'
+              ? `Dopasowywanie terminu: "${currentTerm}"`
+              : `Matching term: "${currentTerm}"`
+          })
+        }
+      }, 500)
 
       const response = await fetch('/api/match-bilingual-terms', {
         method: 'POST',
@@ -625,6 +657,8 @@ export default function Home() {
         })
       })
 
+      // Zatrzymaj symulowany postęp
+      clearInterval(progressInterval)
       setProgress(80)
 
       console.log('📡 API Response status:', response.status)
@@ -734,6 +768,12 @@ export default function Home() {
     } catch (error) {
       console.error('❌ Błąd tworzenia glosariusza dwujęzycznego:', error)
       const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
+
+      // Zatrzymaj progress interval w przypadku błędu
+      if (progressInterval) {
+        clearInterval(progressInterval)
+      }
+
       setBilingualProgress({
         current: 0,
         total: 0,
@@ -1627,6 +1667,15 @@ export default function Home() {
                     setCurrentProject(newProject)
                     setProjectName(newProject.name)
                     refreshGlossary()
+
+                    // Pokaż notification sukcesu
+                    setNotification({
+                      type: 'success',
+                      message: language === 'pl' ? 'Projekt utworzony!' : 'Project created!',
+                      details: language === 'pl'
+                        ? `Nowy projekt "${name}" został utworzony. Załaduj dokument, aby rozpocząć.`
+                        : `New project "${name}" has been created. Load a document to get started.`
+                    })
                   }
                 }}
                 className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
@@ -1664,6 +1713,15 @@ export default function Home() {
                       setCurrentProject(updatedProject)
                       setProjectName(updatedProject.name)
                       refreshGlossary()
+
+                      // Pokaż notification sukcesu
+                      setNotification({
+                        type: 'success',
+                        message: language === 'pl' ? 'Projekt wielodokumentowy utworzony!' : 'Multi-document project created!',
+                        details: language === 'pl'
+                          ? `Projekt "${name}" został utworzony. Dodaj dokumenty, aby rozpocząć.`
+                          : `Project "${name}" has been created. Add documents to get started.`
+                      })
                     }
                   }
                 }}
@@ -2519,25 +2577,37 @@ export default function Home() {
                       <div className="animate-spin text-3xl">⚙️</div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg text-gray-800">
-                          {bilingualProgress.message}
+                          {language === 'pl' ? 'Dopasowywanie terminów...' : 'Matching terms...'}
                         </h3>
                         {bilingualProgress.total > 0 && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            {language === 'pl' ? 'Przetworzono' : 'Processed'}: {bilingualProgress.current} / {bilingualProgress.total} {language === 'pl' ? 'terminów' : 'terms'}
-                          </p>
+                          <>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {language === 'pl' ? 'Postęp' : 'Progress'}: <span className="font-semibold text-blue-600">{bilingualProgress.current} / {bilingualProgress.total}</span> {language === 'pl' ? 'terminów' : 'terms'}
+                              {' '}({Math.round((bilingualProgress.current / bilingualProgress.total) * 100)}%)
+                            </p>
+                            {bilingualProgress.current > 0 && bilingualProgress.current < bilingualProgress.total && (
+                              <p className="text-xs text-purple-700 mt-2 font-medium italic">
+                                📝 {bilingualProgress.message}
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
 
                     {/* Progress bar */}
                     {bilingualProgress.total > 0 && (
-                      <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-300"
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-4 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
                           style={{
                             width: `${(bilingualProgress.current / bilingualProgress.total) * 100}%`
                           }}
-                        />
+                        >
+                          <span className="text-xs text-white font-bold">
+                            {Math.round((bilingualProgress.current / bilingualProgress.total) * 100)}%
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>
