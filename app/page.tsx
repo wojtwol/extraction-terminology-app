@@ -622,12 +622,19 @@ export default function Home() {
       const fullResponse = await response.json()
       console.log('📦 Full API response:', fullResponse)
 
-      const { matchedTerms, stats } = fullResponse
+      const { matchedTerms, stats, errors } = fullResponse
 
       console.log('📊 Matched terms received:', matchedTerms.length)
       console.log('📋 First 3 matched terms:', matchedTerms.slice(0, 3))
       console.log('🎯 Terms with targetTerm:', matchedTerms.filter((t: Term) => t.targetTerm).length)
       console.log('📊 Stats from API:', stats)
+
+      // Log errors if any
+      if (errors && errors.length > 0) {
+        console.error('❌ ERRORS FROM API:', errors.length)
+        console.error('❌ First 5 errors:', errors.slice(0, 5))
+        console.error('❌ All error messages:', errors.map((e: any) => e.error))
+      }
 
       // Check for terms without target
       const missingTerms = matchedTerms.filter((t: Term) => !t.targetTerm)

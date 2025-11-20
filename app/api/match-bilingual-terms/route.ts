@@ -146,6 +146,7 @@ export async function POST(request: NextRequest) {
 
     const client = new Anthropic({ apiKey })
     const matchedTerms: Term[] = []
+    const errors: Array<{term: string, error: string}> = []
 
     // Process każdego terminu
     for (const sourceTerm of sourceTerms) {
@@ -260,8 +261,14 @@ Respond with just the target term or "NOT_FOUND".`
         }
 
       } catch (aiError: any) {
-        console.error(`   ❌ AI error for "${sourceTerm.term}":`, aiError)
-        console.error(`   Full error:`, JSON.stringify(aiError, null, 2))
+        const errorMsg = aiError?.message || aiError?.toString() || 'Unknown error'
+        console.error(`   ❌ AI error for "${sourceTerm.term}":`, errorMsg)
+        console.error(`   Full error:`, aiError)
+
+        errors.push({
+          term: sourceTerm.term,
+          error: errorMsg
+        })
 
         // W przypadku błędu AI, oznacz jako missing
         matchedTerms.push({
@@ -281,6 +288,10 @@ Respond with just the target term or "NOT_FOUND".`
     console.log(`   - Total: ${sourceTerms.length}`)
     console.log(`   - Found: ${foundCount}`)
     console.log(`   - Missing: ${sourceTerms.length - foundCount}`)
+    console.log(`   - Errors: ${errors.length}`)
+    if (errors.length > 0) {
+      console.error(`❌ Errors encountered:`, errors.slice(0, 5))
+    }
     console.log('🏁 ===== BILINGUAL MATCHING COMPLETED =====\n\n')
 
     return NextResponse.json({
@@ -290,7 +301,8 @@ Respond with just the target term or "NOT_FOUND".`
         total: sourceTerms.length,
         found: foundCount,
         missing: sourceTerms.length - foundCount
-      }
+      },
+      errors: errors.length > 0 ? errors : undefined
     })
 
   } catch (error: any) {
