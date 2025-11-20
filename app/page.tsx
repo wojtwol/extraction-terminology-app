@@ -1192,17 +1192,18 @@ export default function Home() {
     refreshGlossary()
   }, [refreshGlossary, refreshKey])
 
-  // Automatyczne zapisywanie metadanych projektu
-  useEffect(() => {
-    if (currentProject && documentText) {
-      projectStorage.update(currentProject.id, {
-        name: projectName || currentProject.name,
-        documentText,
-        fileName,
-        detectedLanguage
-      })
-    }
-  }, [currentProject, projectName, documentText, fileName, detectedLanguage])
+  // Automatyczne zapisywanie metadanych projektu - USUNIĘTE aby uniknąć nieskończonej pętli
+  // Metadane będą zapisywane explicite przy akcjach użytkownika
+  // useEffect(() => {
+  //   if (currentProject && documentText) {
+  //     projectStorage.update(currentProject.id, {
+  //       name: projectName || currentProject.name,
+  //       documentText,
+  //       fileName,
+  //       detectedLanguage
+  //     })
+  //   }
+  // }, [currentProject, projectName, documentText, fileName, detectedLanguage])
 
   // Zapisz jako nowy projekt
   const handleSaveProject = () => {
