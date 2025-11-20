@@ -1187,11 +1187,19 @@ export default function Home() {
     }
   }
 
+  // USUNIĘTE automatyczne odświeżanie - powodowało nieskończoną pętlę
   // Odśwież glosariusz gdy projekt się zmieni
+  // useEffect(() => {
+  //   refreshGlossary()
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [currentProject?.id, currentProject?.currentGlossaryId, refreshKey])
+
+  // Odśwież glosariusz tylko gdy zmienia się refreshKey (ręczne odświeżanie)
   useEffect(() => {
-    refreshGlossary()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentProject?.id, currentProject?.currentGlossaryId, refreshKey])
+    if (refreshKey > 0) {
+      refreshGlossary()
+    }
+  }, [refreshKey])
 
   // Automatyczne zapisywanie metadanych projektu - USUNIĘTE aby uniknąć nieskończonej pętli
   // Metadane będą zapisywane explicite przy akcjach użytkownika
@@ -1233,7 +1241,8 @@ export default function Home() {
     setDetectedLanguage(project.detectedLanguage)
     setLoadedText('')
     setLoadedFileName('')
-    refreshGlossary()
+    // refreshGlossary zostanie wywołane przez useEffect po zmianie currentProject
+    setTimeout(() => refreshGlossary(), 0)
   }
 
   // Nowy projekt
@@ -1504,7 +1513,7 @@ export default function Home() {
                     })
                     setCurrentProject(newProject)
                     setProjectName(newProject.name)
-                    // refreshGlossary zostanie wywołane automatycznie przez useEffect gdy currentProject się zmieni
+                    setTimeout(() => refreshGlossary(), 0)
                   }
                 }}
                 className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
@@ -1656,11 +1665,12 @@ export default function Home() {
           // Załaduj projekt i glosariusz
           const project = projectStorage.getById(data.projectId)
           if (project) {
-            setCurrentProject(project)
             projectStorage.setCurrentGlossary(data.projectId, data.glossaryId)
             const updated = projectStorage.getById(data.projectId)
-            if (updated) setCurrentProject(updated)
-            // refreshGlossary zostanie wywołane automatycznie przez useEffect gdy currentProject się zmieni
+            if (updated) {
+              setCurrentProject(updated)
+              setTimeout(() => refreshGlossary(), 0)
+            }
           }
         }
         // Wyczyść dane
