@@ -71,6 +71,211 @@ export default function ExportButtons({
   }
 
   const exportToHTML = () => {
+    // Check if bilingual mode
+    if (isBilingual && hasTargetTerms) {
+      // Generate bilingual HTML
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bilingual Glossary - ${sourceFileName || fileName}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 15px;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 0.95em;
+      margin-bottom: 20px;
+    }
+    .metadata {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 10px;
+    }
+    .metadata-item {
+      display: flex;
+      gap: 8px;
+    }
+    .metadata-label {
+      font-weight: 600;
+      color: #495057;
+    }
+    table {
+      width: 100%;
+      background: white;
+      border-collapse: collapse;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 14px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.95em;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e9ecef;
+      vertical-align: top;
+    }
+    tr:hover {
+      background: #f8f9fa;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    .term {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    .occurrences {
+      text-align: center;
+      font-weight: 500;
+      color: #667eea;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75em;
+      font-weight: 600;
+    }
+    .status-document {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status-ai {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    .status-manual {
+      background: #cfe2ff;
+      color: #084298;
+    }
+    .status-missing {
+      background: #f8d7da;
+      color: #842029;
+    }
+    .context {
+      font-size: 0.85em;
+      color: #6c757d;
+      font-style: italic;
+      line-height: 1.4;
+    }
+    .nr-col {
+      width: 40px;
+      text-align: center;
+      color: #adb5bd;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>IURIDICO EJ GTEXTT</h1>
+    <p class="subtitle">Bilingual Glossary and Terminology Extraction Tool</p>
+
+    <div class="metadata">
+      <div class="metadata-item">
+        <span class="metadata-label">Source file:</span>
+        <span>${sourceFileName || fileName}</span>
+      </div>
+      <div class="metadata-item">
+        <span class="metadata-label">Target file:</span>
+        <span>${targetFileName || ''}</span>
+      </div>
+      <div class="metadata-item">
+        <span class="metadata-label">Languages:</span>
+        <span>${sourceLanguage} → ${targetLanguage}</span>
+      </div>
+      <div class="metadata-item">
+        <span class="metadata-label">Terms count:</span>
+        <span>${terms.length}</span>
+      </div>
+      <div class="metadata-item">
+        <span class="metadata-label">Created:</span>
+        <span>${new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="nr-col">No.</th>
+          <th style="width: 200px;">Source Term</th>
+          <th style="width: 80px; text-align: center;">Occ.</th>
+          <th style="width: 200px;">Target Term</th>
+          <th style="width: 250px;">Source Context</th>
+          <th style="width: 250px;">Target Context</th>
+          <th style="width: 100px; text-align: center;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${terms.map((term, index) => `
+          <tr>
+            <td class="nr-col">${index + 1}</td>
+            <td class="term">${term.term}</td>
+            <td class="occurrences">${term.occurrences}</td>
+            <td class="term">${term.targetTerm || '<span style="color: #dc3545;">—</span>'}</td>
+            <td class="context">${term.context || '—'}</td>
+            <td class="context">${term.targetContext || '—'}</td>
+            <td style="text-align: center;">
+              <div class="status-badge ${
+                term.targetSource === 'document' ? 'status-document' :
+                term.targetSource === 'ai' ? 'status-ai' :
+                term.targetSource === 'manual' ? 'status-manual' :
+                'status-missing'
+              }">
+                ${
+                  term.targetSource === 'document' ? 'Document' :
+                  term.targetSource === 'ai' ? 'AI' :
+                  term.targetSource === 'manual' ? 'Manual' :
+                  'Missing'
+                }
+              </div>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
+      `
+
+      const filename = `${sourceFileName || fileName}_${sourceLanguage}-${targetLanguage}_glossary.html`
+      downloadFile(htmlContent, filename, 'text/html;charset=utf-8;')
+      return
+    }
+
+    // Monolingual HTML (original)
     // Sprawdź czy są definicje
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
 
@@ -592,7 +797,10 @@ export default function ExportButtons({
 
     doc.setFontSize(8)
     doc.setTextColor(220, 220, 220)
-    doc.text('Glossary and Terminology Extraction Tool', margin, 14)
+    const subtitle = isBilingual && hasTargetTerms
+      ? 'Bilingual Glossary and Terminology Extraction Tool'
+      : 'Glossary and Terminology Extraction Tool'
+    doc.text(subtitle, margin, 14)
 
     // Informacje o dokumencie
     const dateStr = new Date().toLocaleDateString('en-GB', {
@@ -605,40 +813,93 @@ export default function ExportButtons({
 
     doc.setFontSize(7)
     doc.setTextColor(100, 100, 100)
-    doc.text(`Document: ${fileName}`, margin, 25)
-    doc.text(`Date: ${dateStr}`, pageWidth / 2, 25)
-    doc.text(`Terms: ${terms.length}`, pageWidth - margin - 20, 25)
 
-    // Sprawdź czy są definicje
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+    if (isBilingual && hasTargetTerms) {
+      // Bilingual metadata
+      doc.text(`Source: ${sourceFileName || fileName}`, margin, 25)
+      doc.text(`Target: ${targetFileName || ''}`, margin, 28)
+      doc.text(`${sourceLanguage} → ${targetLanguage}`, pageWidth / 2, 25)
+      doc.text(`Date: ${dateStr}`, pageWidth / 2, 28)
+      doc.text(`Terms: ${terms.length}`, pageWidth - margin - 20, 25)
+    } else {
+      // Monolingual metadata
+      doc.text(`Document: ${fileName}`, margin, 25)
+      doc.text(`Date: ${dateStr}`, pageWidth / 2, 25)
+      doc.text(`Terms: ${terms.length}`, pageWidth - margin - 20, 25)
+    }
 
-    // Przygotuj dane dla tabeli - dane są już w UTF-8, jsPDF autoTable je obsłuży
-    const tableData = terms.map((term, index) => {
-      let sourceText = '-'
-      if (term.definitionSource === 'document') sourceText = 'Document'
-      else if (term.definitionSource === 'edited') sourceText = 'Edited'
-      else if (term.definitionSource === 'ai') sourceText = 'AI'
+    let tableData: any[]
+    let headRow: any[]
+    let colWidths: Record<number, number>
+    let columnStyles: any
 
-      return [
+    if (isBilingual && hasTargetTerms) {
+      // Bilingual PDF
+      tableData = terms.map((term, index) => [
         String(index + 1),
         term.term || '',
         String(term.occurrences),
-        term.definition || '-',
-        sourceText,
-        term.context || '-'
-      ]
-    })
+        term.targetTerm || '—',
+        term.context || '—',
+        term.targetContext || '—',
+        term.targetSource === 'document' ? 'Doc' :
+        term.targetSource === 'ai' ? 'AI' :
+        term.targetSource === 'manual' ? 'Manual' : 'Missing'
+      ])
 
-    // Optymalne szerokości kolumn (A4 landscape = 297mm, dostępne ~277mm)
-    // Suma kolumn musi być < 277mm aby uniknąć wychodzenia poza stronę
-    const colWidths = hasDefinitions
-      ? { 0: 10, 1: 42, 2: 18, 3: 60, 4: 22, 5: 70 }  // Z definicjami: 222mm
-      : { 0: 10, 1: 45, 2: 18, 3: 18, 4: 22, 5: 105 } // Bez definicji: 218mm
+      headRow = [['No.', 'Source\nTerm', 'Occ.', 'Target\nTerm', 'Source\nContext', 'Target\nContext', 'Status']]
+
+      colWidths = { 0: 10, 1: 40, 2: 12, 3: 40, 4: 55, 5: 55, 6: 18 }
+
+      columnStyles = {
+        0: { cellWidth: colWidths[0], halign: 'center', valign: 'middle', fontSize: 7 },
+        1: { cellWidth: colWidths[1], fontStyle: 'bold', fontSize: 8, overflow: 'linebreak' },
+        2: { cellWidth: colWidths[2], halign: 'center', valign: 'middle' },
+        3: { cellWidth: colWidths[3], fontStyle: 'bold', fontSize: 8, overflow: 'linebreak' },
+        4: { cellWidth: colWidths[4], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak' },
+        5: { cellWidth: colWidths[5], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak' },
+        6: { cellWidth: colWidths[6], halign: 'center', fontSize: 6.5 }
+      }
+    } else {
+      // Monolingual PDF (original)
+      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+
+      tableData = terms.map((term, index) => {
+        let sourceText = '-'
+        if (term.definitionSource === 'document') sourceText = 'Document'
+        else if (term.definitionSource === 'edited') sourceText = 'Edited'
+        else if (term.definitionSource === 'ai') sourceText = 'AI'
+
+        return [
+          String(index + 1),
+          term.term || '',
+          String(term.occurrences),
+          term.definition || '-',
+          sourceText,
+          term.context || '-'
+        ]
+      })
+
+      headRow = [['No.', 'Term', 'Number of\noccurrences', 'Definition', 'Source of\ndefinition', 'Context']]
+
+      colWidths = hasDefinitions
+        ? { 0: 10, 1: 42, 2: 18, 3: 60, 4: 22, 5: 70 }
+        : { 0: 10, 1: 45, 2: 18, 3: 18, 4: 22, 5: 105 }
+
+      columnStyles = {
+        0: { cellWidth: colWidths[0], halign: 'center', valign: 'middle', fontSize: 7 },
+        1: { cellWidth: colWidths[1], fontStyle: 'bold', fontSize: 9, overflow: 'linebreak' },
+        2: { cellWidth: colWidths[2], halign: 'center', valign: 'middle' },
+        3: { cellWidth: colWidths[3], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak' },
+        4: { cellWidth: colWidths[4], halign: 'center', fontSize: 7 },
+        5: { cellWidth: colWidths[5], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak', minCellWidth: 70 }
+      }
+    }
 
     // Tabela z danymi
     autoTable(doc, {
-      startY: 28,
-      head: [['No.', 'Term', 'Number of\noccurrences', 'Definition', 'Source of\ndefinition', 'Context']],
+      startY: isBilingual && hasTargetTerms ? 31 : 28,
+      head: headRow,
       body: tableData,
 
       // Podstawowe style
@@ -666,43 +927,7 @@ export default function ExportButtons({
       },
 
       // Style poszczególnych kolumn
-      columnStyles: {
-        0: {
-          cellWidth: colWidths[0],
-          halign: 'center',
-          valign: 'middle',
-          fontSize: 7
-        },
-        1: {
-          cellWidth: colWidths[1],
-          fontStyle: 'bold',
-          fontSize: 9,
-          overflow: 'linebreak'
-        },
-        2: {
-          cellWidth: colWidths[2],
-          halign: 'center',
-          valign: 'middle'
-        },
-        3: {
-          cellWidth: colWidths[3],
-          fontSize: 6.5,
-          cellPadding: 2,
-          overflow: 'linebreak'
-        },
-        4: {
-          cellWidth: colWidths[4],
-          halign: 'center',
-          fontSize: 7
-        },
-        5: {
-          cellWidth: colWidths[5],
-          fontSize: 6.5,
-          cellPadding: 2,
-          overflow: 'linebreak',
-          minCellWidth: 70
-        }
-      },
+      columnStyles,
 
       // Naprzemienne wiersze
       alternateRowStyles: {
@@ -726,7 +951,10 @@ export default function ExportButtons({
     })
 
     // Zapisz PDF
-    doc.save(`${fileName}_glossary.pdf`)
+    const filename = isBilingual && hasTargetTerms
+      ? `${sourceFileName || fileName}_${sourceLanguage}-${targetLanguage}_glossary.pdf`
+      : `${fileName}_glossary.pdf`
+    doc.save(filename)
   }
 
   const downloadFile = (content: string, filename: string, mimeType: string) => {
