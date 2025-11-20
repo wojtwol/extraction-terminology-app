@@ -172,6 +172,7 @@ export default function Home() {
 
   // Wczytaj zapisany klucz API przy starcie
   useEffect(() => {
+    console.log('🔑 useEffect: Loading saved API key')
     const savedApiKey = localStorage.getItem('anthropic_api_key')
     if (savedApiKey) {
       setApiKey(savedApiKey)
@@ -181,6 +182,7 @@ export default function Home() {
 
   // Zapisz klucz API przy zmianie
   useEffect(() => {
+    console.log('💾 useEffect: Saving API key', { hasKey: !!apiKey })
     if (apiKey && apiKey.startsWith('sk-ant-')) {
       localStorage.setItem('anthropic_api_key', apiKey)
       console.log('💾 Zapisano klucz API')
@@ -1659,6 +1661,7 @@ export default function Home() {
 
   // Obsługa załadowania glosariusza z nowej karty
   useEffect(() => {
+    console.log('📂 useEffect: Loading glossary from localStorage')
     const dataStr = localStorage.getItem('__openGlossary')
     if (dataStr) {
       try {
@@ -1666,11 +1669,13 @@ export default function Home() {
         // Sprawdź czy to świeże (max 5 sekund)
         if (Date.now() - data.timestamp < 5000) {
           // Załaduj projekt i glosariusz
+          console.log('📂 Loading project from localStorage', data.projectId)
           const project = projectStorage.getById(data.projectId)
           if (project) {
             projectStorage.setCurrentGlossary(data.projectId, data.glossaryId)
             const updated = projectStorage.getById(data.projectId)
             if (updated) {
+              console.log('📂 Setting project from localStorage')
               setCurrentProject(updated)
             }
           }
