@@ -221,9 +221,16 @@ export default function Home() {
   // Odśwież aktualny glosariusz i wersję
   // USUNIĘTO useCallback - powodował stale closure z nieaktualnym currentProject
   const refreshGlossary = () => {
+    console.log('🔄 refreshGlossary called', {
+      currentProjectId: currentProject?.id,
+      currentGlossaryId: currentGlossary?.id,
+      currentVersionId: currentVersion?.id
+    })
+
     if (!currentProject || !currentProject.currentGlossaryId) {
       // Tylko jeśli aktualnie są ustawione, wyzeruj je
       if (currentGlossary !== null || currentVersion !== null) {
+        console.log('🔄 Clearing glossary and version')
         setCurrentGlossary(null)
         setCurrentVersion(null)
       }
@@ -233,6 +240,7 @@ export default function Home() {
     const glossary = projectStorage.getCurrentGlossary(currentProject.id)
     // Ustaw tylko jeśli ID się zmieniło (unikamy niepotrzebnych re-renderów)
     if (glossary?.id !== currentGlossary?.id) {
+      console.log('🔄 Setting new glossary', glossary?.id)
       setCurrentGlossary(glossary)
     }
 
@@ -240,10 +248,12 @@ export default function Home() {
       const version = projectStorage.getCurrentVersion(currentProject.id, glossary.id)
       // Ustaw tylko jeśli ID się zmieniło
       if (version?.id !== currentVersion?.id) {
+        console.log('🔄 Setting new version', version?.id)
         setCurrentVersion(version)
       }
     } else {
       if (currentVersion !== null) {
+        console.log('🔄 Clearing version')
         setCurrentVersion(null)
       }
     }
