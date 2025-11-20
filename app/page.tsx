@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
@@ -219,7 +219,7 @@ export default function Home() {
   }
 
   // Odśwież aktualny glosariusz i wersję
-  const refreshGlossary = () => {
+  const refreshGlossary = useCallback(() => {
     if (!currentProject || !currentProject.currentGlossaryId) {
       setCurrentGlossary(null)
       setCurrentVersion(null)
@@ -235,7 +235,7 @@ export default function Home() {
     } else {
       setCurrentVersion(null)
     }
-  }
+  }, [currentProject])
 
   // Generuj definicje dla wszystkich terminów (bulk)
   const handleBulkGenerateDefinitions = async (termsToProcess: Term[]) => {
@@ -314,7 +314,6 @@ export default function Home() {
       if (updatedProject) {
         setCurrentProject(updatedProject)
       }
-      refreshGlossary()
 
       setProgress(100)
       console.log(`✅ Zakończono generowanie definicji: ${processedCount}/${totalTerms}`)
@@ -458,7 +457,6 @@ export default function Home() {
       if (updatedProject) {
         setCurrentProject(updatedProject)
       }
-      refreshGlossary()
 
       setProgress(100)
       console.log(`✅ Rozbudowano glosariusz: +${addedCount} terminów (łącznie: ${expandedTerms.length})`)
@@ -659,7 +657,6 @@ export default function Home() {
 
       setCurrentProject(refreshedProject)
       setCurrentGlossary(newGlossary)
-      refreshGlossary()
 
       setProgress(100)
       setBilingualProgress({
@@ -786,7 +783,6 @@ export default function Home() {
       if (updatedProject) {
         setCurrentProject(updatedProject)
       }
-      refreshGlossary()
 
       setProgress(100)
       console.log(`✅ Wyekstrahowano ${data.terms.length} terminów`)
@@ -840,7 +836,6 @@ export default function Home() {
     if (updatedProject) {
       setCurrentProject(updatedProject)
     }
-    refreshGlossary()
   }
 
   // Handler dla importu terminów z plików JSON/XLSX
@@ -898,7 +893,6 @@ export default function Home() {
     if (updatedProject) {
       setCurrentProject(updatedProject)
     }
-    refreshGlossary()
 
     // Pokaż komunikat
     const message = language === 'pl'
@@ -1098,7 +1092,6 @@ export default function Home() {
         if (updatedProject) {
           setCurrentProject(updatedProject)
         }
-        refreshGlossary()
 
         alert(language === 'pl'
           ? `Połączono ${files.length} glosariuszy!\n\nDodano: ${addedCount} nowych terminów\nPominięto: ${skippedCount} duplikatów\n\nŁącznie terminów: ${mergedTerms.length}`
@@ -1187,19 +1180,10 @@ export default function Home() {
     }
   }
 
-  // USUNIĘTE automatyczne odświeżanie - powodowało nieskończoną pętlę
   // Odśwież glosariusz gdy projekt się zmieni
-  // useEffect(() => {
-  //   refreshGlossary()
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [currentProject?.id, currentProject?.currentGlossaryId, refreshKey])
-
-  // Odśwież glosariusz tylko gdy zmienia się refreshKey (ręczne odświeżanie)
   useEffect(() => {
-    if (refreshKey > 0) {
-      refreshGlossary()
-    }
-  }, [refreshKey])
+    refreshGlossary()
+  }, [refreshGlossary])
 
   // Automatyczne zapisywanie metadanych projektu - USUNIĘTE aby uniknąć nieskończonej pętli
   // Metadane będą zapisywane explicite przy akcjach użytkownika
@@ -1228,7 +1212,6 @@ export default function Home() {
 
     setCurrentProject(project)
     setProjectName(name)
-    refreshGlossary()
     alert('Projekt został zapisany!')
   }
 
@@ -1241,8 +1224,6 @@ export default function Home() {
     setDetectedLanguage(project.detectedLanguage)
     setLoadedText('')
     setLoadedFileName('')
-    // refreshGlossary zostanie wywołane przez useEffect po zmianie currentProject
-    setTimeout(() => refreshGlossary(), 0)
   }
 
   // Nowy projekt
@@ -1394,7 +1375,6 @@ export default function Home() {
         const updated = projectStorage.getById(currentProject.id)
         if (updated) {
           setCurrentProject(updated)
-          refreshGlossary()
         }
       }
 
@@ -1450,7 +1430,6 @@ export default function Home() {
       const updated = projectStorage.getById(currentProject.id)
       if (updated) {
         setCurrentProject(updated)
-        refreshGlossary()
       }
     }
 
@@ -1513,7 +1492,6 @@ export default function Home() {
                     })
                     setCurrentProject(newProject)
                     setProjectName(newProject.name)
-                    setTimeout(() => refreshGlossary(), 0)
                   }
                 }}
                 className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
@@ -1550,7 +1528,6 @@ export default function Home() {
                     if (updatedProject) {
                       setCurrentProject(updatedProject)
                       setProjectName(updatedProject.name)
-                      refreshGlossary()
                     }
                   }
                 }}
@@ -1669,7 +1646,6 @@ export default function Home() {
             const updated = projectStorage.getById(data.projectId)
             if (updated) {
               setCurrentProject(updated)
-              setTimeout(() => refreshGlossary(), 0)
             }
           }
         }
@@ -1849,7 +1825,6 @@ export default function Home() {
                         onSnapshotCreated={() => {
                           const updated = projectStorage.getById(currentProject.id)
                           if (updated) setCurrentProject(updated)
-                          refreshGlossary()
                         }}
                       />
                     </div>
@@ -2089,7 +2064,6 @@ export default function Home() {
                   projectStorage.setCurrentGlossary(currentProject.id, glossaryId)
                   const updated = projectStorage.getById(currentProject.id)
                   if (updated) setCurrentProject(updated)
-                  refreshGlossary()
                 }}
                 onRefresh={() => {
                   const updated = projectStorage.getById(currentProject.id)
