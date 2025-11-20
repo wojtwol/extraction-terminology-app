@@ -522,32 +522,46 @@ export default function Home() {
     setShowBilingualDialog(true)
   }
 
+  // Funkcja do ekstrakcji tekstu z różnych formatów plików
+  const extractTextFromFile = async (file: File): Promise<string> => {
+    const extension = file.name.split('.').pop()?.toLowerCase()
+
+    switch (extension) {
+      case 'txt':
+      case 'html':
+      case 'xml':
+        return await file.text()
+
+      case 'docx':
+        const mammoth = (await import('mammoth')).default
+        const arrayBuffer = await file.arrayBuffer()
+        const result = await mammoth.extractRawText({ arrayBuffer })
+        return result.value
+
+      case 'xlsx':
+      case 'xls':
+        const XLSX = (await import('xlsx'))
+        const xlsxBuffer = await file.arrayBuffer()
+        const workbook = XLSX.read(xlsxBuffer, { type: 'array' })
+        let xlsxText = ''
+        workbook.SheetNames.forEach(sheetName => {
+          const sheet = workbook.Sheets[sheetName]
+          xlsxText += XLSX.utils.sheet_to_txt(sheet) + '\n'
+        })
+        return xlsxText
+
+      default:
+        throw new Error(language === 'pl' ? `Nieobsługiwany format pliku: ${extension}` : `Unsupported file format: ${extension}`)
+    }
+  }
+
   // Obsługa załadowania dokumentu docelowego
   const handleBilingualDocumentLoad = async (file: File) => {
     try {
       setIsLoading(true)
-      let targetDocText = ''
 
-      if (file.name.endsWith('.pdf')) {
-        // Pobierz tekst z PDF
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const response = await fetch('/api/extract-pdf-text', {
-          method: 'POST',
-          body: formData
-        })
-
-        if (!response.ok) {
-          throw new Error('Błąd wczytywania PDF')
-        }
-
-        const data = await response.json()
-        targetDocText = data.text
-      } else {
-        // Tekst z pliku TXT
-        targetDocText = await file.text()
-      }
+      // Użyj funkcji extractTextFromFile dla wszystkich obsługiwanych formatów
+      const targetDocText = await extractTextFromFile(file)
 
       if (!targetDocText || targetDocText.trim().length === 0) {
         alert(language === 'pl'

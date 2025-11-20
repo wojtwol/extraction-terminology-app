@@ -45,6 +45,7 @@ export default function TerminologyTable({
   const [languageDialogTerm, setLanguageDialogTerm] = useState<{id: string, term: string} | null>(null)
   const [editingDefinition, setEditingDefinition] = useState<{id: string, value: string} | null>(null)
   const [editingTargetTerm, setEditingTargetTerm] = useState<{id: string, value: string} | null>(null)
+  const [editingSourceTerm, setEditingSourceTerm] = useState<{id: string, value: string} | null>(null)
 
   // Automatyczny scroll do pierwszego wystąpienia po otwarciu modalu
   useEffect(() => {
@@ -324,6 +325,22 @@ export default function TerminologyTable({
     setEditingTargetTerm(null)
   }
 
+  const handleSaveSourceTerm = () => {
+    if (!editingSourceTerm) return
+
+    onUpdate(
+      terms.map(t =>
+        t.id === editingSourceTerm.id
+          ? {
+              ...t,
+              term: editingSourceTerm.value
+            }
+          : t
+      )
+    )
+    setEditingSourceTerm(null)
+  }
+
   // Sprawdź czy są nowe terminy
   const hasNewTerms = terms.some(t => t.isNew)
   const newTermsCount = terms.filter(t => t.isNew).length
@@ -443,7 +460,7 @@ export default function TerminologyTable({
               {sortedTerms.map((term, index) => (
                 <tr
                   key={term.id}
-                  className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${
+                  className={`group border-b border-gray-200 hover:bg-gray-50 transition-colors ${
                     selectedTermId === term.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
                   }`}
                 >
@@ -451,15 +468,47 @@ export default function TerminologyTable({
 
                   {/* Termin źródłowy */}
                   <td className="px-3 py-3">
-                    <span
-                      onClick={() => onTermSelect?.(term)}
-                      className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
-                        selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
-                      }`}
-                      title={language === 'pl' ? 'Kliknij, aby wyświetlić w dokumencie' : 'Click to view in document'}
-                    >
-                      {term.term}
-                    </span>
+                    {editingSourceTerm?.id === term.id ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editingSourceTerm.value}
+                          onChange={(e) => setEditingSourceTerm({ id: term.id, value: e.target.value })}
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveSourceTerm}
+                          className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => setEditingSourceTerm(null)}
+                          className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span
+                          onClick={() => onTermSelect?.(term)}
+                          className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
+                            selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
+                          }`}
+                          title={language === 'pl' ? 'Kliknij, aby wyświetlić w dokumencie' : 'Click to view in document'}
+                        >
+                          {term.term}
+                        </span>
+                        <button
+                          onClick={() => setEditingSourceTerm({ id: term.id, value: term.term })}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          {t.edit}
+                        </button>
+                      </div>
+                    )}
                   </td>
 
                   {/* Kontekst źródłowy (tylko dla widoku 4-kolumnowego) */}
