@@ -9,9 +9,10 @@ interface FileUploadProps {
   onExtract: (text: string, filename: string, apiKey: string) => void | Promise<void>
   isLoading: boolean
   savedApiKey?: string
+  onShowAlert?: (title: string, message: string, icon?: 'warning' | 'info' | 'success' | 'error') => void
 }
 
-export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUploadProps) {
+export default function FileUpload({ onExtract, isLoading, savedApiKey, onShowAlert }: FileUploadProps) {
   const { language, t } = useLanguage()
   const [apiKey, setApiKey] = useState('')
   const [dragActive, setDragActive] = useState(false)
@@ -60,7 +61,15 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
 
   const handleFile = async (file: File) => {
     if (!apiKey.trim()) {
-      alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
+      if (onShowAlert) {
+        onShowAlert(
+          language === 'pl' ? 'Brak klucza API' : 'Missing API Key',
+          language === 'pl' ? 'Proszę podać klucz API Anthropic aby kontynuować.' : 'Please provide Anthropic API key to continue.',
+          'warning'
+        )
+      } else {
+        alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
+      }
       return
     }
 
@@ -114,7 +123,15 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
 
   const handleTextSubmit = async () => {
     if (!apiKey.trim()) {
-      alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
+      if (onShowAlert) {
+        onShowAlert(
+          language === 'pl' ? 'Brak klucza API' : 'Missing API Key',
+          language === 'pl' ? 'Proszę podać klucz API Anthropic aby kontynuować.' : 'Please provide Anthropic API key to continue.',
+          'warning'
+        )
+      } else {
+        alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
+      }
       return
     }
 
@@ -140,7 +157,15 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
 
   const handleUrlSubmit = async () => {
     if (!apiKey.trim()) {
-      alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
+      if (onShowAlert) {
+        onShowAlert(
+          language === 'pl' ? 'Brak klucza API' : 'Missing API Key',
+          language === 'pl' ? 'Proszę podać klucz API Anthropic aby kontynuować.' : 'Please provide Anthropic API key to continue.',
+          'warning'
+        )
+      } else {
+        alert(language === 'pl' ? 'Proszę podać klucz API Anthropic' : 'Please provide Anthropic API key')
+      }
       return
     }
 

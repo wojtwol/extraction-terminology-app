@@ -175,6 +175,18 @@ export default function Home() {
   // Skrót do terminów z aktualnej wersji
   const terms = currentVersion?.terms || []
 
+  // Helper to show alert dialog
+  const showAlert = (title: string, message: string, icon?: 'warning' | 'info' | 'success' | 'error') => {
+    setDialogState({
+      isOpen: true,
+      type: 'alert',
+      title,
+      message,
+      icon: icon || 'info',
+      confirmText: language === 'pl' ? 'OK' : 'OK'
+    })
+  }
+
   // Wczytaj zapisany klucz API przy starcie
   useEffect(() => {
     const savedApiKey = localStorage.getItem('anthropic_api_key')
@@ -986,12 +998,14 @@ export default function Home() {
                 onExtract={handleBilingualExtract}
                 isLoading={isLoading}
                 savedApiKey={apiKey}
+                onShowAlert={showAlert}
               />
             ) : (
               <FileUpload
                 onExtract={handleFileLoaded}
                 isLoading={isLoading}
                 savedApiKey={apiKey}
+                onShowAlert={showAlert}
               />
             )}
 

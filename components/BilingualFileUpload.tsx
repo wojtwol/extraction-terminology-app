@@ -7,9 +7,10 @@ interface BilingualFileUploadProps {
   onExtract: (sourceText: string, targetText: string, sourceLang: string, targetLang: string, sourceFileName: string, targetFileName: string) => void
   isLoading: boolean
   savedApiKey: string | null
+  onShowAlert?: (title: string, message: string, icon?: 'warning' | 'info' | 'success' | 'error') => void
 }
 
-export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey }: BilingualFileUploadProps) {
+export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey, onShowAlert }: BilingualFileUploadProps) {
   const { language, t } = useLanguage()
 
   const [apiKey, setApiKey] = useState(savedApiKey || '')
@@ -103,7 +104,15 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
 
   const handleAnalyze = async () => {
     if (!apiKey) {
-      alert(txt.apiRequired)
+      if (onShowAlert) {
+        onShowAlert(
+          language === 'pl' ? 'Brak klucza API' : 'Missing API Key',
+          txt.apiRequired,
+          'warning'
+        )
+      } else {
+        alert(txt.apiRequired)
+      }
       return
     }
 

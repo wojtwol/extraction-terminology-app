@@ -28,7 +28,10 @@ export default function DocumentSplitView({
   const { language } = useLanguage()
   const [selectedText, setSelectedText] = useState('')
   const [selectionPosition, setSelectionPosition] = useState<{ x: number; y: number } | null>(null)
+  const [showTermSelectionDialog, setShowTermSelectionDialog] = useState(false)
+  const [selectedTargetTermForDialog, setSelectedTargetTermForDialog] = useState<string>('')
   const targetDocRef = useRef<HTMLDivElement>(null)
+  const sourceDocRef = useRef<HTMLDivElement>(null)
 
   const translations = {
     pl: {
@@ -95,13 +98,55 @@ export default function DocumentSplitView({
   }, [])
 
   const handleQuickAdd = () => {
-    if (!selectedTerm || !selectedText) return
+    if (!selectedText) return
 
-    onQuickAddTarget(selectedTerm.id, selectedText)
-    setSelectedText('')
-    setSelectionPosition(null)
-    window.getSelection()?.removeAllRanges()
+    // Get all unmatched terms (missing or no targetTerm)
+    const unmatchedTerms = terms.filter(t => !t.targetTerm || t.targetSource === 'missing')
+
+    if (unmatchedTerms.length === 0) {
+      // No unmatched terms - nothing to do
+      alert(language === 'pl'
+        ? 'Wszystkie terminy już mają ekwiwalenty.'
+        : 'All terms already have equivalents.')
+      return
+    }
+
+    if (unmatchedTerms.length === 1) {
+      // Only one unmatched term - assign directly
+      onQuickAddTarget(unmatchedTerms[0].id, selectedText)
+      setSelectedText('')
+      setSelectionPosition(null)
+      window.getSelection()?.removeAllRanges()
+    } else {
+      // Multiple unmatched terms - show dialog to choose
+      setSelectedTargetTermForDialog(selectedText)
+      setShowTermSelectionDialog(true)
+      setSelectionPosition(null)
+    }
   }
+
+  const handleConfirmTermSelection = (termId: string) => {
+    if (selectedTargetTermForDialog) {
+      onQuickAddTarget(termId, selectedTargetTermForDialog)
+      setShowTermSelectionDialog(false)
+      setSelectedTargetTermForDialog('')
+      setSelectedText('')
+      window.getSelection()?.removeAllRanges()
+    }
+  }
+
+  // Auto-scroll to selected term in source document
+  useEffect(() => {
+    if (selectedTerm && selectedTerm.positions && selectedTerm.positions.length > 0 && sourceDocRef.current) {
+      // Find the first occurrence element in the source document
+      setTimeout(() => {
+        const firstOccurrence = sourceDocRef.current?.querySelector(`[data-term-id="${selectedTerm.id}"]`)
+        if (firstOccurrence) {
+          firstOccurrence.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 100)
+    }
+  }, [selectedTerm])
 
   // Render source document with highlighted terms
   const renderSourceDocument = () => {
@@ -143,6 +188,7 @@ export default function DocumentSplitView({
       segments.push(
         <span
           key={`highlight-${idx}`}
+          data-term-id={term.id}
           onClick={() => onTermSelect(term)}
           className={`cursor-pointer rounded px-0.5 transition-all ${
             isSelected
@@ -307,7 +353,10 @@ export default function DocumentSplitView({
             </h3>
             <span className="text-xs text-blue-600 font-medium">{sourceLanguage}</span>
           </div>
-          <div className="max-h-[600px] overflow-y-auto bg-white rounded p-3 border border-blue-100">
+          <div
+            ref={sourceDocRef}
+            className="max-h-[600px] overflow-y-auto bg-white rounded p-3 border border-blue-100"
+          >
             {renderSourceDocument()}
           </div>
         </div>
@@ -331,7 +380,7 @@ export default function DocumentSplitView({
       </div>
 
       {/* Quick Add Tooltip */}
-      {selectedText && selectedTerm && selectionPosition && (
+      {selectedText && selectionPosition && (
         <div
           className="fixed z-50 transform -translate-x-1/2 -translate-y-full"
           style={{
@@ -349,6 +398,64 @@ export default function DocumentSplitView({
             </button>
           </div>
           <div className="w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-purple-600 mx-auto"></div>
+        </div>
+      )}
+
+      {/* Term Selection Dialog */}
+      {showTermSelectionDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full p-6 m-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {language === 'pl'
+                ? 'Wybierz termin źródłowy'
+                : 'Select Source Term'}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {language === 'pl'
+                ? `Dodaj ekwiwalent "${selectedTargetTermForDialog}" do terminu:`
+                : `Add equivalent "${selectedTargetTermForDialog}" to term:`}
+            </p>
+
+            <div className="max-h-96 overflow-y-auto space-y-2 mb-6">
+              {terms
+                .filter(t => !t.targetTerm || t.targetSource === 'missing')
+                .map((term) => (
+                  <button
+                    key={term.id}
+                    onClick={() => handleConfirmTermSelection(term.id)}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
+                      term.id === selectedTerm?.id
+                        ? 'border-blue-500 bg-blue-50 hover:bg-blue-100'
+                        : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="font-semibold text-gray-900">{term.term}</div>
+                    <div className="text-xs text-gray-600 mt-1 truncate">
+                      {term.context}
+                    </div>
+                    {term.id === selectedTerm?.id && (
+                      <div className="text-xs text-blue-600 mt-1 font-medium">
+                        {language === 'pl' ? '(Wybrany termin)' : '(Selected term)'}
+                      </div>
+                    )}
+                  </button>
+                ))}
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowTermSelectionDialog(false)
+                  setSelectedTargetTermForDialog('')
+                  setSelectedText('')
+                  window.getSelection()?.removeAllRanges()
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {language === 'pl' ? 'Anuluj' : 'Cancel'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
