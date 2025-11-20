@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
@@ -219,7 +219,8 @@ export default function Home() {
   }
 
   // Odśwież aktualny glosariusz i wersję
-  const refreshGlossary = useCallback(() => {
+  // USUNIĘTO useCallback - powodował stale closure z nieaktualnym currentProject
+  const refreshGlossary = () => {
     if (!currentProject || !currentProject.currentGlossaryId) {
       setCurrentGlossary(null)
       setCurrentVersion(null)
@@ -235,8 +236,7 @@ export default function Home() {
     } else {
       setCurrentVersion(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentProject?.id, currentProject?.currentGlossaryId])
+  }
 
   // Generuj definicje dla wszystkich terminów (bulk)
   const handleBulkGenerateDefinitions = async (termsToProcess: Term[]) => {
