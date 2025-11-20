@@ -44,6 +44,7 @@ export default function TerminologyTable({
   const [currentOccurrence, setCurrentOccurrence] = useState(0)
   const [languageDialogTerm, setLanguageDialogTerm] = useState<{id: string, term: string} | null>(null)
   const [editingDefinition, setEditingDefinition] = useState<{id: string, value: string} | null>(null)
+  const [editingTargetTerm, setEditingTargetTerm] = useState<{id: string, value: string} | null>(null)
 
   // Automatyczny scroll do pierwszego wystąpienia po otwarciu modalu
   useEffect(() => {
@@ -306,6 +307,23 @@ export default function TerminologyTable({
     setEditingDefinition(null)
   }
 
+  const handleSaveTargetTerm = () => {
+    if (!editingTargetTerm) return
+
+    onUpdate(
+      terms.map(t =>
+        t.id === editingTargetTerm.id
+          ? {
+              ...t,
+              targetTerm: editingTargetTerm.value,
+              targetSource: 'manual' as const
+            }
+          : t
+      )
+    )
+    setEditingTargetTerm(null)
+  }
+
   // Sprawdź czy są nowe terminy
   const hasNewTerms = terms.some(t => t.isNew)
   const newTermsCount = terms.filter(t => t.isNew).length
@@ -391,21 +409,163 @@ export default function TerminologyTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse table-fixed">
-          <thead>
-            <tr className="bg-gray-100 border-b-2 border-gray-300">
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
-                {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
-              </th>
-              <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '9%' : '14%'}}>{t.definition}</th>
-              <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '35%' : '32%'}}>{t.context}</th>
-              <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
-            </tr>
-          </thead>
+      {/* Tabela dla glosariuszy DWUJĘZYCZNYCH */}
+      {isBilingual ? (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse table-fixed">
+            <thead>
+              <tr className="bg-gradient-to-r from-blue-100 to-purple-100 border-b-2 border-gray-300">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>
+                  {t.number}
+                </th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-blue-800" style={{width: columnView === '2' ? '35%' : '22%'}}>
+                  {language === 'pl' ? 'Termin źródłowy' : 'Source Term'} ({sourceLanguage?.toUpperCase()})
+                </th>
+                {columnView === '4' && (
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-blue-700" style={{width: '23%'}}>
+                    {language === 'pl' ? 'Kontekst źródłowy' : 'Source Context'}
+                  </th>
+                )}
+                <th className="px-3 py-3 text-left text-sm font-semibold text-purple-800" style={{width: columnView === '2' ? '35%' : '22%'}}>
+                  {language === 'pl' ? 'Termin docelowy' : 'Target Term'} ({targetLanguage?.toUpperCase()})
+                </th>
+                {columnView === '4' && (
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-purple-700" style={{width: '23%'}}>
+                    {language === 'pl' ? 'Kontekst docelowy' : 'Target Context'}
+                  </th>
+                )}
+                <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '100px'}}>
+                  {t.actions}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedTerms.map((term, index) => (
+                <tr
+                  key={term.id}
+                  className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${
+                    selectedTermId === term.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                  }`}
+                >
+                  <td className="px-2 py-3 text-sm text-gray-600">{index + 1}</td>
+
+                  {/* Termin źródłowy */}
+                  <td className="px-3 py-3">
+                    <span
+                      onClick={() => onTermSelect?.(term)}
+                      className={`font-semibold cursor-pointer hover:text-blue-600 transition-colors ${
+                        selectedTermId === term.id ? 'text-blue-600' : 'text-gray-800'
+                      }`}
+                      title={language === 'pl' ? 'Kliknij, aby wyświetlić w dokumencie' : 'Click to view in document'}
+                    >
+                      {term.term}
+                    </span>
+                  </td>
+
+                  {/* Kontekst źródłowy (tylko dla widoku 4-kolumnowego) */}
+                  {columnView === '4' && (
+                    <td className="px-3 py-3 text-sm text-gray-600">
+                      <div className="line-clamp-2" title={term.context}>
+                        {highlightTermInContext(term.context, term.term)}
+                      </div>
+                    </td>
+                  )}
+
+                  {/* Termin docelowy */}
+                  <td className="px-3 py-3">
+                    {editingTargetTerm?.id === term.id ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editingTargetTerm.value}
+                          onChange={(e) => setEditingTargetTerm({ id: term.id, value: e.target.value })}
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveTargetTerm}
+                          className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => setEditingTargetTerm(null)}
+                          className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : term.targetTerm ? (
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-purple-800">
+                          {term.targetTerm}
+                        </span>
+                        <button
+                          onClick={() => setEditingTargetTerm({ id: term.id, value: term.targetTerm || '' })}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          {t.edit}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEditingTargetTerm({ id: term.id, value: '' })}
+                        className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                      >
+                        {language === 'pl' ? '+ Dodaj' : '+ Add'}
+                      </button>
+                    )}
+                  </td>
+
+                  {/* Kontekst docelowy (tylko dla widoku 4-kolumnowego) */}
+                  {columnView === '4' && (
+                    <td className="px-3 py-3 text-sm text-gray-600">
+                      {term.targetContext ? (
+                        <div className="line-clamp-2" title={term.targetContext}>
+                          {term.targetTerm ? highlightTermInContext(term.targetContext, term.targetTerm) : term.targetContext}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">
+                          {language === 'pl' ? 'Brak' : 'N/A'}
+                        </span>
+                      )}
+                    </td>
+                  )}
+
+                  {/* Akcje */}
+                  <td className="px-2 py-3">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => handleDelete(term.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors text-sm"
+                        title={t.delete}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        /* Tabela dla glosariuszy JEDNOJĘZYCZNYCH */
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse table-fixed">
+            <thead>
+              <tr className="bg-gray-100 border-b-2 border-gray-300">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
+                  {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
+                </th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '9%' : '14%'}}>{t.definition}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '35%' : '32%'}}>{t.context}</th>
+                <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
+              </tr>
+            </thead>
           <tbody>
             {sortedTerms.map((term, index) => (
               <tr
@@ -588,6 +748,7 @@ export default function TerminologyTable({
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Modal do przeglądania terminu w dokumencie */}
       {modalTerm && (
