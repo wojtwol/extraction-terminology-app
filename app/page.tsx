@@ -2209,8 +2209,8 @@ export default function Home() {
                       <span className="text-xl">📄</span>
                       <span>
                         {language === 'pl'
-                          ? 'Załaduj dokument w języku docelowym (format TXT lub PDF). Powinien to być ten sam dokument co źródłowy, ale w innym języku.'
-                          : 'Load a document in the target language (TXT or PDF format). It should be the same document as the source, but in a different language.'}
+                          ? 'Załaduj dokument w języku docelowym. Obsługiwane formaty: TXT, HTML, DOCX, XLSX, XLS, XML. Powinien to być ten sam dokument co źródłowy, ale w innym języku.'
+                          : 'Load a document in the target language. Supported formats: TXT, HTML, DOCX, XLSX, XLS, XML. It should be the same document as the source, but in a different language.'}
                       </span>
                     </p>
                   </div>
@@ -2218,7 +2218,7 @@ export default function Home() {
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <input
                       type="file"
-                      accept=".txt,.pdf"
+                      accept=".txt,.html,.docx,.xlsx,.xls,.xml"
                       onChange={(e) => {
                         const file = e.target.files?.[0]
                         if (file) {
@@ -2234,7 +2234,7 @@ export default function Home() {
                       htmlFor="bilingual-file-input"
                       className="cursor-pointer inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-lg"
                     >
-                      📁 {language === 'pl' ? 'Wybierz plik (TXT/PDF)' : 'Choose file (TXT/PDF)'}
+                      📁 {language === 'pl' ? 'Wybierz plik' : 'Choose file'}
                     </label>
                     <p className="text-gray-500 text-sm mt-3">
                       {language === 'pl' ? 'lub przeciągnij plik tutaj' : 'or drag file here'}

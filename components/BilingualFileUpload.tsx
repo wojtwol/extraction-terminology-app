@@ -29,7 +29,7 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       sourceDoc: 'Dokument źródłowy',
       targetDoc: 'Dokument docelowy',
       dragDrop: 'Przeciągnij i upuść plik tutaj lub kliknij, aby wybrać',
-      formats: 'Obsługiwane formaty: TXT, HTML, DOCX, XLSX, XML',
+      formats: 'Obsługiwane formaty: TXT, HTML, DOCX, XLSX, XLS, XML',
       detecting: 'Wykrywanie języka...',
       detected: 'Wykryto',
       selectSource: 'Wybierz język źródłowy',
@@ -47,7 +47,7 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       sourceDoc: 'Source Document',
       targetDoc: 'Target Document',
       dragDrop: 'Drag and drop file here or click to select',
-      formats: 'Supported formats: TXT, HTML, DOCX, XLSX, XML',
+      formats: 'Supported formats: TXT, HTML, DOCX, XLSX, XLS, XML',
       detecting: 'Detecting language...',
       detected: 'Detected',
       selectSource: 'Select source language',
@@ -194,7 +194,7 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 cursor-pointer transition-colors">
               <input
                 type="file"
-                accept=".txt,.html,.docx,.xlsx,.xml"
+                accept=".txt,.html,.docx,.xlsx,.xls,.xml"
                 onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0], 'source')}
                 className="hidden"
               />
@@ -233,7 +233,7 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 cursor-pointer transition-colors">
               <input
                 type="file"
-                accept=".txt,.html,.docx,.xlsx,.xml"
+                accept=".txt,.html,.docx,.xlsx,.xls,.xml"
                 onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0], 'target')}
                 className="hidden"
               />
