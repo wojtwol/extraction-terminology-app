@@ -1181,10 +1181,12 @@ export default function Home() {
     }
   }
 
-  // Odśwież glosariusz gdy projekt się zmieni
-  useEffect(() => {
-    refreshGlossary()
-  }, [refreshGlossary])
+  // USUNIĘTE automatyczne odświeżanie - powodowało nieskończoną pętlę
+  // przez nowe obiekty z JSON.parse w projectStorage.getById()
+  // refreshGlossary będzie wywoływane ręcznie tylko tam gdzie potrzebne
+  // useEffect(() => {
+  //   refreshGlossary()
+  // }, [refreshGlossary])
 
   // Automatyczne zapisywanie metadanych projektu - USUNIĘTE aby uniknąć nieskończonej pętli
   // Metadane będą zapisywane explicite przy akcjach użytkownika
@@ -1225,6 +1227,7 @@ export default function Home() {
     setDetectedLanguage(project.detectedLanguage)
     setLoadedText('')
     setLoadedFileName('')
+    setTimeout(() => refreshGlossary(), 0)
   }
 
   // Nowy projekt
@@ -1493,6 +1496,7 @@ export default function Home() {
                     })
                     setCurrentProject(newProject)
                     setProjectName(newProject.name)
+                    setTimeout(() => refreshGlossary(), 0)
                   }
                 }}
                 className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
