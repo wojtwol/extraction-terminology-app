@@ -221,15 +221,14 @@ export default function Home() {
   }
 
   // Odśwież aktualny glosariusz i wersję
-  // USUNIĘTO useCallback - powodował stale closure z nieaktualnym currentProject
-  const refreshGlossary = () => {
+  // Przyjmuje projekt jako parametr, aby uniknąć stale closure
+  const refreshGlossary = (project: Project | null) => {
     console.log('🔄 refreshGlossary called', {
-      currentProjectId: currentProject?.id,
-      currentGlossaryId: currentGlossary?.id,
-      currentVersionId: currentVersion?.id
+      projectId: project?.id,
+      projectCurrentGlossaryId: project?.currentGlossaryId
     })
 
-    if (!currentProject || !currentProject.currentGlossaryId) {
+    if (!project || !project.currentGlossaryId) {
       // Tylko jeśli aktualnie są ustawione, wyzeruj je
       if (currentGlossary !== null || currentVersion !== null) {
         console.log('🔄 Clearing glossary and version')
@@ -239,7 +238,7 @@ export default function Home() {
       return
     }
 
-    const glossary = projectStorage.getCurrentGlossary(currentProject.id)
+    const glossary = projectStorage.getCurrentGlossary(project.id)
     // Ustaw tylko jeśli ID się zmieniło (unikamy niepotrzebnych re-renderów)
     if (glossary?.id !== currentGlossary?.id) {
       console.log('🔄 Setting new glossary', glossary?.id)
@@ -247,7 +246,7 @@ export default function Home() {
     }
 
     if (glossary) {
-      const version = projectStorage.getCurrentVersion(currentProject.id, glossary.id)
+      const version = projectStorage.getCurrentVersion(project.id, glossary.id)
       // Ustaw tylko jeśli ID się zmieniło
       if (version?.id !== currentVersion?.id) {
         console.log('🔄 Setting new version', version?.id)
@@ -1204,12 +1203,15 @@ export default function Home() {
     }
   }
 
-  // USUNIĘTE automatyczne odświeżanie - powodowało nieskończoną pętlę
-  // przez nowe obiekty z JSON.parse w projectStorage.getById()
-  // refreshGlossary będzie wywoływane ręcznie tylko tam gdzie potrzebne
-  // useEffect(() => {
-  //   refreshGlossary()
-  // }, [refreshGlossary])
+  // Automatyczne odświeżanie glosariusza przy zmianie projektu
+  // Używamy primitive dependencies (id i currentGlossaryId) aby uniknąć nieskończonej pętli
+  useEffect(() => {
+    console.log('🔄 useEffect: currentProject changed, refreshing glossary', {
+      projectId: currentProject?.id,
+      currentGlossaryId: currentProject?.currentGlossaryId
+    })
+    refreshGlossary(currentProject)
+  }, [currentProject?.id, currentProject?.currentGlossaryId])
 
   // Automatyczne zapisywanie metadanych projektu - USUNIĘTE aby uniknąć nieskończonej pętli
   // Metadane będą zapisywane explicite przy akcjach użytkownika
@@ -1250,7 +1252,7 @@ export default function Home() {
     setDetectedLanguage(project.detectedLanguage)
     setLoadedText('')
     setLoadedFileName('')
-    setTimeout(() => refreshGlossary(), 0)
+    // refreshGlossary będzie wywołane automatycznie przez useEffect
   }
 
   // Nowy projekt
@@ -1519,7 +1521,7 @@ export default function Home() {
                     })
                     setCurrentProject(newProject)
                     setProjectName(newProject.name)
-                    setTimeout(() => refreshGlossary(), 0)
+                    // refreshGlossary będzie wywołane automatycznie przez useEffect
                   }
                 }}
                 className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
