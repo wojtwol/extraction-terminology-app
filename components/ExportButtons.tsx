@@ -1390,15 +1390,31 @@ export default function ExportButtons({
           className="w-full px-4 py-2.5 bg-white border-2 border-emerald-500 text-gray-700 rounded-lg hover:border-emerald-600 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 transition-all font-medium text-sm cursor-pointer disabled:bg-gray-200 disabled:border-gray-300 disabled:cursor-not-allowed disabled:text-gray-500"
         >
           <option value="">Wybierz format...</option>
-          <option value="xlsx">📊 Excel (XLSX)</option>
-          <option value="pdf">📄 PDF</option>
-          <option value="csv">📊 CSV</option>
-          <option value="html">🌐 HTML</option>
+          <option value="xlsx">📊 Excel (XLSX){isBilingual ? ` - ${is2Column ? '2 kolumny' : '4 kolumny'}` : ''}</option>
+          <option value="pdf">📄 PDF{isBilingual ? ` - ${is2Column ? '2 kolumny' : '4 kolumny'}` : ''}</option>
+          <option value="csv">📊 CSV{isBilingual ? ` - ${is2Column ? '2 kolumny' : '4 kolumny'}` : ''}</option>
+          <option value="html">🌐 HTML{isBilingual ? ` - ${is2Column ? '2 kolumny' : '4 kolumny'}` : ''}</option>
           <option value="json">💾 JSON</option>
         </select>
-        <p className="text-xs text-gray-500 mt-2">
-          <strong>XLSX, PDF i HTML</strong> zawierają definicje
-        </p>
+        {isBilingual ? (
+          <p className="text-xs text-gray-500 mt-2">
+            {is2Column ? (
+              <>
+                <strong>Widok 2-kolumnowy:</strong> Termin źródłowy | Termin docelowy
+              </>
+            ) : (
+              <>
+                <strong>Widok 4-kolumnowy:</strong> Termin źródłowy | Kontekst źródłowy | Termin docelowy | Kontekst docelowy
+                <br />
+                <span className="text-red-600">Terminy w kontekście wyróżnione czerwonym kolorem</span>
+              </>
+            )}
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500 mt-2">
+            <strong>XLSX, PDF i HTML</strong> zawierają definicje
+          </p>
+        )}
       </div>
     </div>
   )

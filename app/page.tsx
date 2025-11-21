@@ -240,6 +240,9 @@ export default function Home() {
     if (!currentProject || !currentProject.currentGlossaryId) {
       setCurrentGlossary(null)
       setCurrentVersion(null)
+      setGlossaryMode(null)
+      setTargetDocumentText('')
+      setSelectedColumnView('4')
       return
     }
 
@@ -249,8 +252,22 @@ export default function Home() {
     if (glossary) {
       const version = projectStorage.getCurrentVersion(currentProject.id, glossary.id)
       setCurrentVersion(version)
+
+      // Ustaw tryb glosariusza (dwujęzyczny lub jednojęzyczny)
+      if (glossary.isBilingual) {
+        setGlossaryMode('bilingual')
+        setTargetDocumentText(glossary.targetDocumentText || '')
+        setSelectedColumnView(glossary.columnView || '4')
+      } else {
+        setGlossaryMode('monolingual')
+        setTargetDocumentText('')
+        setSelectedColumnView('4')
+      }
     } else {
       setCurrentVersion(null)
+      setGlossaryMode(null)
+      setTargetDocumentText('')
+      setSelectedColumnView('4')
     }
   }
 
