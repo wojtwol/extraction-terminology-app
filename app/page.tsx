@@ -64,12 +64,12 @@ function findTermOccurrences(text: string, term: string): { positions: number[],
     startIndex = index + term.length
   }
 
-  // Wyciągnij kontekst z pierwszego wystąpienia (150-200 znaków, uwzględnij tekst przed i po)
+  // Wyciągnij kontekst z pierwszego wystąpienia (225-300 znaków, zwiększone o 50%, uwzględnij tekst przed i po)
   let context = ''
   if (positions.length > 0) {
     const firstPos = positions[0]
-    const contextStart = Math.max(0, firstPos - 75) // ~75 znaków przed
-    const contextEnd = Math.min(text.length, firstPos + term.length + 125) // ~125 znaków po
+    const contextStart = Math.max(0, firstPos - 113) // ~113 znaków przed (zwiększone o 50% z 75)
+    const contextEnd = Math.min(text.length, firstPos + term.length + 188) // ~188 znaków po (zwiększone o 50% z 125)
     context = text.substring(contextStart, contextEnd).trim()
 
     // Dodaj wielokropek jeśli kontekst został obcięty
@@ -2076,6 +2076,9 @@ export default function Home() {
                     fileName={fileName}
                     documentText={documentText}
                     onImportTerms={handleImportTerms}
+                    glossaryMode={glossaryMode}
+                    selectedColumnView={selectedColumnView}
+                    targetDocumentText={targetDocumentText}
                   />
                 </div>
               </div>
