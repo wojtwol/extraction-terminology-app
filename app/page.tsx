@@ -728,9 +728,31 @@ export default function Home() {
       console.log('📡 API Response ok:', response.ok)
 
       if (!response.ok) {
-        const error = await response.json()
-        console.error('❌ API Error response:', error)
-        throw new Error(error.error || 'Błąd dopasowywania terminów')
+        // Obsługa błędu 504 (Gateway Timeout)
+        if (response.status === 504) {
+          throw new Error(
+            language === 'pl'
+              ? 'Timeout: Dokument jest zbyt duży. Spróbuj z mniejszą liczbą terminów lub krótszym dokumentem.'
+              : 'Timeout: Document is too large. Try with fewer terms or a shorter document.'
+          )
+        }
+
+        // Sprawdź czy odpowiedź to JSON przed parsowaniem
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json()
+          console.error('❌ API Error response:', error)
+          throw new Error(error.error || 'Błąd dopasowywania terminów')
+        } else {
+          // Odpowiedź nie jest JSON (np. HTML z błędem serwera)
+          const errorText = await response.text()
+          console.error('❌ Non-JSON error response:', errorText.substring(0, 200))
+          throw new Error(
+            language === 'pl'
+              ? `Błąd serwera (${response.status}): ${response.statusText}`
+              : `Server error (${response.status}): ${response.statusText}`
+          )
+        }
       }
 
       const fullResponse = await response.json()

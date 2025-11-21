@@ -161,14 +161,24 @@ export async function POST(request: NextRequest) {
 
       console.log(`   Source position: ${sourcePositionPercent.toFixed(1)}%`)
 
-      // 2. Wyciągnij okno z dokumentu docelowego (±20% od pozycji)
+      // 2. Wyciągnij okno z dokumentu docelowego (adaptywny rozmiar)
+      // Dla bardzo długich dokumentów użyj mniejszego okna % aby nie przekroczyć limitu znaków
+      let windowSizePercent = 20  // domyślnie ±20%
+      const maxWindowChars = 30000  // Maksymalnie 30k znaków w oknie
+
+      // Jeśli 40% dokumentu > 30k znaków, zmniejsz procent okna
+      const estimatedWindowChars = (40 / 100) * targetText.length
+      if (estimatedWindowChars > maxWindowChars) {
+        windowSizePercent = (maxWindowChars / targetText.length) * 100 / 2  // /2 bo ±
+      }
+
       const targetWindow = extractWindowAroundPosition(
         targetText,
         sourcePositionPercent,
-        20  // ±20%
+        windowSizePercent
       )
 
-      console.log(`   Target window: ${targetWindow.startPercent.toFixed(1)}% - ${targetWindow.endPercent.toFixed(1)}%`)
+      console.log(`   Target window: ${targetWindow.startPercent.toFixed(1)}% - ${targetWindow.endPercent.toFixed(1)}% (~${targetWindow.text.length} chars)`)
 
       // 3. Użyj AI do znalezienia ekwiwalentu
       try {
