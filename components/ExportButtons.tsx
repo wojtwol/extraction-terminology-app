@@ -1314,6 +1314,7 @@ export default function ExportButtons({
 
         // Znajdź wiersz nagłówka (zazwyczaj wiersz 8, ale szukamy po słowie "Termin")
         let headerRowIndex = -1
+        let nrColIndex = -1
         let termColIndex = -1
         let occurrencesColIndex = -1
         let documentColIndex = -1
@@ -1321,29 +1322,61 @@ export default function ExportButtons({
         let sourceColIndex = -1
         let contextColIndex = -1
 
+        console.log('🔍 XLSX Import Debug (ExportButtons) - Pierwsze 10 wierszy:')
+        jsonData.slice(0, 10).forEach((row, idx) => {
+          console.log(`  Wiersz ${idx}:`, row)
+        })
+
         for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
           const row = jsonData[i]
-          termColIndex = row.findIndex((cell: any) =>
-            typeof cell === 'string' && cell.toLowerCase().includes('termin')
-          )
+
+          // Szukaj kolumny "Termin" - musi być DOKŁADNE dopasowanie lub na początku (nie "Liczba terminów")
+          termColIndex = row.findIndex((cell: any) => {
+            if (typeof cell !== 'string') return false
+            const cellLower = cell.toLowerCase().trim()
+            // Dokładne dopasowanie: "termin", "term" lub zaczynające się od tych słów
+            return cellLower === 'termin' ||
+                   cellLower === 'term' ||
+                   cellLower.startsWith('termin ') ||
+                   cellLower.startsWith('term ')
+          })
 
           if (termColIndex !== -1) {
             headerRowIndex = i
+
+            // Znajdź kolumnę Nr (musi być PRZED kolumną Termin)
+            nrColIndex = row.findIndex((cell: any, idx: number) => {
+              if (idx >= termColIndex) return false // Nr musi być przed Terminem
+              if (typeof cell !== 'string') return false
+              const cellLower = cell.toLowerCase().trim()
+              return cellLower === 'nr' || cellLower === 'no.' || cellLower === 'no' || cellLower === 'nr.'
+            })
+
             occurrencesColIndex = row.findIndex((cell: any) =>
-              typeof cell === 'string' && cell.toLowerCase().includes('wystąpień')
+              typeof cell === 'string' && (cell.toLowerCase().includes('wystąpień') || cell.toLowerCase().includes('occurrence'))
             )
             documentColIndex = row.findIndex((cell: any) =>
               typeof cell === 'string' && cell.toLowerCase().includes('dokument')
             )
             definitionColIndex = row.findIndex((cell: any) =>
-              typeof cell === 'string' && cell.toLowerCase().includes('definicja')
+              typeof cell === 'string' && (cell.toLowerCase().includes('definicja') || cell.toLowerCase().includes('definition'))
             )
             sourceColIndex = row.findIndex((cell: any) =>
               typeof cell === 'string' && cell.toLowerCase().includes('źródło')
             )
             contextColIndex = row.findIndex((cell: any) =>
-              typeof cell === 'string' && cell.toLowerCase().includes('kontekst')
+              typeof cell === 'string' && (cell.toLowerCase().includes('kontekst') || cell.toLowerCase().includes('context'))
             )
+
+            console.log('✅ XLSX Import (ExportButtons) - Wykryte kolumny:')
+            console.log(`  headerRowIndex: ${headerRowIndex}`)
+            console.log(`  nrColIndex: ${nrColIndex}`)
+            console.log(`  termColIndex: ${termColIndex}`)
+            console.log(`  occurrencesColIndex: ${occurrencesColIndex}`)
+            console.log(`  documentColIndex: ${documentColIndex}`)
+            console.log(`  contextColIndex: ${contextColIndex}`)
+            console.log(`  Nagłówek:`, row)
+
             break
           }
         }
@@ -1353,13 +1386,51 @@ export default function ExportButtons({
           return
         }
 
-        // Parsuj wiersze danych
+        // Parsuj wiersze danych z obsługą multi-context
         const importedTerms: Term[] = []
+        let lastTerm: Term | null = null
+
+        console.log(`📊 Parsowanie ${jsonData.length - headerRowIndex - 1} wierszy danych...`)
+
         for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
           const row = jsonData[i]
-          const termValue = row[termColIndex]
+          let termValue = row[termColIndex]
 
-          if (termValue && typeof termValue === 'string' && termValue.trim() !== '') {
+          // Konwertuj wartość na string jeśli to liczba
+          if (typeof termValue === 'number') {
+            termValue = termValue.toString()
+          }
+
+          // Debug pierwszych 3 wierszy danych
+          if (i <= headerRowIndex + 3) {
+            console.log(`  Wiersz ${i} (data ${i - headerRowIndex}):`, {
+              termValue,
+              termColIndex,
+              occurrences: occurrencesColIndex !== -1 ? row[occurrencesColIndex] : 'brak',
+              document: documentColIndex !== -1 ? row[documentColIndex] : 'brak',
+              fullRow: row
+            })
+          }
+
+          // Jeśli komórka terminu jest pusta lub zawiera tylko whitespace, to jest to kolejny kontekst dla poprzedniego terminu
+          const isEmptyTermCell = !termValue || (typeof termValue === 'string' && termValue.trim() === '')
+
+          if (isEmptyTermCell && lastTerm) {
+            // To jest kolejny kontekst dla poprzedniego terminu (format multi-context)
+            const newContext = {
+              documentId: documentColIndex !== -1 ? (row[documentColIndex] || file.name) : file.name,
+              documentName: documentColIndex !== -1 ? (row[documentColIndex] || file.name) : file.name,
+              context: contextColIndex !== -1 ? (row[contextColIndex] || '') : '',
+              positions: [] as number[],
+              occurrences: occurrencesColIndex !== -1 ? parseInt(row[occurrencesColIndex]) || 0 : 0
+            }
+
+            if (!lastTerm.contexts) {
+              lastTerm.contexts = []
+            }
+            lastTerm.contexts.push(newContext)
+          } else if (termValue && typeof termValue === 'string' && termValue.trim() !== '') {
+            // Nowy termin
             const term: Term = {
               id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               term: termValue.trim(),
@@ -1383,7 +1454,17 @@ export default function ExportButtons({
               }
             }
 
+            // Stwórz pierwszy kontekst dla terminu
+            term.contexts = [{
+              documentId: term.sourceDocument || file.name,
+              documentName: term.sourceDocument || file.name,
+              context: term.context,
+              positions: term.positions,
+              occurrences: term.occurrences
+            }]
+
             importedTerms.push(term)
+            lastTerm = term
           }
         }
 
@@ -1397,7 +1478,7 @@ export default function ExportButtons({
           onImportTerms(importedTerms, file.name)
         }
 
-        console.log(`✅ Zaimportowano ${importedTerms.length} terminów z XLSX`)
+        console.log(`✅ Zaimportowano ${importedTerms.length} terminów z XLSX (ExportButtons)`)
       } catch (error) {
         console.error('Błąd importu XLSX:', error)
         alert('Błąd podczas importu pliku XLSX. Sprawdź czy plik jest poprawny.')
