@@ -398,10 +398,10 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
               {pastedText.length > 0 && pastedText.length < 50 && (
                 <span className="text-orange-600 ml-2">({t.minCharacters})</span>
               )}
-              {pastedText.length > 200000 && (
+              {pastedText.length > 800000 && (
                 <span className="text-red-600 ml-2 font-semibold">({t.limitExceeded})</span>
               )}
-              {pastedText.length > 100000 && pastedText.length <= 200000 && (
+              {pastedText.length > 400000 && pastedText.length <= 800000 && (
                 <span className="text-orange-600 ml-2">({t.largeDocumentWarning})</span>
               )}
             </span>
@@ -412,7 +412,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
 
           <button
             onClick={handleTextSubmit}
-            disabled={isLoading || !pastedText.trim() || pastedText.length < 50 || pastedText.length > 200000}
+            disabled={isLoading || !pastedText.trim() || pastedText.length < 50 || pastedText.length > 800000}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {isLoading ? t.analyzing : t.analyzeText}

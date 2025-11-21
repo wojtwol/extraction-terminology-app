@@ -59,11 +59,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Limit tekstu - 200,000 znaków (ok. 100 stron)
-    // Uwaga: dla dokumentów >100 stron zalecane jest podzielenie na mniejsze fragmenty
-    if (text.length > 200000) {
+    // Limit tekstu - 800,000 znaków (ok. 300 stron)
+    // Uwaga: dla dokumentów >300 stron zalecane jest podzielenie na mniejsze fragmenty
+    if (text.length > 800000) {
       return NextResponse.json(
-        { terms: [], error: `Dokument jest zbyt długi (${text.length.toLocaleString()} znaków). Maksymalna długość: 200,000 znaków (ok. 100 stron). Podziel dokument na mniejsze fragmenty.` },
+        { terms: [], error: `Dokument jest zbyt długi (${text.length.toLocaleString()} znaków). Maksymalna długość: 800,000 znaków (ok. 300 stron). Podziel dokument na mniejsze fragmenty.` },
         { status: 400 }
       )
     }

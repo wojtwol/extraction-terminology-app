@@ -41,7 +41,7 @@ WAŻNE: Szukaj TYLKO następujących typów definicji:
 NIE wymyślaj definicji na podstawie kontekstu. Jeśli nie ma JAWNEJ definicji, odpowiedz "BRAK".
 
 Dokument:
-${documentText.slice(0, 200000)}
+${documentText.slice(0, 800000)}
 
 Zwróć TYLKO JSON:
 {

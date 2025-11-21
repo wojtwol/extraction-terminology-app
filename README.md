@@ -44,9 +44,9 @@ ANTHROPIC_MODEL=claude-opus-4-20250514
 
 ### Limity dokumentów
 
-- **Maksymalna długość tekstu:** 200,000 znaków (~100 stron A4)
-- **URL fetch:** do 1,000,000 znaków
-- **Zalecane:** dla dokumentów >100 stron użyj Vercel Pro plan (maxDuration: 300s)
+- **Maksymalna długość tekstu:** 800,000 znaków (~300 stron A4)
+- **URL fetch:** do 800,000 znaków
+- **Zalecane:** dla dokumentów >300 stron użyj Vercel Pro plan (maxDuration: 300s)
 
 ## Instalacja i uruchomienie lokalnie
 
