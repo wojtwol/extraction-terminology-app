@@ -1673,6 +1673,64 @@ export default function Home() {
     }
   }
 
+  // Aktualizacja nazwy dokumentu źródłowego dla wszystkich terminów z tym dokumentem
+  const handleDocumentNameUpdate = (oldDocumentName: string, newDocumentName: string) => {
+    if (!currentProject || !currentGlossary || !newDocumentName.trim()) return
+
+    const updatedTerms = terms.map(term => {
+      // Aktualizuj nazwę dokumentu w contexts
+      if (term.contexts && term.contexts.length > 0) {
+        const updatedContexts = term.contexts.map(ctx => {
+          if (ctx.documentName === oldDocumentName) {
+            return {
+              ...ctx,
+              documentName: newDocumentName
+            }
+          }
+          return ctx
+        })
+
+        return {
+          ...term,
+          contexts: updatedContexts,
+          // Aktualizuj też sourceDocument jeśli pasuje
+          sourceDocument: term.sourceDocument === oldDocumentName ? newDocumentName : term.sourceDocument
+        }
+      } else {
+        // Stary format - aktualizuj sourceDocument
+        if (term.sourceDocument === oldDocumentName) {
+          return {
+            ...term,
+            sourceDocument: newDocumentName
+          }
+        }
+      }
+
+      return term
+    })
+
+    // Zapisz jako nową wersję
+    projectStorage.addVersion(
+      currentProject.id,
+      currentGlossary.id,
+      updatedTerms,
+      language === 'pl'
+        ? `Zmieniono nazwę dokumentu: "${oldDocumentName}" → "${newDocumentName}"`
+        : `Document name changed: "${oldDocumentName}" → "${newDocumentName}"`,
+      undefined,
+      false
+    )
+
+    // Odśwież projekt i glosariusz
+    const updatedProject = projectStorage.getById(currentProject.id)
+    if (updatedProject) {
+      setCurrentProject(updatedProject)
+    }
+    refreshGlossary()
+
+    console.log(`✅ Zmieniono nazwę dokumentu: "${oldDocumentName}" → "${newDocumentName}"`)
+  }
+
   // Obsługa ręcznego dodawania terminu
   const handleManualAddTerm = (termText: string) => {
     if (!termText || !documentText || !currentProject || !currentGlossary) {
@@ -2701,6 +2759,7 @@ export default function Home() {
             <TerminologyTable
               terms={terms}
               onUpdate={handleTermUpdate}
+              onDocumentNameUpdate={handleDocumentNameUpdate}
               documentText={documentText}
               apiKey={apiKey}
               onTermSelect={setSelectedTerm}

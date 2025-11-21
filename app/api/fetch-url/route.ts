@@ -3,6 +3,83 @@ import { NextRequest, NextResponse } from 'next/server'
 export const maxDuration = 30
 export const runtime = 'nodejs'
 
+// Funkcja do formatowania tytułów z EUR-Lex w przyjazny sposób
+function formatEurLexTitle(title: string): string | null {
+  // Wzorce do wykrywania typów dokumentów i numerów
+  const patterns = [
+    // Rozporządzenie / Regulation
+    {
+      regex: /(?:Rozporządzenie|ROZPORZĄDZENIE).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?|No\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Rozporządzenie nr',
+      english: 'Regulation No'
+    },
+    {
+      regex: /(?:Regulation|REGULATION).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Rozporządzenie nr',
+      english: 'Regulation No'
+    },
+    // Dyrektywa / Directive
+    {
+      regex: /(?:Dyrektywa|DYREKTYWA).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Dyrektywa nr',
+      english: 'Directive No'
+    },
+    {
+      regex: /(?:Directive|DIRECTIVE).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Dyrektywa nr',
+      english: 'Directive No'
+    },
+    // Decyzja / Decision
+    {
+      regex: /(?:Decyzja|DECYZJA).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Decyzja nr',
+      english: 'Decision No'
+    },
+    {
+      regex: /(?:Decision|DECISION).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Decyzja nr',
+      english: 'Decision No'
+    },
+    // Zalecenie / Recommendation
+    {
+      regex: /(?:Zalecenie|ZALECENIE).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Zalecenie nr',
+      english: 'Recommendation No'
+    },
+    {
+      regex: /(?:Recommendation|RECOMMENDATION).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Zalecenie nr',
+      english: 'Recommendation No'
+    },
+    // Opinia / Opinion
+    {
+      regex: /(?:Opinia|OPINIA).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Opinia nr',
+      english: 'Opinion No'
+    },
+    {
+      regex: /(?:Opinion|OPINION).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
+      polish: 'Opinia nr',
+      english: 'Opinion No'
+    }
+  ]
+
+  // Sprawdź język tytułu
+  const isPolish = /(?:Rozporządzenie|Dyrektywa|Decyzja|Zalecenie|Opinia)/i.test(title)
+
+  // Spróbuj dopasować jeden z wzorców
+  for (const pattern of patterns) {
+    const match = title.match(pattern.regex)
+    if (match && match[1]) {
+      const number = match[1]
+      return isPolish ? `${pattern.polish} ${number}` : `${pattern.english} ${number}`
+    }
+  }
+
+  // Jeśli nie znaleziono dopasowania, zwróć null
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -133,6 +210,15 @@ export async function POST(request: NextRequest) {
       if (extractedTitle && extractedTitle.length > 0 && extractedTitle.length < 500) {
         documentTitle = extractedTitle
         console.log(`📋 Wyekstrahowano tytuł: "${documentTitle}"`)
+
+        // Formatowanie tytułów EUR-Lex w przyjazny sposób
+        if (validUrl.hostname.includes('eur-lex.europa.eu')) {
+          const formattedTitle = formatEurLexTitle(documentTitle)
+          if (formattedTitle) {
+            documentTitle = formattedTitle
+            console.log(`✨ Sformatowano tytuł EUR-Lex: "${documentTitle}"`)
+          }
+        }
       } else {
         console.log(`⚠️  Tytuł jest zbyt długi lub pusty, używam hostname`)
       }

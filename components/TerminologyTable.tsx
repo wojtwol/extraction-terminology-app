@@ -8,6 +8,7 @@ import { SourceDocument, getColorClasses } from '@/utils/projectStorage'
 interface TerminologyTableProps {
   terms: Term[]
   onUpdate: (terms: Term[]) => void
+  onDocumentNameUpdate?: (oldName: string, newName: string) => void
   documentText: string
   apiKey: string
   onTermSelect?: (term: Term) => void
@@ -26,6 +27,7 @@ interface TerminologyTableProps {
 export default function TerminologyTable({
   terms,
   onUpdate,
+  onDocumentNameUpdate,
   documentText,
   apiKey,
   onTermSelect,
@@ -50,6 +52,7 @@ export default function TerminologyTable({
   const [editingDefinition, setEditingDefinition] = useState<{id: string, value: string} | null>(null)
   const [editingTargetTerm, setEditingTargetTerm] = useState<{id: string, value: string} | null>(null)
   const [editingSourceTerm, setEditingSourceTerm] = useState<{id: string, value: string} | null>(null)
+  const [editingDocumentName, setEditingDocumentName] = useState<{oldName: string, newName: string} | null>(null)
 
   // Funkcja pomocnicza do znalezienia dokumentu dla terminu
   const getDocumentForTerm = (term: Term): SourceDocument | null => {
@@ -380,6 +383,18 @@ export default function TerminologyTable({
       )
     )
     setEditingSourceTerm(null)
+  }
+
+  const handleSaveDocumentName = () => {
+    if (!editingDocumentName || !onDocumentNameUpdate) return
+
+    const { oldName, newName } = editingDocumentName
+
+    if (newName.trim() && newName !== oldName) {
+      onDocumentNameUpdate(oldName, newName.trim())
+    }
+
+    setEditingDocumentName(null)
   }
 
   // Sprawdź czy są nowe terminy
@@ -739,28 +754,55 @@ export default function TerminologyTable({
 
                     {/* Dokument źródłowy */}
                     <td className="px-2 py-3 text-sm text-gray-600">
-                      {(() => {
-                        // Znajdź dokument dla kontekstu lub terminu
-                        const doc = documents?.find(d => d.fileName === displayDocumentName)
-
-                        if (doc && doc.color) {
-                          const colorClasses = getColorClasses(doc.color)
-                          return (
-                            <div
-                              className={`inline-block text-xs font-bold truncate max-w-full ${colorClasses.textClass}`}
-                              title={displayDocumentName}
-                            >
-                              {displayDocumentName}
-                            </div>
-                          )
-                        }
-
-                        return (
-                          <div className="text-xs text-gray-500 truncate" title={displayDocumentName}>
-                            {displayDocumentName}
-                          </div>
-                        )
-                      })()}
+                      {editingDocumentName && editingDocumentName.oldName === displayDocumentName ? (
+                        <div className="flex gap-1">
+                          <input
+                            type="text"
+                            value={editingDocumentName.newName}
+                            onChange={(e) => setEditingDocumentName({ ...editingDocumentName, newName: e.target.value })}
+                            className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveDocumentName()
+                              if (e.key === 'Escape') setEditingDocumentName(null)
+                            }}
+                          />
+                          <button
+                            onClick={handleSaveDocumentName}
+                            className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                            title={language === 'pl' ? 'Zapisz' : 'Save'}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => setEditingDocumentName(null)}
+                            className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                            title={language === 'pl' ? 'Anuluj' : 'Cancel'}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => onDocumentNameUpdate && setEditingDocumentName({ oldName: displayDocumentName, newName: displayDocumentName })}
+                          className={`inline-block text-xs truncate max-w-full ${
+                            onDocumentNameUpdate ? 'cursor-pointer hover:underline' : ''
+                          } ${(() => {
+                            const doc = documents?.find(d => d.fileName === displayDocumentName)
+                            if (doc && doc.color) {
+                              const colorClasses = getColorClasses(doc.color)
+                              return `${colorClasses.textClass} font-bold`
+                            }
+                            return 'text-gray-500'
+                          })()}`}
+                          title={onDocumentNameUpdate
+                            ? (language === 'pl' ? `Kliknij aby edytować: ${displayDocumentName}` : `Click to edit: ${displayDocumentName}`)
+                            : displayDocumentName
+                          }
+                        >
+                          {displayDocumentName}
+                        </div>
+                      )}
                     </td>
 
                     {/* Definicja */}
