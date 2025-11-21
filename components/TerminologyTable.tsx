@@ -664,6 +664,11 @@ export default function TerminologyTable({
               const displayContext = ctx ? ctx.context : term.context
               const displayDocumentName = ctx ? ctx.documentName : (term.sourceDocument || fileName || '-')
 
+              // Oblicz numer terminu (liczy tylko pierwsze wiersze terminów, nie wszystkie wiersze)
+              const termNumber = isFirstContext
+                ? expandedRows.slice(0, index).filter(r => r.contextIndex === 0).length + 1
+                : 0
+
               return (
               <tr
                 key={`${term.id}-${row.contextIndex}`}
@@ -675,7 +680,7 @@ export default function TerminologyTable({
                   !isFirstContext ? 'bg-gray-50' : '' // Lekko szare tło dla kolejnych wierszy tego samego terminu
                 }`}
               >
-                <td className="px-2 py-3 text-sm text-gray-600">{isFirstContext ? index + 1 : ''}</td>
+                <td className="px-2 py-3 text-sm text-gray-600">{termNumber > 0 ? termNumber : ''}</td>
 
                 {/* Termin - tylko w pierwszym wierszu */}
                 <td className={`px-3 py-3 ${term.term.split(' ').length >= 4 ? 'max-w-xs' : ''}`}>
@@ -742,7 +747,7 @@ export default function TerminologyTable({
                           const colorClasses = getColorClasses(doc.color)
                           return (
                             <div
-                              className={`inline-block px-2 py-1 rounded text-xs font-medium truncate max-w-full ${colorClasses.bgClass} ${colorClasses.textClass} border ${colorClasses.borderClass}`}
+                              className={`inline-block text-xs font-bold truncate max-w-full ${colorClasses.textClass}`}
                               title={displayDocumentName}
                             >
                               {displayDocumentName}

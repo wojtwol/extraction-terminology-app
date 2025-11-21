@@ -143,6 +143,7 @@ export default function Home() {
   const [currentGlossary, setCurrentGlossary] = useState<Glossary | null>(null)
   const [currentVersion, setCurrentVersion] = useState<GlossaryVersion | null>(null)
   const [refreshKey, setRefreshKey] = useState(0) // Wymuszenie odświeżenia
+  const [clearTrigger, setClearTrigger] = useState(0) // Trigger dla czyszczenia pól w komponentach FileUpload
 
   // Parametry ekstrakcji
   const [minTerms, setMinTerms] = useState(10)
@@ -173,6 +174,10 @@ export default function Home() {
   const [projectNameInput, setProjectNameInput] = useState('')
   const [projectType, setProjectType] = useState<'single' | 'multi'>('single')
   const [defaultProjectName, setDefaultProjectName] = useState('')
+
+  // Merge project glossaries dialog state
+  const [showMergeProjectDialog, setShowMergeProjectDialog] = useState(false)
+  const [selectedGlossariesForMerge, setSelectedGlossariesForMerge] = useState<string[]>([])
 
   // Skrót do terminów z aktualnej wersji
   const terms = currentVersion?.terms || []
@@ -1508,6 +1513,166 @@ export default function Home() {
     input.click()
   }
 
+  // Łączenie glosariuszy z tego samego projektu
+  const handleMergeProjectGlossaries = () => {
+    if (!currentProject || !currentGlossary) {
+      alert(language === 'pl'
+        ? 'Brak projektu. Utwórz projekt przed łączeniem glosariuszy.'
+        : 'No project. Create a project before merging glossaries.')
+      return
+    }
+
+    // Sprawdź czy są inne glosariusze w projekcie
+    const otherGlossaries = currentProject.glossaries.filter(g => g.id !== currentGlossary.id)
+    if (otherGlossaries.length === 0) {
+      alert(language === 'pl'
+        ? 'Brak innych glosariuszy w projekcie do połączenia.'
+        : 'No other glossaries in the project to merge.')
+      return
+    }
+
+    // Pokaż dialog wyboru glosariuszy
+    setShowMergeProjectDialog(true)
+  }
+
+  // Wykonaj łączenie wybranych glosariuszy z projektu
+  const handleExecuteMergeProjectGlossaries = () => {
+    if (!currentProject || !currentGlossary || selectedGlossariesForMerge.length === 0) {
+      alert(language === 'pl'
+        ? 'Wybierz co najmniej jeden glosariusz do połączenia.'
+        : 'Select at least one glossary to merge.')
+      return
+    }
+
+    try {
+      // Zbierz terminy z wybranych glosariuszy
+      const allImportedTerms: Term[] = []
+
+      selectedGlossariesForMerge.forEach(glossaryId => {
+        const glossary = currentProject.glossaries.find(g => g.id === glossaryId)
+        if (!glossary) return
+
+        // Pobierz terminy z aktualnej wersji tego glosariusza
+        const version = glossary.versions.find(v => v.id === glossary.currentVersionId)
+        if (!version) return
+
+        // Dodaj terminy z tego glosariusza
+        version.terms.forEach(term => {
+          allImportedTerms.push({
+            ...term,
+            sourceDocument: term.sourceDocument || glossary.name
+          })
+        })
+      })
+
+      // Merge z zachowaniem kontekstów z różnych dokumentów
+      const termsMap = new Map<string, Term>()
+
+      // Dodaj istniejące terminy
+      terms.forEach(term => {
+        if (!termsMap.has(term.term)) {
+          // Jeśli termin ma contexts[], użyj ich
+          if (term.contexts && term.contexts.length > 0) {
+            termsMap.set(term.term, { ...term })
+          } else {
+            // Konwertuj stary format (single context) do nowego (contexts[])
+            const termContext: TermContext = {
+              documentId: term.sourceDocument || 'unknown',
+              documentName: term.sourceDocument || fileName || 'Unknown',
+              context: term.context,
+              positions: term.positions,
+              occurrences: term.occurrences
+            }
+            termsMap.set(term.term, {
+              ...term,
+              contexts: [termContext]
+            })
+          }
+        }
+      })
+
+      let addedCount = 0
+      let mergedCount = 0
+
+      allImportedTerms.forEach(importedTerm => {
+        const existingTerm = termsMap.get(importedTerm.term)
+
+        if (existingTerm) {
+          // Termin już istnieje - dodaj nowy kontekst
+          const newContext: TermContext = {
+            documentId: importedTerm.sourceDocument || 'unknown',
+            documentName: importedTerm.sourceDocument || 'Unknown',
+            context: importedTerm.context,
+            positions: importedTerm.positions,
+            occurrences: importedTerm.occurrences
+          }
+
+          if (!existingTerm.contexts) {
+            existingTerm.contexts = []
+          }
+          existingTerm.contexts.push(newContext)
+          mergedCount++
+        } else {
+          // Nowy termin
+          const termContext: TermContext = {
+            documentId: importedTerm.sourceDocument || 'unknown',
+            documentName: importedTerm.sourceDocument || 'Unknown',
+            context: importedTerm.context,
+            positions: importedTerm.positions,
+            occurrences: importedTerm.occurrences
+          }
+          termsMap.set(importedTerm.term, {
+            ...importedTerm,
+            contexts: [termContext]
+          })
+          addedCount++
+        }
+      })
+
+      const mergedTerms = Array.from(termsMap.values())
+
+      // Zapisz jako nową wersję
+      const glossaryNames = selectedGlossariesForMerge.map(id => {
+        const g = currentProject.glossaries.find(gl => gl.id === id)
+        return g?.name || id
+      }).join(', ')
+
+      const description = language === 'pl'
+        ? `Połączono glosariusze z projektu (${glossaryNames}): +${addedCount} nowych terminów, ${mergedCount} kontekstów dodanych`
+        : `Merged project glossaries (${glossaryNames}): +${addedCount} new terms, ${mergedCount} contexts added`
+
+      projectStorage.addVersion(
+        currentProject.id,
+        currentGlossary.id,
+        mergedTerms,
+        description,
+        currentVersion?.extractionParams,
+        false
+      )
+
+      const updatedProject = projectStorage.getById(currentProject.id)
+      if (updatedProject) {
+        setCurrentProject(updatedProject)
+      }
+      refreshGlossary()
+
+      // Zamknij dialog i wyczyść wybór
+      setShowMergeProjectDialog(false)
+      setSelectedGlossariesForMerge([])
+
+      alert(language === 'pl'
+        ? `Połączono glosariusze z projektu!\n\nDodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów\n\nŁącznie terminów: ${mergedTerms.length}`
+        : `Merged project glossaries!\n\nAdded: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents\n\nTotal terms: ${mergedTerms.length}`)
+
+      console.log(`✅ ${description}`)
+    } catch (error) {
+      console.error('Błąd łączenia glosariuszy:', error)
+      alert(language === 'pl'
+        ? 'Błąd podczas łączenia glosariuszy z projektu.'
+        : 'Error merging project glossaries.')
+    }
+  }
+
   // Obsługa ręcznego dodawania terminu
   const handleManualAddTerm = (termText: string) => {
     if (!termText || !documentText || !currentProject || !currentGlossary) {
@@ -2095,6 +2260,7 @@ export default function Home() {
               onExtract={handleFileLoaded}
               isLoading={isLoading}
               savedApiKey={apiKey}
+              clearTrigger={clearTrigger}
             />
 
             {/* Akcje i Eksport pod FileUpload - zawsze widoczne */}
@@ -2119,6 +2285,8 @@ export default function Home() {
                         handleLocalSaveGlossary()
                       } else if (value === 'merge-glossaries') {
                         handleMergeMultipleGlossaries()
+                      } else if (value === 'merge-project-glossaries') {
+                        handleMergeProjectGlossaries()
                       } else if (value === 'expand-auto') {
                         handleExpandGlossary()
                       } else if (value === 'create-bilingual') {
@@ -2165,7 +2333,14 @@ export default function Home() {
                     </option>
 
                     <option value="merge-glossaries">
-                      🔗 {language === 'pl' ? 'Połącz glosariusze (do 3)' : 'Merge glossaries (up to 3)'}
+                      🔗 {language === 'pl' ? 'Połącz glosariusze (pliki)' : 'Merge glossaries (files)'}
+                    </option>
+
+                    <option
+                      value="merge-project-glossaries"
+                      disabled={!currentProject || currentProject.glossaries.length <= 1}
+                    >
+                      🔗 {language === 'pl' ? 'Połącz glosariusze (projekt)' : 'Merge glossaries (project)'}
                     </option>
 
                     <option value="expand-auto" disabled={!documentText || isLoading || currentGlossary?.isBilingual}>
@@ -2459,6 +2634,7 @@ export default function Home() {
                   setDocumentText('')
                   setFileName('')
                   setDetectedLanguage('')
+                  setClearTrigger(prev => prev + 1) // Wyczyść pola URL w FileUpload/BilingualFileUpload
                   console.log('🧹 Wyczyszczono dokument dla nowego glosariusza')
                 }}
               />
@@ -3052,6 +3228,101 @@ export default function Home() {
               >
                 ×
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog łączenia glosariuszy z projektu */}
+      {showMergeProjectDialog && currentProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                🔗 {language === 'pl' ? 'Połącz glosariusze z projektu' : 'Merge Project Glossaries'}
+              </h2>
+              <p className="text-sm mt-2 text-blue-100">
+                {language === 'pl'
+                  ? 'Wybierz glosariusze, które chcesz połączyć z aktualnym glosariuszem'
+                  : 'Select glossaries to merge with the current glossary'}
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>{language === 'pl' ? 'Aktualny glosariusz:' : 'Current glossary:'}</strong> {currentGlossary?.name}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  {language === 'pl'
+                    ? 'Wybrane glosariusze zostaną połączone z tym glosariuszem'
+                    : 'Selected glossaries will be merged into this glossary'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="font-semibold text-gray-800 mb-3">
+                  {language === 'pl' ? 'Dostępne glosariusze:' : 'Available glossaries:'}
+                </h3>
+                {currentProject.glossaries
+                  .filter(g => g.id !== currentGlossary?.id)
+                  .map(glossary => {
+                    const version = glossary.versions.find(v => v.id === glossary.currentVersionId)
+                    const termCount = version?.terms.length || 0
+                    const isSelected = selectedGlossariesForMerge.includes(glossary.id)
+
+                    return (
+                      <label
+                        key={glossary.id}
+                        className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedGlossariesForMerge([...selectedGlossariesForMerge, glossary.id])
+                            } else {
+                              setSelectedGlossariesForMerge(
+                                selectedGlossariesForMerge.filter(id => id !== glossary.id)
+                              )
+                            }
+                          }}
+                          className="w-5 h-5"
+                        />
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800">{glossary.name}</p>
+                          <p className="text-sm text-gray-600">
+                            {termCount} {termCount === 1 ? (language === 'pl' ? 'termin' : 'term') : (language === 'pl' ? 'terminów' : 'terms')}
+                          </p>
+                        </div>
+                      </label>
+                    )
+                  })}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowMergeProjectDialog(false)
+                    setSelectedGlossariesForMerge([])
+                  }}
+                  className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+                >
+                  {language === 'pl' ? 'Anuluj' : 'Cancel'}
+                </button>
+                <button
+                  onClick={handleExecuteMergeProjectGlossaries}
+                  disabled={selectedGlossariesForMerge.length === 0}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg"
+                >
+                  {language === 'pl' ? 'Połącz' : 'Merge'} ({selectedGlossariesForMerge.length})
+                </button>
+              </div>
             </div>
           </div>
         </div>

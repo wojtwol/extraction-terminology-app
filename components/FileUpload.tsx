@@ -9,9 +9,10 @@ interface FileUploadProps {
   onExtract: (text: string, filename: string, apiKey: string) => void | Promise<void>
   isLoading: boolean
   savedApiKey?: string
+  clearTrigger?: number  // Trigger do czyszczenia pól
 }
 
-export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUploadProps) {
+export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTrigger }: FileUploadProps) {
   const { language, t } = useLanguage()
   const [apiKey, setApiKey] = useState('')
   const [dragActive, setDragActive] = useState(false)
@@ -27,6 +28,15 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
       setApiKey(savedApiKey)
     }
   }, [savedApiKey])
+
+  // Wyczyść pola gdy clearTrigger się zmieni
+  useEffect(() => {
+    if (clearTrigger !== undefined && clearTrigger > 0) {
+      setUrlInput('')
+      setPastedText('')
+      console.log('🧹 FileUpload: Wyczyszczono pola URL i tekst')
+    }
+  }, [clearTrigger])
 
   const extractTextFromFile = async (file: File): Promise<string> => {
     const extension = file.name.split('.').pop()?.toLowerCase()

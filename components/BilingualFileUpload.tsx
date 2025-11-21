@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import mammoth from 'mammoth'
 import * as XLSX from 'xlsx'
@@ -9,11 +9,12 @@ interface BilingualFileUploadProps {
   onExtract: (sourceText: string, targetText: string, sourceLang: string, targetLang: string, sourceFileName: string, targetFileName: string) => void
   isLoading: boolean
   savedApiKey: string | null
+  clearTrigger?: number  // Trigger do czyszczenia pól
 }
 
 type InputMode = 'file' | 'text' | 'url'
 
-export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey }: BilingualFileUploadProps) {
+export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey, clearTrigger }: BilingualFileUploadProps) {
   const { language, t } = useLanguage()
 
   const [apiKey, setApiKey] = useState(savedApiKey || '')
@@ -39,6 +40,19 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
   const [loadingTargetUrl, setLoadingTargetUrl] = useState(false)
 
   const [sourceLanguage, setSourceLanguage] = useState<'source' | 'target'>('source')
+
+  // Wyczyść pola gdy clearTrigger się zmieni
+  useEffect(() => {
+    if (clearTrigger !== undefined && clearTrigger > 0) {
+      setSourceUrl('')
+      setTargetUrl('')
+      setSourceText('')
+      setTargetText('')
+      setSourceDocumentTitle('')
+      setTargetDocumentTitle('')
+      console.log('🧹 BilingualFileUpload: Wyczyszczono pola URL i tekst')
+    }
+  }, [clearTrigger])
 
   const translations = {
     pl: {

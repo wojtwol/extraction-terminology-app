@@ -40,6 +40,45 @@ export default function ExportButtons({
     return context.replace(regex, '<span style="color: #dc3545; font-weight: 600;">$1</span>')
   }
 
+  // Funkcja pomocnicza do rozwijania terminów z wieloma kontekstami na osobne wiersze (dla eksportów)
+  interface TermRow {
+    term: Term
+    isFirstRow: boolean
+    occurrences: number
+    documentName: string
+    context: string
+  }
+
+  const expandTermsForExport = (termsToExpand: Term[]): TermRow[] => {
+    const rows: TermRow[] = []
+
+    termsToExpand.forEach(term => {
+      if (term.contexts && term.contexts.length > 0) {
+        // Termin ma wiele kontekstów - utwórz wiersz dla każdego
+        term.contexts.forEach((ctx, idx) => {
+          rows.push({
+            term,
+            isFirstRow: idx === 0,
+            occurrences: ctx.occurrences,
+            documentName: ctx.documentName,
+            context: ctx.context
+          })
+        })
+      } else {
+        // Stary format lub brak contexts - jeden wiersz
+        rows.push({
+          term,
+          isFirstRow: true,
+          occurrences: term.occurrences,
+          documentName: term.sourceDocument || fileName || 'Document',
+          context: term.context || ''
+        })
+      }
+    })
+
+    return rows
+  }
+
   const exportToCSV = () => {
     let csvContent: string[][]
 
@@ -72,31 +111,32 @@ export default function ExportButtons({
         ]
       }
     } else {
-      // Eksport glosariusza jednojęzycznego (istniejący kod)
+      // Eksport glosariusza jednojęzycznego - obsługa multi-context
       const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+      const expandedRows = expandTermsForExport(terms)
 
       if (hasDefinitions) {
         csvContent = [
           ['Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
-          ...terms.map(term => [
-            term.term,
-            term.occurrences.toString(),
-            term.sourceDocument || fileName || 'Dokument',
-            term.definition || '',
-            term.definitionSource === 'document' ? 'Z dokumentu' :
-             term.definitionSource === 'edited' ? 'Edytowano' :
-             term.definitionSource === 'ai' ? 'AI' : '',
-            term.context || ''
+          ...expandedRows.map(row => [
+            row.isFirstRow ? row.term.term : '',  // Tylko w pierwszym wierszu pokazujemy termin
+            row.occurrences.toString(),
+            row.documentName,
+            row.isFirstRow ? (row.term.definition || '') : '',  // Definicja tylko w pierwszym wierszu
+            row.isFirstRow ? (row.term.definitionSource === 'document' ? 'Z dokumentu' :
+             row.term.definitionSource === 'edited' ? 'Edytowano' :
+             row.term.definitionSource === 'ai' ? 'AI' : '') : '',
+            row.context
           ])
         ]
       } else {
         csvContent = [
           ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
-          ...terms.map(term => [
-            term.term,
-            term.occurrences.toString(),
-            term.sourceDocument || fileName || 'Dokument',
-            term.context || ''
+          ...expandedRows.map(row => [
+            row.isFirstRow ? row.term.term : '',  // Tylko w pierwszym wierszu pokazujemy termin
+            row.occurrences.toString(),
+            row.documentName,
+            row.context
           ])
         ]
       }
@@ -480,41 +520,49 @@ export default function ExportButtons({
         </tr>
       </thead>
       <tbody>
-        ${terms.map((term, index) => `
-          <tr>
-            <td class="nr-col">${index + 1}</td>
-            <td class="term">${term.term}</td>
-            <td class="occurrences">${term.occurrences}</td>
+        ${(() => {
+          const expandedRows = expandTermsForExport(terms)
+          let termNumber = 0
+
+          return expandedRows.map(row => {
+            if (row.isFirstRow) termNumber++
+
+            return `
+          <tr${!row.isFirstRow ? ' style="background: #f8f9fa;"' : ''}>
+            <td class="nr-col">${row.isFirstRow ? termNumber : ''}</td>
+            <td class="term">${row.isFirstRow ? row.term.term : ''}</td>
+            <td class="occurrences">${row.occurrences}</td>
             <td style="font-size: 0.85em; color: #6c757d;">
-              ${term.sourceDocument || fileName || t.document}
+              ${row.documentName}
             </td>
             ${hasDefinitions ? `
             <td class="definition">
-              ${term.definition || '<span style="color: #adb5bd;">-</span>'}
+              ${row.isFirstRow ? (row.term.definition || '<span style="color: #adb5bd;">-</span>') : ''}
             </td>
             <td style="text-align: center;">
-              ${term.definition ? `
+              ${row.isFirstRow && row.term.definition ? `
                 <div class="source-badge ${
-                  term.definitionSource === 'document'
+                  row.term.definitionSource === 'document'
                     ? 'source-document'
-                    : term.definitionSource === 'edited'
+                    : row.term.definitionSource === 'edited'
                     ? 'source-edited'
                     : 'source-ai'
                 }">
                   ${
-                    term.definitionSource === 'document'
+                    row.term.definitionSource === 'document'
                       ? t.fromDoc
-                      : term.definitionSource === 'edited'
+                      : row.term.definitionSource === 'edited'
                       ? t.edited
                       : t.ai
                   }
                 </div>
-              ` : '<span style="color: #adb5bd;">-</span>'}
+              ` : (row.isFirstRow ? '<span style="color: #adb5bd;">-</span>' : '')}
             </td>
             ` : ''}
-            <td class="context">${term.context || '-'}</td>
+            <td class="context">${row.context || '-'}</td>
           </tr>
-        `).join('')}
+        `}).join('')
+        })()}
       </tbody>
     </table>
   </div>
@@ -668,32 +716,42 @@ export default function ExportButtons({
     // Przygotuj puste komórki dla scalania
     const emptyRow = Array(numCols).fill('')
 
-    // Przygotuj nagłówek i wiersze danych w zależności od hasDefinitions
+    // Przygotuj nagłówek i wiersze danych w zależności od hasDefinitions - obsługa multi-context
+    const expandedRows = expandTermsForExport(terms)
     let headerRow: string[]
     let dataRows: (string | number)[][]
+    let termNumber = 0
 
     if (hasDefinitions) {
       headerRow = [t.nr, t.term, t.occurrences, t.document, t.definition, t.defSource, t.context]
-      dataRows = terms.map((term, index) => [
-        (index + 1).toString(),
-        term.term,
-        term.occurrences.toString(),
-        term.sourceDocument || fileName || t.document,
-        term.definition || '',
-        term.definitionSource === 'document' ? t.fromDoc :
-         term.definitionSource === 'edited' ? t.edited :
-         term.definitionSource === 'ai' ? t.aiGenerated : '',
-        term.context || ''
-      ])
+      dataRows = expandedRows.map(row => {
+        if (row.isFirstRow) termNumber++  // Inkrementuj tylko dla pierwszego wiersza terminu
+
+        return [
+          row.isFirstRow ? termNumber.toString() : '',
+          row.isFirstRow ? row.term.term : '',
+          row.occurrences.toString(),
+          row.documentName,
+          row.isFirstRow ? (row.term.definition || '') : '',
+          row.isFirstRow ? (row.term.definitionSource === 'document' ? t.fromDoc :
+           row.term.definitionSource === 'edited' ? t.edited :
+           row.term.definitionSource === 'ai' ? t.aiGenerated : '') : '',
+          row.context
+        ]
+      })
     } else {
       headerRow = [t.nr, t.term, t.occurrences, t.document, t.context]
-      dataRows = terms.map((term, index) => [
-        (index + 1).toString(),
-        term.term,
-        term.occurrences.toString(),
-        term.sourceDocument || fileName || t.document,
-        term.context || ''
-      ])
+      dataRows = expandedRows.map(row => {
+        if (row.isFirstRow) termNumber++  // Inkrementuj tylko dla pierwszego wiersza terminu
+
+        return [
+          row.isFirstRow ? termNumber.toString() : '',
+          row.isFirstRow ? row.term.term : '',
+          row.occurrences.toString(),
+          row.documentName,
+          row.context
+        ]
+      })
     }
 
     const data = [
@@ -1035,31 +1093,37 @@ export default function ExportButtons({
     doc.text(`Date: ${dateStr}`, pageWidth / 2, 25)
     doc.text(`Terms: ${terms.length}`, pageWidth - margin - 20, 25)
 
-    // Sprawdź czy są definicje
+    // Sprawdź czy są definicje - obsługa multi-context
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+    const expandedRows = expandTermsForExport(terms)
 
     // Przygotuj dane dla tabeli
     let tableHead: string[][]
     let tableData: (string | number)[][]
     let colWidths: Record<number, number>
+    let termNumber = 0
 
     if (hasDefinitions) {
       // Z definicjami: Nr | Term | Occurrences | Source Document | Definition | Def Source | Context
       tableHead = [['No.', 'Term', 'Number of\noccurrences', 'Source\nDocument', 'Definition', 'Source of\ndefinition', 'Context']]
-      tableData = terms.map((term, index) => {
+      tableData = expandedRows.map(row => {
+        if (row.isFirstRow) termNumber++
+
         let defSource = '-'
-        if (term.definitionSource === 'document') defSource = 'Document'
-        else if (term.definitionSource === 'edited') defSource = 'Edited'
-        else if (term.definitionSource === 'ai') defSource = 'AI'
+        if (row.isFirstRow) {
+          if (row.term.definitionSource === 'document') defSource = 'Document'
+          else if (row.term.definitionSource === 'edited') defSource = 'Edited'
+          else if (row.term.definitionSource === 'ai') defSource = 'AI'
+        }
 
         return [
-          String(index + 1),
-          term.term || '',
-          String(term.occurrences),
-          term.sourceDocument || fileName,
-          term.definition || '-',
+          row.isFirstRow ? String(termNumber) : '',
+          row.isFirstRow ? (row.term.term || '') : '',
+          String(row.occurrences),
+          row.documentName,
+          row.isFirstRow ? (row.term.definition || '-') : '',
           defSource,
-          term.context || '-'
+          row.context || '-'
         ]
       })
       // Term: 42 * 1.15 = 48, Occurrences: 18 * 1.15 = 21, Context: 70 * 1.15 = 81
@@ -1067,13 +1131,17 @@ export default function ExportButtons({
     } else {
       // Bez definicji: Nr | Term | Occurrences | Source Document | Context
       tableHead = [['No.', 'Term', 'Number of\noccurrences', 'Source\nDocument', 'Context']]
-      tableData = terms.map((term, index) => [
-        String(index + 1),
-        term.term || '',
-        String(term.occurrences),
-        term.sourceDocument || fileName,
-        term.context || '-'
-      ])
+      tableData = expandedRows.map(row => {
+        if (row.isFirstRow) termNumber++
+
+        return [
+          row.isFirstRow ? String(termNumber) : '',
+          row.isFirstRow ? (row.term.term || '') : '',
+          String(row.occurrences),
+          row.documentName,
+          row.context || '-'
+        ]
+      })
       // Term: 45 * 1.15 = 52, Occurrences: 18 * 1.15 = 21, Context: 105 * 1.15 = 121
       colWidths = { 0: 10, 1: 52, 2: 21, 3: 30, 4: 121 }
     }
