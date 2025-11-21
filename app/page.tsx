@@ -2764,20 +2764,20 @@ export default function Home() {
                         } else if ((inputMode === 'url' || inputMode === 'text') && text) {
                           // URL/Text mode: use text directly
                           if (!text || text.trim().length === 0) {
-                            showNotification(
-                              language === 'pl' ? 'Błąd' : 'Error',
-                              language === 'pl' ? 'Dokument docelowy jest pusty' : 'Target document is empty',
-                              'error'
-                            )
+                            setNotification({
+                              type: 'error',
+                              message: language === 'pl' ? 'Błąd' : 'Error',
+                              details: language === 'pl' ? 'Dokument docelowy jest pusty' : 'Target document is empty'
+                            })
                             return
                           }
                           await processBilingualMatching(text)
                         } else {
-                          showNotification(
-                            language === 'pl' ? 'Błąd' : 'Error',
-                            language === 'pl' ? 'Nie załadowano dokumentu docelowego' : 'Target document not loaded',
-                            'error'
-                          )
+                          setNotification({
+                            type: 'error',
+                            message: language === 'pl' ? 'Błąd' : 'Error',
+                            details: language === 'pl' ? 'Nie załadowano dokumentu docelowego' : 'Target document not loaded'
+                          })
                         }
                       }}
                       className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
