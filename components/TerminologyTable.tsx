@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Term } from '@/app/page'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { SourceDocument, getColorClasses } from '@/utils/projectStorage'
 
 interface TerminologyTableProps {
   terms: Term[]
@@ -18,6 +19,8 @@ interface TerminologyTableProps {
   targetLanguage?: string
   columnView?: '2' | '4'
   targetDocumentText?: string
+  // Props dla multi-document mode
+  documents?: SourceDocument[]
 }
 
 export default function TerminologyTable({
@@ -32,7 +35,8 @@ export default function TerminologyTable({
   sourceLanguage,
   targetLanguage,
   columnView = '4',
-  targetDocumentText
+  targetDocumentText,
+  documents
 }: TerminologyTableProps) {
   const { t, language } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
@@ -46,6 +50,15 @@ export default function TerminologyTable({
   const [editingDefinition, setEditingDefinition] = useState<{id: string, value: string} | null>(null)
   const [editingTargetTerm, setEditingTargetTerm] = useState<{id: string, value: string} | null>(null)
   const [editingSourceTerm, setEditingSourceTerm] = useState<{id: string, value: string} | null>(null)
+
+  // Funkcja pomocnicza do znalezienia dokumentu dla terminu
+  const getDocumentForTerm = (term: Term): SourceDocument | null => {
+    if (!documents || documents.length === 0) return null
+    if (!term.sourceDocument) return null
+
+    // Znajdź dokument po nazwie pliku
+    return documents.find(doc => doc.fileName === term.sourceDocument) || null
+  }
 
   // Automatyczny scroll do pierwszego wystąpienia po otwarciu modalu
   useEffect(() => {
@@ -679,9 +692,28 @@ export default function TerminologyTable({
 
                     {/* Dokument źródłowy */}
                     <td className="px-2 py-3 text-sm text-gray-600">
-                      <div className="text-xs text-gray-500 truncate" title={term.sourceDocument || fileName || ''}>
-                        {term.sourceDocument || fileName || '-'}
-                      </div>
+                      {(() => {
+                        const doc = getDocumentForTerm(term)
+                        const documentName = term.sourceDocument || fileName || '-'
+
+                        if (doc && doc.color) {
+                          const colorClasses = getColorClasses(doc.color)
+                          return (
+                            <div
+                              className={`inline-block px-2 py-1 rounded text-xs font-medium truncate max-w-full ${colorClasses.bgClass} ${colorClasses.textClass} border ${colorClasses.borderClass}`}
+                              title={documentName}
+                            >
+                              {documentName}
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <div className="text-xs text-gray-500 truncate" title={documentName}>
+                            {documentName}
+                          </div>
+                        )
+                      })()}
                     </td>
 
                     {/* Definicja */}

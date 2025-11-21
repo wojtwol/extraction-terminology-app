@@ -7,6 +7,7 @@ export interface SourceDocument {
   text: string
   language: string
   addedAt: string
+  color?: string  // Kolor wyróżnienia dokumentu (np. 'green', 'purple', 'blue')
 }
 
 // Wersja glosariusza z parametrami ekstrakcji
@@ -66,6 +67,29 @@ export interface Project {
 
   glossaries: Glossary[]
   currentGlossaryId: string | null
+}
+
+// Paleta kolorów dla dokumentów źródłowych
+export const DOCUMENT_COLORS = [
+  { id: 'green', name: 'Zielony', bgClass: 'bg-green-100', textClass: 'text-green-800', borderClass: 'border-green-300' },
+  { id: 'purple', name: 'Fioletowy', bgClass: 'bg-purple-100', textClass: 'text-purple-800', borderClass: 'border-purple-300' },
+  { id: 'blue', name: 'Niebieski', bgClass: 'bg-blue-100', textClass: 'text-blue-800', borderClass: 'border-blue-300' },
+  { id: 'orange', name: 'Pomarańczowy', bgClass: 'bg-orange-100', textClass: 'text-orange-800', borderClass: 'border-orange-300' },
+  { id: 'pink', name: 'Różowy', bgClass: 'bg-pink-100', textClass: 'text-pink-800', borderClass: 'border-pink-300' },
+  { id: 'yellow', name: 'Żółty', bgClass: 'bg-yellow-100', textClass: 'text-yellow-800', borderClass: 'border-yellow-300' },
+  { id: 'indigo', name: 'Indygo', bgClass: 'bg-indigo-100', textClass: 'text-indigo-800', borderClass: 'border-indigo-300' },
+  { id: 'teal', name: 'Cyjan', bgClass: 'bg-teal-100', textClass: 'text-teal-800', borderClass: 'border-teal-300' },
+]
+
+// Funkcja do przypisania koloru dla dokumentu (rotacja po palecie)
+export function getColorForDocument(documentIndex: number): string {
+  return DOCUMENT_COLORS[documentIndex % DOCUMENT_COLORS.length].id
+}
+
+// Funkcja do pobrania klas CSS dla koloru dokumentu
+export function getColorClasses(colorId: string | undefined) {
+  const color = DOCUMENT_COLORS.find(c => c.id === colorId)
+  return color || DOCUMENT_COLORS[0] // Domyślnie zielony
 }
 
 // Stara struktura dla migracji
@@ -234,16 +258,21 @@ export const projectStorage = {
     const project = this.getById(projectId)
     if (!project) return null
 
+    if (!project.documents) {
+      project.documents = []
+    }
+
+    // Przypisz kolor dla nowego dokumentu (rotacja po palecie)
+    const documentIndex = project.documents.length
+    const color = getColorForDocument(documentIndex)
+
     const newDocument: SourceDocument = {
       id: `doc-${Date.now()}-${Math.random().toString(36).substring(7)}`,
       fileName,
       text,
       language,
-      addedAt: new Date().toISOString()
-    }
-
-    if (!project.documents) {
-      project.documents = []
+      addedAt: new Date().toISOString(),
+      color
     }
 
     project.documents.push(newDocument)

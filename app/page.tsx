@@ -2436,6 +2436,7 @@ export default function Home() {
               targetLanguage={currentGlossary?.targetLanguage}
               columnView={currentGlossary?.columnView || '4'}
               targetDocumentText={currentGlossary?.targetDocumentText}
+              documents={currentProject?.documents}
             />
 
             {/* Document viewer */}
