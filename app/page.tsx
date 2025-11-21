@@ -2493,31 +2493,148 @@ export default function Home() {
                     </p>
                   </div>
 
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <input
-                      type="file"
-                      accept=".txt,.html,.docx,.xlsx,.xls,.xml"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) {
-                          setBilingualDialogStep('columns')
-                          // Store file for later processing
-                          ;(window as any).__bilingualTargetFile = file
-                        }
+                  {/* Przyciski wyboru metody wprowadzania */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        ;(window as any).__bilingualInputMode = 'file'
+                        setBilingualDialogStep('document') // Force re-render
                       }}
-                      className="hidden"
-                      id="bilingual-file-input"
-                    />
-                    <label
-                      htmlFor="bilingual-file-input"
-                      className="cursor-pointer inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-lg"
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        ((window as any).__bilingualInputMode || 'file') === 'file'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                     >
-                      📁 {language === 'pl' ? 'Wybierz plik' : 'Choose file'}
-                    </label>
-                    <p className="text-gray-500 text-sm mt-3">
-                      {language === 'pl' ? 'lub przeciągnij plik tutaj' : 'or drag file here'}
-                    </p>
+                      📁 {language === 'pl' ? 'Plik' : 'File'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        ;(window as any).__bilingualInputMode = 'url'
+                        setBilingualDialogStep('document')
+                      }}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        ((window as any).__bilingualInputMode || 'file') === 'url'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      🔗 {language === 'pl' ? 'URL' : 'URL'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        ;(window as any).__bilingualInputMode = 'text'
+                        setBilingualDialogStep('document')
+                      }}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        ((window as any).__bilingualInputMode || 'file') === 'text'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      📝 {language === 'pl' ? 'Tekst' : 'Text'}
+                    </button>
                   </div>
+
+                  {/* Tryb: Plik */}
+                  {((window as any).__bilingualInputMode || 'file') === 'file' && (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                      <input
+                        type="file"
+                        accept=".txt,.html,.docx,.xlsx,.xls,.xml"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setBilingualDialogStep('columns')
+                            ;(window as any).__bilingualTargetFile = file
+                          }
+                        }}
+                        className="hidden"
+                        id="bilingual-file-input"
+                      />
+                      <label
+                        htmlFor="bilingual-file-input"
+                        className="cursor-pointer inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-lg"
+                      >
+                        📁 {language === 'pl' ? 'Wybierz plik' : 'Choose file'}
+                      </label>
+                      <p className="text-gray-500 text-sm mt-3">
+                        {language === 'pl' ? 'lub przeciągnij plik tutaj' : 'or drag file here'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Tryb: URL */}
+                  {((window as any).__bilingualInputMode || 'file') === 'url' && (
+                    <div className="space-y-3">
+                      <input
+                        type="url"
+                        placeholder={language === 'pl' ? 'https://example.com/document.html' : 'https://example.com/document.html'}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        id="bilingual-url-input"
+                      />
+                      <button
+                        onClick={async () => {
+                          const input = document.getElementById('bilingual-url-input') as HTMLInputElement
+                          const url = input?.value.trim()
+                          if (!url) {
+                            alert(language === 'pl' ? 'Proszę podać URL' : 'Please provide URL')
+                            return
+                          }
+
+                          try {
+                            const response = await fetch('/api/fetch-url', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ url })
+                            })
+
+                            const data = await response.json()
+                            if (!response.ok) {
+                              throw new Error(data.error || 'Error fetching document')
+                            }
+
+                            ;(window as any).__bilingualTargetText = data.text
+                            ;(window as any).__bilingualTargetFileName = new URL(url).pathname.split('/').pop() || 'document.html'
+                            setBilingualDialogStep('columns')
+                          } catch (error: any) {
+                            alert((language === 'pl' ? 'Błąd pobierania: ' : 'Fetch error: ') + error.message)
+                          }
+                        }}
+                        className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-lg"
+                      >
+                        🔗 {language === 'pl' ? 'Pobierz dokument' : 'Fetch document'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Tryb: Tekst */}
+                  {((window as any).__bilingualInputMode || 'file') === 'text' && (
+                    <div className="space-y-3">
+                      <textarea
+                        placeholder={language === 'pl' ? 'Wklej tekst w języku docelowym tutaj...' : 'Paste target language text here...'}
+                        className="w-full h-64 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y font-mono text-sm"
+                        id="bilingual-text-input"
+                      />
+                      <button
+                        onClick={() => {
+                          const textarea = document.getElementById('bilingual-text-input') as HTMLTextAreaElement
+                          const text = textarea?.value.trim()
+                          if (!text || text.length < 50) {
+                            alert(language === 'pl' ? 'Tekst jest zbyt krótki (minimum 50 znaków)' : 'Text is too short (minimum 50 characters)')
+                            return
+                          }
+
+                          ;(window as any).__bilingualTargetText = text
+                          ;(window as any).__bilingualTargetFileName = language === 'pl' ? 'Wklejony tekst' : 'Pasted text'
+                          setBilingualDialogStep('columns')
+                        }}
+                        className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-lg"
+                      >
+                        ✅ {language === 'pl' ? 'Użyj tego tekstu' : 'Use this text'}
+                      </button>
+                    </div>
+                  )}
 
                   <div className="flex gap-3 mt-6">
                     <button
@@ -2628,6 +2745,8 @@ export default function Home() {
                       onClick={() => {
                         setBilingualDialogStep('document')
                         ;(window as any).__bilingualTargetFile = null
+                        ;(window as any).__bilingualTargetText = null
+                        ;(window as any).__bilingualInputMode = 'file'
                       }}
                       className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                     >
@@ -2635,9 +2754,30 @@ export default function Home() {
                     </button>
                     <button
                       onClick={async () => {
+                        const inputMode = (window as any).__bilingualInputMode || 'file'
+                        const text = (window as any).__bilingualTargetText
                         const file = (window as any).__bilingualTargetFile
-                        if (file) {
+
+                        if (inputMode === 'file' && file) {
+                          // File mode: extract text from file
                           await handleBilingualDocumentLoad(file)
+                        } else if ((inputMode === 'url' || inputMode === 'text') && text) {
+                          // URL/Text mode: use text directly
+                          if (!text || text.trim().length === 0) {
+                            showNotification(
+                              language === 'pl' ? 'Błąd' : 'Error',
+                              language === 'pl' ? 'Dokument docelowy jest pusty' : 'Target document is empty',
+                              'error'
+                            )
+                            return
+                          }
+                          await processBilingualMatching(text)
+                        } else {
+                          showNotification(
+                            language === 'pl' ? 'Błąd' : 'Error',
+                            language === 'pl' ? 'Nie załadowano dokumentu docelowego' : 'Target document not loaded',
+                            'error'
+                          )
                         }
                       }}
                       className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
