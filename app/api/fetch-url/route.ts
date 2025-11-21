@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
 
     const text = await response.text()
 
+    console.log(`📄 Surowy HTML - pierwsze 500 znaków:`)
+    console.log(text.substring(0, 500))
+
     if (!text || text.length < 100) {
       return NextResponse.json(
         { error: 'Pobrana zawartość jest zbyt krótka (mniej niż 100 znaków)' },
@@ -104,7 +107,7 @@ export async function POST(request: NextRequest) {
     // cleanedText = cleanedText.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
     // cleanedText = cleanedText.replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
 
-    // Zamień <br>, <p>, <div> na nowe linie
+    // Zamień <br>, <p>, <div> na nowe linie PRZED usunięciem tagów
     cleanedText = cleanedText.replace(/<br\s*\/?>/gi, '\n')
     cleanedText = cleanedText.replace(/<\/p>/gi, '\n\n')
     cleanedText = cleanedText.replace(/<\/div>/gi, '\n')
@@ -114,8 +117,14 @@ export async function POST(request: NextRequest) {
     cleanedText = cleanedText.replace(/<\/td>/gi, ' | ')
     cleanedText = cleanedText.replace(/<\/th>/gi, ' | ')
 
+    console.log(`📊 Po usunięciu tagów strukturalnych - pierwsze 500 znaków:`)
+    console.log(cleanedText.substring(0, 500))
+
     // Usuń wszystkie pozostałe tagi HTML
     cleanedText = cleanedText.replace(/<[^>]+>/g, ' ')
+
+    console.log(`📊 Po usunięciu wszystkich tagów - pierwsze 500 znaków:`)
+    console.log(cleanedText.substring(0, 500))
 
     // Dekoduj HTML entities (rozszerzona lista)
     const htmlEntities: { [key: string]: string } = {
@@ -156,12 +165,19 @@ export async function POST(request: NextRequest) {
     cleanedText = cleanedText.trim()
 
     console.log(`📊 Długość po czyszczeniu: ${cleanedText.length.toLocaleString()} znaków`)
+    console.log(`📄 Oczyszczony tekst - pierwsze 500 znaków:`)
+    console.log(cleanedText.substring(0, 500))
 
-    if (cleanedText.length < 100) {
+    if (cleanedText.length < 50) {
       console.error(`❌ Tekst zbyt krótki: ${cleanedText.length} znaków`)
-      console.error(`Próbka tekstu (pierwsze 500 znaków): ${cleanedText.substring(0, 500)}`)
+      console.error(`Całość tekstu: "${cleanedText}"`)
       return NextResponse.json(
-        { error: `Po przetworzeniu HTML tekst jest zbyt krótki (${cleanedText.length} znaków). Możliwe że strona używa JavaScript do dynamicznego ładowania treści. Spróbuj skopiować tekst ze strony i wkleić go w zakładce "Wklej tekst".` },
+        {
+          error: `Po przetworzeniu HTML tekst jest zbyt krótki (${cleanedText.length} znaków). Możliwe że strona używa JavaScript do dynamicznego ładowania treści lub ma nietypową strukturę. Spróbuj:\n1. Skopiować tekst ze strony i wkleić go w zakładce "Wklej tekst"\n2. Użyć innego URL (np. wersji do druku)\n3. Zapisać stronę jako PDF i wczytać plik`,
+          originalLength: text.length,
+          cleanedLength: cleanedText.length,
+          sample: cleanedText.substring(0, 200)
+        },
         { status: 400 }
       )
     }
