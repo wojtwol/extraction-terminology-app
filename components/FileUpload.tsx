@@ -72,10 +72,10 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
         return
       }
 
-      if (text.length > 200000) {
+      if (text.length > 800000) {
         alert(language === 'pl'
-          ? `Dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
-          : `Document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 200,000 characters (~100 pages).\n\nSplit the document into smaller parts and process them separately.`)
+          ? `Dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 800,000 znaków (ok. 300 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
+          : `Document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 800,000 characters (~300 pages).\n\nSplit the document into smaller parts and process them separately.`)
         return
       }
 
@@ -128,10 +128,10 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
       return
     }
 
-    if (pastedText.length > 200000) {
+    if (pastedText.length > 800000) {
       alert(language === 'pl'
-        ? `Tekst jest zbyt długi (${pastedText.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel tekst na mniejsze fragmenty i przetwarzaj je osobno.`
-        : `Text is too long (${pastedText.length.toLocaleString()} characters).\n\nMaximum length: 200,000 characters (~100 pages).\n\nSplit the text into smaller parts and process them separately.`)
+        ? `Tekst jest zbyt długi (${pastedText.length.toLocaleString()} znaków).\n\nMaksymalna długość: 800,000 znaków (ok. 300 stron).\n\nPodziel tekst na mniejsze fragmenty i przetwarzaj je osobno.`
+        : `Text is too long (${pastedText.length.toLocaleString()} characters).\n\nMaximum length: 800,000 characters (~300 pages).\n\nSplit the text into smaller parts and process them separately.`)
       return
     }
 
@@ -183,10 +183,10 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
         return
       }
 
-      if (text.length > 200000) {
+      if (text.length > 800000) {
         alert(language === 'pl'
-          ? `Pobrany dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 200,000 znaków (ok. 100 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
-          : `Fetched document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 200,000 characters (~100 pages).\n\nSplit the document into smaller parts and process them separately.`)
+          ? `Pobrany dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 800,000 znaków (ok. 300 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
+          : `Fetched document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 800,000 characters (~300 pages).\n\nSplit the document into smaller parts and process them separately.`)
         return
       }
 
