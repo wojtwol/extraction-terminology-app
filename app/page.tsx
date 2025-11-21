@@ -1349,15 +1349,14 @@ export default function Home() {
               let sourceColIndex = -1
               let contextColIndex = -1
 
+              // Debug: wyświetl pierwsze kilka wierszy
+              console.log('🔍 XLSX Import Debug - Pierwsze 3 wiersze:')
+              jsonData.slice(0, 3).forEach((row, idx) => {
+                console.log(`  Wiersz ${idx}:`, row)
+              })
+
               for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
                 const row = jsonData[i]
-
-                // Najpierw szukaj kolumny Nr
-                nrColIndex = row.findIndex((cell: any) => {
-                  if (typeof cell !== 'string') return false
-                  const cellLower = cell.toLowerCase().trim()
-                  return cellLower === 'nr' || cellLower === 'no.' || cellLower === 'no' || cellLower === 'nr.'
-                })
 
                 // Potem szukaj kolumny Termin - musi być na początku lub jako całe słowo
                 termColIndex = row.findIndex((cell: any) => {
@@ -1372,6 +1371,15 @@ export default function Home() {
 
                 if (termColIndex !== -1) {
                   headerRowIndex = i
+
+                  // Najpierw szukaj kolumny Nr (musi być PRZED kolumną Termin)
+                  nrColIndex = row.findIndex((cell: any, idx: number) => {
+                    if (idx >= termColIndex) return false // Nr musi być przed Terminem
+                    if (typeof cell !== 'string') return false
+                    const cellLower = cell.toLowerCase().trim()
+                    return cellLower === 'nr' || cellLower === 'no.' || cellLower === 'no' || cellLower === 'nr.'
+                  })
+
                   occurrencesColIndex = row.findIndex((cell: any) =>
                     typeof cell === 'string' && (cell.toLowerCase().includes('wystąpień') || cell.toLowerCase().includes('occurrence'))
                   )
@@ -1387,6 +1395,17 @@ export default function Home() {
                   contextColIndex = row.findIndex((cell: any) =>
                     typeof cell === 'string' && (cell.toLowerCase().includes('kontekst') || cell.toLowerCase().includes('context'))
                   )
+
+                  console.log('✅ XLSX Import - Wykryte kolumny:')
+                  console.log(`  headerRowIndex: ${headerRowIndex}`)
+                  console.log(`  nrColIndex: ${nrColIndex}`)
+                  console.log(`  termColIndex: ${termColIndex}`)
+                  console.log(`  occurrencesColIndex: ${occurrencesColIndex}`)
+                  console.log(`  documentColIndex: ${documentColIndex}`)
+                  console.log(`  definitionColIndex: ${definitionColIndex}`)
+                  console.log(`  contextColIndex: ${contextColIndex}`)
+                  console.log(`  Nagłówek:`, row)
+
                   break
                 }
               }
@@ -1394,9 +1413,21 @@ export default function Home() {
               if (headerRowIndex !== -1 && termColIndex !== -1) {
                 let lastTerm: Term | null = null
 
+                console.log(`📊 Parsowanie ${jsonData.length - headerRowIndex - 1} wierszy danych...`)
+
                 for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
                   const row = jsonData[i]
                   const termValue = row[termColIndex]
+
+                  // Debug pierwszych 3 wierszy danych
+                  if (i <= headerRowIndex + 3) {
+                    console.log(`  Wiersz ${i} (data ${i - headerRowIndex}):`, {
+                      termValue,
+                      occurrences: occurrencesColIndex !== -1 ? row[occurrencesColIndex] : 'brak',
+                      document: documentColIndex !== -1 ? row[documentColIndex] : 'brak',
+                      fullRow: row
+                    })
+                  }
 
                   // Jeśli komórka terminu jest pusta lub zawiera tylko whitespace, to jest to kolejny kontekst dla poprzedniego terminu
                   const isEmptyTermCell = !termValue || (typeof termValue === 'string' && termValue.trim() === '')
@@ -1452,6 +1483,10 @@ export default function Home() {
                     lastTerm = term
                   }
                 }
+
+                console.log(`✅ Zaimportowano ${allImportedTerms.length} terminów z pliku XLSX`)
+              } else {
+                console.error('❌ Nie znaleziono nagłówka z kolumną "Termin"')
               }
             }
           }
