@@ -164,9 +164,9 @@ export async function POST(request: NextRequest) {
       // 2. Wyciągnij okno z dokumentu docelowego (adaptywny rozmiar)
       // Dla bardzo długich dokumentów użyj mniejszego okna % aby nie przekroczyć limitu znaków
       let windowSizePercent = 20  // domyślnie ±20%
-      const maxWindowChars = 10000  // Maksymalnie 10k znaków w oknie (zmniejszone dla szybkości)
+      const maxWindowChars = 30000  // Maksymalnie 30k znaków w oknie
 
-      // Jeśli 40% dokumentu > 10k znaków, zmniejsz procent okna
+      // Jeśli 40% dokumentu > 30k znaków, zmniejsz procent okna
       const estimatedWindowChars = (40 / 100) * targetText.length
       if (estimatedWindowChars > maxWindowChars) {
         windowSizePercent = (maxWindowChars / targetText.length) * 100 / 2  // /2 bo ±
