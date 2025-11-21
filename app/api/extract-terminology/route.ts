@@ -81,9 +81,36 @@ export async function POST(request: NextRequest) {
 
     const anthropic = new Anthropic({ apiKey })
 
-    console.log('🤖 Wysyłam request do Claude API...')
+    console.log('🤖 Przygotowuję request do Claude API...')
 
-    // KROK 2: Tworzenie prompta w języku dokumentu
+    // KROK 2: Określ czy i jak podzielić dokument na chunki
+    const CHUNK_THRESHOLD = 200000 // Dokumenty >200k znaków dzielimy na chunki
+    const OVERLAP_SIZE = 5000 // Nakładanie się chunków (dla kontekstu na granicach)
+
+    let chunks: string[] = []
+    let chunkInfo = ''
+
+    if (text.length > CHUNK_THRESHOLD) {
+      // Oblicz liczbę chunków
+      const numChunks = Math.ceil(text.length / CHUNK_THRESHOLD)
+      const chunkSize = Math.floor(text.length / numChunks)
+
+      console.log(`📊 Dokument jest duży (${text.length} znaków) - dzielę na ${numChunks} części`)
+
+      for (let i = 0; i < numChunks; i++) {
+        const start = Math.max(0, i * chunkSize - (i > 0 ? OVERLAP_SIZE : 0))
+        const end = Math.min(text.length, (i + 1) * chunkSize + OVERLAP_SIZE)
+        chunks.push(text.slice(start, end))
+        console.log(`   Część ${i + 1}: znaki ${start}-${end} (${end - start} znaków)`)
+      }
+
+      chunkInfo = ` (Część dokumentu)`
+    } else {
+      chunks = [text]
+      console.log(`📊 Dokument standardowy (${text.length} znaków) - przetwarzanie jednorazowe`)
+    }
+
+    // KROK 3: Tworzenie prompta w języku dokumentu
     let promptInstructions = ''
 
     if (languageDetectionResult.language === 'Angielski' || languageDetectionResult.languageCode === 'eng') {
@@ -234,124 +261,132 @@ TEXT:`
     // Model można skonfigurować przez zmienną środowiskową ANTHROPIC_MODEL
     const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
 
-    // Dynamiczny max_tokens w zależności od liczby terminów
-    // Dla wielu terminów potrzeba więcej tokenów na odpowiedź
-    const estimatedTokensPerTerm = 120 // ~120 tokenów na termin (term + context + JSON structure)
-    const baseTokens = 2000 // Bazowe tokeny na strukturę JSON i overhead
-    const calculatedMaxTokens = Math.min(
-      baseTokens + (maxTerms * estimatedTokensPerTerm),
-      16384 // Maksymalny limit dla Claude Sonnet 4 (16K output tokens)
-    )
+    // KROK 4: Przetwarzaj każdy chunk
+    const allChunkTerms: any[] = []
 
-    console.log(`🔢 Maksymalna liczba tokenów dla odpowiedzi: ${calculatedMaxTokens} (dla ${maxTerms} terminów)`)
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+      const chunk = chunks[chunkIndex]
+      const chunkNumber = chunkIndex + 1
+      const totalChunks = chunks.length
 
-    const message = await anthropic.messages.create({
-      model,
-      max_tokens: calculatedMaxTokens,
-      messages: [
-        {
-          role: 'user',
-          content: promptInstructions + '\n\n' + text
-        }
-      ]
-    })
+      console.log(`\n📦 Przetwarzam część ${chunkNumber}/${totalChunks}...`)
 
-    console.log('✅ Otrzymano odpowiedź z Claude API')
+      // Dla chunków: dzielimy maxTerms przez liczbę chunków, ale mnożymy x1.5 dla większego pokrycia
+      // (bo będą duplikaty między chunkami, które usuniemy później)
+      const termsForThisChunk = chunks.length > 1
+        ? Math.ceil((maxTerms / chunks.length) * 1.5)
+        : maxTerms
 
-    // KROK 3: Ekstrakcja JSON z odpowiedzi
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-
-    console.log('📝 Długość odpowiedzi:', responseText.length, 'znaków')
-    console.log('📝 Pierwszych 300 znaków odpowiedzi:', responseText.substring(0, 300))
-
-    // Sprawdź czy odpowiedź została obcięta (stop_reason)
-    if (message.stop_reason === 'max_tokens') {
-      console.warn('⚠️  UWAGA: Odpowiedź Claude została obcięta (max_tokens)!')
-      console.warn(`   Rozważ zmniejszenie liczby terminów lub zwiększenie max_tokens`)
-    }
-
-    // Usuń markdown jeśli jest
-    let cleanedResponse = responseText.trim()
-    if (cleanedResponse.startsWith('```json')) {
-      cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '')
-    } else if (cleanedResponse.startsWith('```')) {
-      cleanedResponse = cleanedResponse.replace(/```\n?/g, '')
-    }
-
-    // Znajdź JSON w odpowiedzi
-    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      console.error('❌ Nie znaleziono JSON w odpowiedzi')
-      console.error('Pełna odpowiedź Claude (pierwsze 1000 znaków):')
-      console.error(responseText.substring(0, 1000))
-      console.error('Ostatnie 500 znaków odpowiedzi:')
-      console.error(responseText.substring(Math.max(0, responseText.length - 500)))
-      return NextResponse.json(
-        { terms: [], error: 'Claude nie zwrócił poprawnego JSON. Odpowiedź mogła zostać obcięta. Spróbuj zmniejszyć liczbę terminów.' },
-        { status: 500 }
+      // Dynamiczny max_tokens w zależności od liczby terminów
+      const estimatedTokensPerTerm = 120 // ~120 tokenów na termin (term + context + JSON structure)
+      const baseTokens = 2000 // Bazowe tokeny na strukturę JSON i overhead
+      const calculatedMaxTokens = Math.min(
+        baseTokens + (termsForThisChunk * estimatedTokensPerTerm),
+        16384 // Maksymalny limit dla Claude Sonnet 4 (16K output tokens)
       )
-    }
 
-    let parsedResponse
-    try {
-      parsedResponse = JSON.parse(jsonMatch[0])
-    } catch (parseError: any) {
-      console.error('❌ Błąd parsowania JSON:', parseError.message)
-      console.error('Pozycja błędu:', parseError.message)
-      console.error('JSON do parsowania (pierwsze 1000 znaków):', jsonMatch[0].substring(0, 1000))
-      console.error('JSON do parsowania (ostatnie 500 znaków):', jsonMatch[0].substring(Math.max(0, jsonMatch[0].length - 500)))
+      console.log(`   Ekstrahuję do ${termsForThisChunk} terminów (max_tokens: ${calculatedMaxTokens})`)
 
-      // Sprawdź czy JSON jest obcięty (brak zamykającego nawiasu)
-      const openBraces = (jsonMatch[0].match(/\{/g) || []).length
-      const closeBraces = (jsonMatch[0].match(/\}/g) || []).length
-      const openBrackets = (jsonMatch[0].match(/\[/g) || []).length
-      const closeBrackets = (jsonMatch[0].match(/\]/g) || []).length
+      const message = await anthropic.messages.create({
+        model,
+        max_tokens: calculatedMaxTokens,
+        messages: [
+          {
+            role: 'user',
+            content: promptInstructions + '\n\n' + chunk
+          }
+        ]
+      })
 
-      if (openBraces > closeBraces || openBrackets > closeBrackets) {
-        console.error('❌ JSON jest niekompletny (obcięty)!')
-        console.error(`   Nawiasy klamrowe: ${openBraces} otwierających, ${closeBraces} zamykających`)
-        console.error(`   Nawiasy kwadratowe: ${openBrackets} otwierających, ${closeBrackets} zamykających`)
-        return NextResponse.json(
-          { terms: [], error: `Odpowiedź została obcięta (za dużo terminów). Zmniejsz liczbę terminów z ${maxTerms} do ${Math.floor(maxTerms * 0.7)} i spróbuj ponownie.` },
-          { status: 500 }
-        )
+      console.log(`   ✅ Otrzymano odpowiedź dla części ${chunkNumber}/${totalChunks}`)
+
+      // Ekstrakcja JSON z odpowiedzi
+      const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+
+      console.log(`   📝 Długość odpowiedzi: ${responseText.length} znaków`)
+
+      // Sprawdź czy odpowiedź została obcięta (stop_reason)
+      if (message.stop_reason === 'max_tokens') {
+        console.warn(`   ⚠️  UWAGA: Odpowiedź Claude została obcięta (max_tokens) dla części ${chunkNumber}`)
       }
 
-      return NextResponse.json(
-        { terms: [], error: 'Błąd parsowania odpowiedzi: ' + parseError.message + '. Spróbuj ponownie lub zmniejsz liczbę terminów.' },
-        { status: 500 }
-      )
+      // Usuń markdown jeśli jest
+      let cleanedResponse = responseText.trim()
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '')
+      } else if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/```\n?/g, '')
+      }
+
+      // Znajdź JSON w odpowiedzi
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        console.error(`   ❌ Nie znaleziono JSON w odpowiedzi dla części ${chunkNumber}`)
+        console.error(`   Pomijam tę część i kontynuuję...`)
+        continue
+      }
+
+      let parsedResponse
+      try {
+        parsedResponse = JSON.parse(jsonMatch[0])
+      } catch (parseError: any) {
+        console.error(`   ❌ Błąd parsowania JSON dla części ${chunkNumber}:`, parseError.message)
+        console.error(`   Pomijam tę część i kontynuuję...`)
+        continue
+      }
+
+      if (!parsedResponse.terms || !Array.isArray(parsedResponse.terms)) {
+        console.error(`   ❌ Odpowiedź nie zawiera tablicy terminów dla części ${chunkNumber}`)
+        console.error(`   Pomijam tę część i kontynuuję...`)
+        continue
+      }
+
+      console.log(`   📊 Część ${chunkNumber}: Claude zwrócił ${parsedResponse.terms.length} terminów`)
+
+      // Dodaj terminy z tego chunka do kolekcji
+      allChunkTerms.push(...parsedResponse.terms.filter((term: any) => term && term.term))
+
+      // Opóźnienie między requestami (jeśli jest więcej chunków)
+      if (chunkIndex < chunks.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
     }
 
-    if (!parsedResponse.terms || !Array.isArray(parsedResponse.terms)) {
-      console.error('❌ Odpowiedź nie zawiera tablicy terminów')
-      return NextResponse.json(
-        { terms: [], error: 'Nieprawidłowy format odpowiedzi. Spróbuj ponownie.' },
-        { status: 500 }
-      )
-    }
+    console.log(`\n✅ Zakończono przetwarzanie wszystkich ${chunks.length} części`)
+    console.log(`📊 Zebrano ${allChunkTerms.length} terminów (przed deduplikacją)`)
 
-    console.log(`📊 Claude zwrócił ${parsedResponse.terms.length} terminów`)
+    // KROK 6: Deduplikacja terminów i znajdź pozycje w PEŁNYM tekście
+    const uniqueTermsMap = new Map<string, any>()
 
-    // KROK 4: Przetwórz terminy i znajdź ich pozycje w tekście
-    const allTerms = parsedResponse.terms
-      .filter((term: any) => term && term.term) // Filtruj puste terminy
-      .map((term: any, index: number) => {
-        // Znajdź wszystkie wystąpienia terminu w tekście
+    for (let i = 0; i < allChunkTerms.length; i++) {
+      const term = allChunkTerms[i]
+      const termLower = term.term.toLowerCase()
+
+      if (!uniqueTermsMap.has(termLower)) {
+        // Znajdź wszystkie wystąpienia w PEŁNYM dokumencie
         const positions = findTermPositions(text, term.term)
 
-        return {
-          id: `term-${index}-${Date.now()}`,
+        uniqueTermsMap.set(termLower, {
+          id: `term-${i}-${Date.now()}`,
           term: term.term,
           context: term.context || '',
           occurrences: positions.length > 0 ? positions.length : (term.occurrences || 1),
           positions: positions
+        })
+      } else {
+        // Jeśli termin już istnieje, możemy zaktualizować kontekst jeśli jest lepszy (dłuższy)
+        const existing = uniqueTermsMap.get(termLower)
+        if (term.context && term.context.length > existing.context.length) {
+          existing.context = term.context
         }
-      })
+      }
+    }
 
-    console.log(`🔍 Przed walidacją: ${allTerms.length} terminów`)
+    const allTerms = Array.from(uniqueTermsMap.values())
 
-    // KROK 5: WALIDACJA - odrzuć terminy które nie występują w dokumencie
+    console.log(`🔍 Po deduplikacji: ${allTerms.length} unikalnych terminów`)
+
+    // KROK 7: WALIDACJA - odrzuć terminy które nie występują w dokumencie
     const validatedTerms = allTerms.filter((term: Term) => {
       // Sprawdź czy termin rzeczywiście występuje w tekście
       const exists = term.positions.length > 0
@@ -366,18 +401,27 @@ TEXT:`
     console.log(`✂️  Po walidacji: ${validatedTerms.length} terminów`)
     console.log(`   Odrzucono ${allTerms.length - validatedTerms.length} terminów (nie znaleziono w dokumencie)`)
 
-    // Sortuj alfabetycznie
-    validatedTerms.sort((a: Term, b: Term) => a.term.localeCompare(b.term, 'pl'))
+    // KROK 8: Jeśli mamy więcej terminów niż maxTerms, wybierz top terminy (według liczby wystąpień)
+    let finalTerms = validatedTerms
+    if (validatedTerms.length > maxTerms) {
+      console.log(`📊 Ograniczam do ${maxTerms} najważniejszych terminów (według liczby wystąpień)`)
+      finalTerms = validatedTerms
+        .sort((a: Term, b: Term) => b.occurrences - a.occurrences)
+        .slice(0, maxTerms)
+    }
+
+    // Sortuj alfabetycznie dla końcowego wyniku
+    finalTerms.sort((a: Term, b: Term) => a.term.localeCompare(b.term, 'pl'))
 
     console.log('✅ Ekstrakcja zakończona sukcesem (Anthropic API)')
     console.log(`   Język dokumentu: ${languageDetectionResult.language}`)
     console.log(`   Język terminów: ${languageDetectionResult.language}`)
-    console.log(`   Liczba terminów: ${validatedTerms.length}`)
+    console.log(`   Liczba terminów: ${finalTerms.length}`)
 
     // WERYFIKACJA: Sprawdź czy użytkownik ustawił zbyt niską liczbę terminów
     let suggestion = null
     const documentLength = text.length
-    const extractedCount = validatedTerms.length
+    const extractedCount = finalTerms.length
     const utilizationRate = extractedCount / maxTerms
 
     // Sugestia jeśli:
@@ -397,7 +441,7 @@ TEXT:`
     }
 
     return NextResponse.json({
-      terms: validatedTerms,
+      terms: finalTerms,
       suggestion: suggestion
     })
 
