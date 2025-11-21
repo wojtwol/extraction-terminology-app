@@ -124,6 +124,55 @@ function formatEurLexTitle(title: string): string | null {
   return null
 }
 
+// Funkcja do parsowania numeru CELEX i formatowania tytułu
+function formatCelexTitle(celexOrUrl: string, language: 'pl' | 'en' = 'en'): string | null {
+  // Wzorce CELEX: 32017R1939 (3=akty prawne, 2017=rok, R=typ, 1939=numer)
+  const celexMatch = celexOrUrl.match(/3(\d{4})([RDLH])(\d+)/i)
+
+  if (celexMatch) {
+    const year = celexMatch[1]
+    const type = celexMatch[2].toUpperCase()
+    const number = celexMatch[3]
+
+    const typeMap: { [key: string]: { pl: string, en: string } } = {
+      'R': { pl: 'Rozporządzenie nr', en: 'Regulation No' },
+      'L': { pl: 'Dyrektywa nr', en: 'Directive No' },
+      'D': { pl: 'Decyzja nr', en: 'Decision No' },
+      'H': { pl: 'Zalecenie nr', en: 'Recommendation No' }
+    }
+
+    const typeLabel = typeMap[type]
+    if (typeLabel) {
+      return language === 'pl'
+        ? `${typeLabel.pl} ${year}/${number}`
+        : `${typeLabel.en} ${year}/${number}`
+    }
+  }
+
+  return null
+}
+
+// Funkcja do formatowania nazw plików XML z EUR-Lex
+function formatEurLexXmlFilename(filename: string, language: 'pl' | 'en' = 'en'): string | null {
+  // Format: L_2017283EN.01000101.xml -> wyekstrahuj rok i typ
+  // L = Dziennik Urzędowy seria L, C = seria C
+  const xmlMatch = filename.match(/([LC])_(\d{4})(\d{3})[A-Z]{2}\./)
+
+  if (xmlMatch) {
+    const series = xmlMatch[1]
+    const year = xmlMatch[2]
+    const dayOfYear = xmlMatch[3]
+
+    // Nie możemy określić dokładnego numeru aktu z nazwy pliku XML,
+    // więc zwracamy ogólną nazwę
+    return language === 'pl'
+      ? `Dokument z Dziennika Urzędowego ${series} ${year}/${dayOfYear}`
+      : `Official Journal ${series} ${year}/${dayOfYear}`
+  }
+
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -210,64 +259,97 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Pobrano ${text.length.toLocaleString()} znaków`)
 
-    // Ekstrakcja tytułu dokumentu z tagu <title>
+    // Wykryj język na podstawie URL
+    const urlLower = urlWithoutFragment.toLowerCase()
+    const detectedLanguage: 'pl' | 'en' = urlLower.includes('/pl/') || urlLower.includes('_pl') ? 'pl' : 'en'
+
+    // Ekstrakcja tytułu dokumentu
     let documentTitle = validUrl.hostname // Domyślnie użyj hostname
-    const titleMatch = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
-    if (titleMatch && titleMatch[1]) {
-      let extractedTitle = titleMatch[1]
 
-      // Dekoduj HTML entities w tytule
-      const htmlEntitiesForTitle: { [key: string]: string } = {
-        '&nbsp;': ' ',
-        '&amp;': '&',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&quot;': '"',
-        '&#39;': "'",
-        '&apos;': "'",
-        '&ndash;': '–',
-        '&mdash;': '—',
-        '&euro;': '€',
-        '&pound;': '£',
-        '&copy;': '©',
-        '&reg;': '®',
-        '&trade;': '™',
-        '&hellip;': '...',
-        '&bull;': '•',
-        '&middot;': '·',
-        '&laquo;': '«',
-        '&raquo;': '»',
-        '&deg;': '°'
+    // Dla EUR-Lex, spróbuj najpierw sparsować CELEX z URL
+    if (validUrl.hostname.includes('eur-lex.europa.eu')) {
+      // Spróbuj wyekstrahować CELEX z URL
+      const celexInUrl = urlWithoutFragment.match(/CELEX[:=](\d+[A-Z]\d+)/i)
+      if (celexInUrl && celexInUrl[1]) {
+        const celexFormatted = formatCelexTitle(celexInUrl[1], detectedLanguage)
+        if (celexFormatted) {
+          documentTitle = celexFormatted
+          console.log(`✨ Sformatowano CELEX z URL: "${documentTitle}"`)
+        }
       }
 
-      for (const [entity, char] of Object.entries(htmlEntitiesForTitle)) {
-        extractedTitle = extractedTitle.replace(new RegExp(entity, 'g'), char)
-      }
-
-      // Dekoduj numeryczne HTML entities
-      extractedTitle = extractedTitle.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
-      extractedTitle = extractedTitle.replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
-
-      // Usuń zbędne białe znaki
-      extractedTitle = extractedTitle.replace(/\s+/g, ' ').trim()
-
-      if (extractedTitle && extractedTitle.length > 0 && extractedTitle.length < 500) {
-        documentTitle = extractedTitle
-        console.log(`📋 Wyekstrahowano tytuł: "${documentTitle}"`)
-
-        // Formatowanie tytułów EUR-Lex w przyjazny sposób
-        if (validUrl.hostname.includes('eur-lex.europa.eu')) {
-          const formattedTitle = formatEurLexTitle(documentTitle)
-          if (formattedTitle) {
-            documentTitle = formattedTitle
-            console.log(`✨ Sformatowano tytuł EUR-Lex: "${documentTitle}"`)
+      // Jeśli nie znaleziono CELEX, spróbuj sparsować nazwę pliku XML
+      if (documentTitle === validUrl.hostname) {
+        const xmlFilename = validUrl.pathname.split('/').pop()
+        if (xmlFilename && xmlFilename.endsWith('.xml')) {
+          const xmlFormatted = formatEurLexXmlFilename(xmlFilename, detectedLanguage)
+          if (xmlFormatted) {
+            documentTitle = xmlFormatted
+            console.log(`✨ Sformatowano nazwę pliku XML: "${documentTitle}"`)
           }
         }
-      } else {
-        console.log(`⚠️  Tytuł jest zbyt długi lub pusty, używam hostname`)
       }
-    } else {
-      console.log(`⚠️  Nie znaleziono tagu <title>, używam hostname: ${documentTitle}`)
+    }
+
+    // Jeśli nie udało się sformatować z URL/nazwy pliku, spróbuj z tagu <title>
+    if (documentTitle === validUrl.hostname) {
+      const titleMatch = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+      if (titleMatch && titleMatch[1]) {
+        let extractedTitle = titleMatch[1]
+
+        // Dekoduj HTML entities w tytule
+        const htmlEntitiesForTitle: { [key: string]: string } = {
+          '&nbsp;': ' ',
+          '&amp;': '&',
+          '&lt;': '<',
+          '&gt;': '>',
+          '&quot;': '"',
+          '&#39;': "'",
+          '&apos;': "'",
+          '&ndash;': '–',
+          '&mdash;': '—',
+          '&euro;': '€',
+          '&pound;': '£',
+          '&copy;': '©',
+          '&reg;': '®',
+          '&trade;': '™',
+          '&hellip;': '...',
+          '&bull;': '•',
+          '&middot;': '·',
+          '&laquo;': '«',
+          '&raquo;': '»',
+          '&deg;': '°'
+        }
+
+        for (const [entity, char] of Object.entries(htmlEntitiesForTitle)) {
+          extractedTitle = extractedTitle.replace(new RegExp(entity, 'g'), char)
+        }
+
+        // Dekoduj numeryczne HTML entities
+        extractedTitle = extractedTitle.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+        extractedTitle = extractedTitle.replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+
+        // Usuń zbędne białe znaki
+        extractedTitle = extractedTitle.replace(/\s+/g, ' ').trim()
+
+        if (extractedTitle && extractedTitle.length > 0 && extractedTitle.length < 500) {
+          documentTitle = extractedTitle
+          console.log(`📋 Wyekstrahowano tytuł: "${documentTitle}"`)
+
+          // Formatowanie tytułów EUR-Lex w przyjazny sposób
+          if (validUrl.hostname.includes('eur-lex.europa.eu')) {
+            const formattedTitle = formatEurLexTitle(documentTitle)
+            if (formattedTitle) {
+              documentTitle = formattedTitle
+              console.log(`✨ Sformatowano tytuł EUR-Lex z <title>: "${documentTitle}"`)
+            }
+          }
+        } else {
+          console.log(`⚠️  Tytuł jest zbyt długi lub pusty, używam hostname`)
+        }
+      } else {
+        console.log(`⚠️  Nie znaleziono tagu <title>, używam hostname: ${documentTitle}`)
+      }
     }
 
     // Zaawansowane czyszczenie HTML - usuń tagi, zostaw tekst

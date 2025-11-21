@@ -755,12 +755,12 @@ export default function TerminologyTable({
                     {/* Dokument źródłowy */}
                     <td className="px-2 py-3 text-sm text-gray-600">
                       {editingDocumentName && editingDocumentName.oldName === displayDocumentName ? (
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 items-center max-w-full">
                           <input
                             type="text"
                             value={editingDocumentName.newName}
                             onChange={(e) => setEditingDocumentName({ ...editingDocumentName, newName: e.target.value })}
-                            className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                            className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-300 rounded"
                             autoFocus
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleSaveDocumentName()
@@ -769,14 +769,14 @@ export default function TerminologyTable({
                           />
                           <button
                             onClick={handleSaveDocumentName}
-                            className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                            className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-green-600 text-white text-xs rounded hover:bg-green-700"
                             title={language === 'pl' ? 'Zapisz' : 'Save'}
                           >
                             ✓
                           </button>
                           <button
                             onClick={() => setEditingDocumentName(null)}
-                            className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                            className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
                             title={language === 'pl' ? 'Anuluj' : 'Cancel'}
                           >
                             ✕
