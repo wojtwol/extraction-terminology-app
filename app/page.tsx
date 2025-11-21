@@ -2362,6 +2362,15 @@ export default function Home() {
                   if (updated) setCurrentProject(updated)
                   setRefreshKey(prev => prev + 1)
                 }}
+                onClearDocument={() => {
+                  // Wyczyść załadowany dokument - nowy glosariusz startuje od zera
+                  setLoadedText('')
+                  setLoadedFileName('')
+                  setDocumentText('')
+                  setFileName('')
+                  setDetectedLanguage('')
+                  console.log('🧹 Wyczyszczono dokument dla nowego glosariusza')
+                }}
               />
             )}
 

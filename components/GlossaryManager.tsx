@@ -10,6 +10,7 @@ interface GlossaryManagerProps {
   currentGlossaryId: string | null
   onGlossaryChange: (glossaryId: string) => void
   onRefresh: () => void
+  onClearDocument?: () => void  // Wywołane po utworzeniu nowego glosariusza
 }
 
 export default function GlossaryManager({
@@ -17,7 +18,8 @@ export default function GlossaryManager({
   glossaries,
   currentGlossaryId,
   onGlossaryChange,
-  onRefresh
+  onRefresh,
+  onClearDocument
 }: GlossaryManagerProps) {
   const { t, language } = useLanguage()
   const [showNewGlossaryDialog, setShowNewGlossaryDialog] = useState(false)
@@ -39,6 +41,12 @@ export default function GlossaryManager({
     if (result) {
       setNewGlossaryName('')
       setShowNewGlossaryDialog(false)
+
+      // Wyczyść załadowany dokument - nowy glosariusz startuje od zera
+      if (onClearDocument) {
+        onClearDocument()
+      }
+
       onRefresh()
     }
   }
