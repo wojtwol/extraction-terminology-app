@@ -12,6 +12,7 @@ import GlossaryManager from '@/components/GlossaryManager'
 import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
 import DocumentManager from '@/components/DocumentManager'
+import PromptDialog from '@/components/PromptDialog'
 import { Project, Glossary, GlossaryVersion, projectStorage, SourceDocument } from '@/utils/projectStorage'
 import { useLanguage } from '@/contexts/LanguageContext'
 
@@ -152,6 +153,14 @@ export default function Home() {
 
   // Sugestia dotycząca liczby terminów
   const [extractionSuggestion, setExtractionSuggestion] = useState<string | null>(null)
+
+  // Stan dialogu prompt
+  const [promptDialog, setPromptDialog] = useState<{
+    isOpen: boolean
+    title: string
+    defaultValue: string
+    onConfirm: (value: string) => void
+  } | null>(null)
 
   // Skrót do terminów z aktualnej wersji
   const terms = currentVersion?.terms || []
@@ -765,18 +774,24 @@ export default function Home() {
                   const nextNumber = todayProjects.length + 1
                   const defaultName = `${baseNamePrefix}_${nextNumber}`
 
-                  const name = prompt(language === 'pl' ? 'Nazwa nowego projektu (pojedynczy dokument):' : 'New project name (single document):', defaultName)
-                  if (name) {
-                    const newProject = projectStorage.save({
-                      name,
-                      fileName: '',
-                      documentText: '',
-                      detectedLanguage: ''
-                    })
-                    setCurrentProject(newProject)
-                    setProjectName(newProject.name)
-                    refreshGlossary()
-                  }
+                  // Otwórz niestandardowy dialog
+                  setPromptDialog({
+                    isOpen: true,
+                    title: language === 'pl' ? 'Nazwa nowego projektu (pojedynczy dokument):' : 'New project name (single document):',
+                    defaultValue: defaultName,
+                    onConfirm: (name) => {
+                      const newProject = projectStorage.save({
+                        name,
+                        fileName: '',
+                        documentText: '',
+                        detectedLanguage: ''
+                      })
+                      setCurrentProject(newProject)
+                      setProjectName(newProject.name)
+                      refreshGlossary()
+                      setPromptDialog(null)
+                    }
+                  })
                 }}
                 className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
               >
@@ -798,23 +813,29 @@ export default function Home() {
                   const nextNumber = todayProjects.length + 1
                   const defaultName = `${baseNamePrefix}_${nextNumber}`
 
-                  const name = prompt(language === 'pl' ? 'Nazwa nowego projektu wielodokumentowego:' : 'New multi-document project name:', defaultName)
-                  if (name) {
-                    const newProject = projectStorage.save({
-                      name,
-                      fileName: '',
-                      documentText: '',
-                      detectedLanguage: ''
-                    })
-                    // Oznacz jako projekt wielodokumentowy
-                    projectStorage.update(newProject.id, { isMultiDocument: true, documents: [] })
-                    const updatedProject = projectStorage.getById(newProject.id)
-                    if (updatedProject) {
-                      setCurrentProject(updatedProject)
-                      setProjectName(updatedProject.name)
-                      refreshGlossary()
+                  // Otwórz niestandardowy dialog
+                  setPromptDialog({
+                    isOpen: true,
+                    title: language === 'pl' ? 'Nazwa nowego projektu wielodokumentowego:' : 'New multi-document project name:',
+                    defaultValue: defaultName,
+                    onConfirm: (name) => {
+                      const newProject = projectStorage.save({
+                        name,
+                        fileName: '',
+                        documentText: '',
+                        detectedLanguage: ''
+                      })
+                      // Oznacz jako projekt wielodokumentowy
+                      projectStorage.update(newProject.id, { isMultiDocument: true, documents: [] })
+                      const updatedProject = projectStorage.getById(newProject.id)
+                      if (updatedProject) {
+                        setCurrentProject(updatedProject)
+                        setProjectName(updatedProject.name)
+                        refreshGlossary()
+                      }
+                      setPromptDialog(null)
                     }
-                  }
+                  })
                 }}
                 className="w-full px-6 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-lg"
               >
@@ -1369,6 +1390,19 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Dialog prompt */}
+      {promptDialog && (
+        <PromptDialog
+          isOpen={promptDialog.isOpen}
+          title={promptDialog.title}
+          defaultValue={promptDialog.defaultValue}
+          onConfirm={promptDialog.onConfirm}
+          onCancel={() => setPromptDialog(null)}
+          confirmLabel={language === 'pl' ? 'OK' : 'OK'}
+          cancelLabel={language === 'pl' ? 'Anuluj' : 'Cancel'}
+        />
+      )}
     </main>
   )
 }
