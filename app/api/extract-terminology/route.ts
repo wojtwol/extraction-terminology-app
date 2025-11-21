@@ -236,11 +236,11 @@ TEXT:`
 
     // Dynamiczny max_tokens w zależności od liczby terminów
     // Dla wielu terminów potrzeba więcej tokenów na odpowiedź
-    const estimatedTokensPerTerm = 100 // ~100 tokenów na termin (term + context)
-    const baseTokens = 1000 // Bazowe tokeny na strukturę JSON
+    const estimatedTokensPerTerm = 120 // ~120 tokenów na termin (term + context + JSON structure)
+    const baseTokens = 2000 // Bazowe tokeny na strukturę JSON i overhead
     const calculatedMaxTokens = Math.min(
       baseTokens + (maxTerms * estimatedTokensPerTerm),
-      8192 // Maksymalny limit dla Claude
+      16384 // Maksymalny limit dla Claude Sonnet 4 (16K output tokens)
     )
 
     console.log(`🔢 Maksymalna liczba tokenów dla odpowiedzi: ${calculatedMaxTokens} (dla ${maxTerms} terminów)`)
