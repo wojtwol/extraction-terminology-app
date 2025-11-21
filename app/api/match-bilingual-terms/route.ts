@@ -182,32 +182,17 @@ export async function POST(request: NextRequest) {
 
       // 3. Użyj AI do znalezienia ekwiwalentu
       try {
-        const prompt = `You are a professional translator and terminology expert.
+        const prompt = `Find the ${targetLanguage} equivalent of "${sourceTerm.term}" (${sourceLanguage}) in this text fragment:
 
-TASK: Find the equivalent term in the target language document.
-
-SOURCE TERM: "${sourceTerm.term}"
-SOURCE LANGUAGE: ${sourceLanguage}
-SOURCE CONTEXT: "${sourceTerm.context}"
-
-TARGET LANGUAGE: ${targetLanguage}
-TARGET DOCUMENT FRAGMENT (around ${sourcePositionPercent.toFixed(1)}% of document):
 """
 ${targetWindow.text}
 """
 
-INSTRUCTIONS:
-1. Find the EXACT equivalent of the source term in the target document fragment
-2. The equivalent should be in the same semantic position (similar context)
-3. Return ONLY the target term, nothing else
-4. If you cannot find an equivalent, respond with "NOT_FOUND"
-5. The term must exist verbatim in the target fragment
-
-Respond with just the target term or "NOT_FOUND".`
+Return ONLY the exact target term found in the text, or "NOT_FOUND" if not present.`
 
         const response = await client.messages.create({
-          model: 'claude-3-5-haiku-20241022',  // Szybszy model dla prostego dopasowywania
-          max_tokens: 50,
+          model: 'claude-sonnet-4-5-20250929',
+          max_tokens: 100,
           temperature: 0,
           messages: [{
             role: 'user',
@@ -265,7 +250,10 @@ Respond with just the target term or "NOT_FOUND".`
           }
         }
 
-        // Usunięto delay - Haiku jest na tyle szybki, że rate limiting nie powinien być problemem
+        // Delay między requestami (optymalizacja rate limiting)
+        if (sourceTerms.indexOf(sourceTerm) < sourceTerms.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200))
+        }
 
       } catch (aiError: any) {
         const errorMsg = aiError?.message || aiError?.toString() || 'Unknown error'
