@@ -881,8 +881,112 @@ export default function ExportButtons({
     XLSX.writeFile(wb, filename)
   }
 
+  const exportBilingualToPDF = () => {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const margin = 10
+
+    // Nagłówek dokumentu
+    doc.setFillColor(102, 126, 234) // Niebieski gradient
+    doc.rect(0, 0, pageWidth, 20, 'F')
+
+    doc.setFontSize(16)
+    doc.setTextColor(255, 255, 255)
+    doc.text('IURIDICO EJ GTEXTT', margin, 8)
+
+    doc.setFontSize(8)
+    doc.setTextColor(220, 220, 220)
+    doc.text('Bilingual Glossary Tool', margin, 14)
+
+    // Przygotuj dane do tabeli
+    let tableHead: string[][]
+    let tableData: (string | number)[][]
+
+    if (is2Column) {
+      tableHead = [[
+        language === 'pl' ? 'Termin źródłowy' : 'Source Term',
+        language === 'pl' ? 'Termin docelowy' : 'Target Term'
+      ]]
+      tableData = terms.map(term => [
+        term.term,
+        term.targetTerm || '-'
+      ])
+    } else {
+      tableHead = [[
+        language === 'pl' ? 'Termin źródłowy' : 'Source Term',
+        language === 'pl' ? 'Kontekst źródłowy' : 'Source Context',
+        language === 'pl' ? 'Termin docelowy' : 'Target Term',
+        language === 'pl' ? 'Kontekst docelowy' : 'Target Context'
+      ]]
+      tableData = terms.map(term => [
+        term.term,
+        term.context || '-',
+        term.targetTerm || '-',
+        term.targetContext || '-'
+      ])
+    }
+
+    // Tabela z danymi
+    autoTable(doc, {
+      startY: 25,
+      head: tableHead,
+      body: tableData,
+
+      styles: {
+        font: 'helvetica',
+        fontSize: 8,
+        cellPadding: 2.5,
+        overflow: 'linebreak',
+        cellWidth: 'wrap',
+        valign: 'top',
+        halign: 'left',
+        lineColor: [220, 220, 220],
+        lineWidth: 0.1
+      },
+
+      headStyles: {
+        fillColor: [102, 126, 234],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'center',
+        valign: 'middle',
+        cellPadding: 3
+      },
+
+      columnStyles: is2Column ? {
+        0: { cellWidth: 130 },
+        1: { cellWidth: 130 }
+      } : {
+        0: { cellWidth: 60 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 70 }
+      },
+
+      alternateRowStyles: {
+        fillColor: [245, 247, 250]
+      }
+    })
+
+    const suffix = is2Column ? '_dwujezyczny_2kol' : '_dwujezyczny_4kol'
+    const filename = `${fileName}${suffix}.pdf`
+    doc.save(filename)
+  }
+
   const exportToPDF = () => {
-    // Nowa implementacja z pełnym wsparciem dla UTF-8 i polskich znaków
+    // Obsługa glosariuszy dwujęzycznych
+    if (isBilingual) {
+      exportBilingualToPDF()
+      return
+    }
+
+    // Implementacja z pełnym wsparciem dla UTF-8 i polskich znaków (dla jednojęzycznych)
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -1042,7 +1146,8 @@ export default function ExportButtons({
 
   const exportToJSON = () => {
     const jsonContent = JSON.stringify(terms, null, 2)
-    const filename = `${fileName}_glosariusz.json`
+    const suffix = isBilingual ? (is2Column ? '_dwujezyczny_2kol' : '_dwujezyczny_4kol') : '_glosariusz'
+    const filename = `${fileName}${suffix}.json`
     downloadFile(jsonContent, filename, 'application/json')
   }
 
