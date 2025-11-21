@@ -589,7 +589,7 @@ export default function ExportButtons({
     const headerStyle = {
       fill: { fgColor: { rgb: '667eea' } },
       font: { bold: true, color: { rgb: 'FFFFFF' } },
-      alignment: { horizontal: 'center', vertical: 'center' }
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
     }
 
     headerRow.forEach((_, colIndex) => {
@@ -598,17 +598,31 @@ export default function ExportButtons({
       worksheet[cellRef].s = headerStyle
     })
 
-    // Szerokości kolumn
+    // Stylizacja komórek danych - zawijanie tekstu
+    const dataStyle = {
+      alignment: { vertical: 'top', wrapText: true }
+    }
+
+    dataRows.forEach((_, rowIndex) => {
+      const actualRowIndex = headerRowIndex + 1 + rowIndex
+      headerRow.forEach((_, colIndex) => {
+        const cellRef = XLSX.utils.encode_cell({ r: actualRowIndex, c: colIndex })
+        if (!worksheet[cellRef]) worksheet[cellRef] = { t: 's', v: '' }
+        worksheet[cellRef].s = dataStyle
+      })
+    })
+
+    // Szerokości kolumn - dostosowane do szerokości ekranu
     if (is2Column) {
       worksheet['!cols'] = [
-        { wch: 40 }, // Source Term
-        { wch: 40 }  // Target Term
+        { wch: 50 }, // Source Term (zwiększone)
+        { wch: 50 }  // Target Term (zwiększone)
       ]
     } else {
       worksheet['!cols'] = [
-        { wch: 30 }, // Source Term
+        { wch: 25 }, // Source Term (zmniejszone)
         { wch: 50 }, // Source Context
-        { wch: 30 }, // Target Term
+        { wch: 25 }, // Target Term (zmniejszone)
         { wch: 50 }  // Target Context
       ]
     }
@@ -891,17 +905,13 @@ export default function ExportButtons({
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 10
 
-    // Nagłówek dokumentu
-    doc.setFillColor(102, 126, 234) // Niebieski gradient
-    doc.rect(0, 0, pageWidth, 20, 'F')
+    // Nagłówek dokumentu - kompaktowy
+    doc.setFillColor(102, 126, 234)
+    doc.rect(0, 0, pageWidth, 15, 'F')
 
-    doc.setFontSize(16)
+    doc.setFontSize(14)
     doc.setTextColor(255, 255, 255)
-    doc.text('IURIDICO EJ GTEXTT', margin, 8)
-
-    doc.setFontSize(8)
-    doc.setTextColor(220, 220, 220)
-    doc.text('Bilingual Glossary Tool', margin, 14)
+    doc.text(language === 'pl' ? 'Glosariusz Dwujęzyczny' : 'Bilingual Glossary', margin, 10)
 
     // Przygotuj dane do tabeli
     let tableHead: string[][]
@@ -931,42 +941,43 @@ export default function ExportButtons({
       ])
     }
 
-    // Tabela z danymi
+    // Tabela z danymi - poprawione formatowanie
     autoTable(doc, {
-      startY: 25,
+      startY: 18,
       head: tableHead,
       body: tableData,
+      margin: { left: margin, right: margin },
 
       styles: {
         font: 'helvetica',
-        fontSize: 8,
-        cellPadding: 2.5,
+        fontSize: 7,
+        cellPadding: 2,
         overflow: 'linebreak',
         cellWidth: 'wrap',
         valign: 'top',
         halign: 'left',
-        lineColor: [220, 220, 220],
+        lineColor: [200, 200, 200],
         lineWidth: 0.1
       },
 
       headStyles: {
         fillColor: [102, 126, 234],
         textColor: [255, 255, 255],
-        fontSize: 8,
+        fontSize: 7,
         fontStyle: 'bold',
         halign: 'center',
         valign: 'middle',
-        cellPadding: 3
+        cellPadding: 2
       },
 
       columnStyles: is2Column ? {
-        0: { cellWidth: 130 },
-        1: { cellWidth: 130 }
+        0: { cellWidth: 135 },
+        1: { cellWidth: 135 }
       } : {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 60 },
-        3: { cellWidth: 70 }
+        0: { cellWidth: 'auto', minCellWidth: 35 },
+        1: { cellWidth: 'auto', minCellWidth: 65 },
+        2: { cellWidth: 'auto', minCellWidth: 35 },
+        3: { cellWidth: 'auto', minCellWidth: 65 }
       },
 
       alternateRowStyles: {
@@ -1027,33 +1038,50 @@ export default function ExportButtons({
     // Sprawdź czy są definicje
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
 
-    // Przygotuj dane dla tabeli - dane są już w UTF-8, jsPDF autoTable je obsłuży
-    const tableData = terms.map((term, index) => {
-      let sourceText = '-'
-      if (term.definitionSource === 'document') sourceText = 'Document'
-      else if (term.definitionSource === 'edited') sourceText = 'Edited'
-      else if (term.definitionSource === 'ai') sourceText = 'AI'
+    // Przygotuj dane dla tabeli
+    let tableHead: string[][]
+    let tableData: (string | number)[][]
+    let colWidths: Record<number, number>
 
-      return [
+    if (hasDefinitions) {
+      // Z definicjami: Nr | Term | Occurrences | Source Document | Definition | Def Source | Context
+      tableHead = [['No.', 'Term', 'Number of\noccurrences', 'Source\nDocument', 'Definition', 'Source of\ndefinition', 'Context']]
+      tableData = terms.map((term, index) => {
+        let defSource = '-'
+        if (term.definitionSource === 'document') defSource = 'Document'
+        else if (term.definitionSource === 'edited') defSource = 'Edited'
+        else if (term.definitionSource === 'ai') defSource = 'AI'
+
+        return [
+          String(index + 1),
+          term.term || '',
+          String(term.occurrences),
+          term.sourceDocument || fileName,
+          term.definition || '-',
+          defSource,
+          term.context || '-'
+        ]
+      })
+      // Term: 42 * 1.15 = 48, Occurrences: 18 * 1.15 = 21, Context: 70 * 1.15 = 81
+      colWidths = { 0: 10, 1: 48, 2: 21, 3: 25, 4: 50, 5: 20, 6: 81 }
+    } else {
+      // Bez definicji: Nr | Term | Occurrences | Source Document | Context
+      tableHead = [['No.', 'Term', 'Number of\noccurrences', 'Source\nDocument', 'Context']]
+      tableData = terms.map((term, index) => [
         String(index + 1),
         term.term || '',
         String(term.occurrences),
-        term.definition || '-',
-        sourceText,
+        term.sourceDocument || fileName,
         term.context || '-'
-      ]
-    })
-
-    // Optymalne szerokości kolumn (A4 landscape = 297mm, dostępne ~277mm)
-    // Suma kolumn musi być < 277mm aby uniknąć wychodzenia poza stronę
-    const colWidths = hasDefinitions
-      ? { 0: 10, 1: 42, 2: 18, 3: 60, 4: 22, 5: 70 }  // Z definicjami: 222mm
-      : { 0: 10, 1: 45, 2: 18, 3: 18, 4: 22, 5: 105 } // Bez definicji: 218mm
+      ])
+      // Term: 45 * 1.15 = 52, Occurrences: 18 * 1.15 = 21, Context: 105 * 1.15 = 121
+      colWidths = { 0: 10, 1: 52, 2: 21, 3: 30, 4: 121 }
+    }
 
     // Tabela z danymi
     autoTable(doc, {
       startY: 28,
-      head: [['No.', 'Term', 'Number of\noccurrences', 'Definition', 'Source of\ndefinition', 'Context']],
+      head: tableHead,
       body: tableData,
 
       // Podstawowe style
@@ -1081,42 +1109,20 @@ export default function ExportButtons({
       },
 
       // Style poszczególnych kolumn
-      columnStyles: {
-        0: {
-          cellWidth: colWidths[0],
-          halign: 'center',
-          valign: 'middle',
-          fontSize: 7
-        },
-        1: {
-          cellWidth: colWidths[1],
-          fontStyle: 'bold',
-          fontSize: 9,
-          overflow: 'linebreak'
-        },
-        2: {
-          cellWidth: colWidths[2],
-          halign: 'center',
-          valign: 'middle'
-        },
-        3: {
-          cellWidth: colWidths[3],
-          fontSize: 6.5,
-          cellPadding: 2,
-          overflow: 'linebreak'
-        },
-        4: {
-          cellWidth: colWidths[4],
-          halign: 'center',
-          fontSize: 7
-        },
-        5: {
-          cellWidth: colWidths[5],
-          fontSize: 6.5,
-          cellPadding: 2,
-          overflow: 'linebreak',
-          minCellWidth: 70
-        }
+      columnStyles: hasDefinitions ? {
+        0: { cellWidth: colWidths[0], halign: 'center', valign: 'middle', fontSize: 7 },
+        1: { cellWidth: colWidths[1], fontStyle: 'bold', fontSize: 9, overflow: 'linebreak' },
+        2: { cellWidth: colWidths[2], halign: 'center', valign: 'middle' },
+        3: { cellWidth: colWidths[3], fontSize: 7, overflow: 'linebreak' },
+        4: { cellWidth: colWidths[4], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak' },
+        5: { cellWidth: colWidths[5], halign: 'center', fontSize: 7 },
+        6: { cellWidth: colWidths[6], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak', minCellWidth: 70 }
+      } : {
+        0: { cellWidth: colWidths[0], halign: 'center', valign: 'middle', fontSize: 7 },
+        1: { cellWidth: colWidths[1], fontStyle: 'bold', fontSize: 9, overflow: 'linebreak' },
+        2: { cellWidth: colWidths[2], halign: 'center', valign: 'middle' },
+        3: { cellWidth: colWidths[3], fontSize: 7, overflow: 'linebreak' },
+        4: { cellWidth: colWidths[4], fontSize: 6.5, cellPadding: 2, overflow: 'linebreak', minCellWidth: 100 }
       },
 
       // Naprzemienne wiersze
