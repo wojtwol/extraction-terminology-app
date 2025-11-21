@@ -691,126 +691,62 @@ export default function Home() {
       console.log('🔄 Rozpoczynam dopasowywanie terminów...')
       setProgress(10)
 
-      // Sprawdź czy trzeba podzielić na dwa etapy (duży dokument + wiele terminów)
-      const shouldSplit = terms.length > 15 && targetDocText.length > 100000
-      let allMatchedTerms: Term[] = []
+      // Określ czy i jak podzielić na etapy
+      let batches: Term[][] = []
+      const BATCH_SIZE = 15
 
-      if (shouldSplit) {
-        console.log(`📊 Podział na 2 etapy: ${terms.length} terminów, dokument ${targetDocText.length} znaków`)
+      if (terms.length > 30) {
+        // Dla >30 terminów: dziel na batche po 15 terminów
+        for (let i = 0; i < terms.length; i += BATCH_SIZE) {
+          batches.push(terms.slice(i, i + BATCH_SIZE))
+        }
+        console.log(`📊 Podział na ${batches.length} etapów (po ${BATCH_SIZE} terminów): ${terms.length} terminów, dokument ${targetDocText.length} znaków`)
+      } else if (terms.length > 15 && targetDocText.length > 100000) {
+        // Dla 16-30 terminów i dużego dokumentu: dziel na 2 batche
         const midpoint = Math.ceil(terms.length / 2)
-        const batch1 = terms.slice(0, midpoint)
-        const batch2 = terms.slice(midpoint)
-
-        console.log(`   Etap 1: ${batch1.length} terminów`)
-        console.log(`   Etap 2: ${batch2.length} terminów`)
-
-        // ETAP 1
-        setBilingualProgress({
-          current: 0,
-          total: terms.length,
-          message: language === 'pl' ? `Etap 1/2: Przetwarzanie ${batch1.length} terminów...` : `Stage 1/2: Processing ${batch1.length} terms...`
-        })
-
-        let currentTermIndex = 0
-        progressInterval = setInterval(() => {
-          currentTermIndex++
-          if (currentTermIndex <= batch1.length) {
-            const currentTerm = batch1[currentTermIndex - 1]?.term || ''
-            setBilingualProgress({
-              current: currentTermIndex,
-              total: terms.length,
-              message: language === 'pl'
-                ? `Etap 1/2: "${currentTerm}"`
-                : `Stage 1/2: "${currentTerm}"`
-            })
-          }
-        }, 500)
-
-        const response1 = await fetch('/api/match-bilingual-terms', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sourceTerms: batch1,
-            sourceText: documentText,
-            targetText: targetDocText,
-            sourceLanguage: detectedLanguage || 'unknown',
-            targetLanguage: selectedTargetLanguage,
-            apiKey: apiKey
-          })
-        })
-
-        clearInterval(progressInterval)
-
-        if (!response1.ok) {
-          throw new Error(`Etap 1 nieudany: ${response1.status}`)
-        }
-
-        const result1 = await response1.json()
-        allMatchedTerms = [...result1.matchedTerms]
-        console.log(`✅ Etap 1 zakończony: ${result1.matchedTerms.length} terminów`)
-
-        // ETAP 2
-        setBilingualProgress({
-          current: batch1.length,
-          total: terms.length,
-          message: language === 'pl' ? `Etap 2/2: Przetwarzanie ${batch2.length} terminów...` : `Stage 2/2: Processing ${batch2.length} terms...`
-        })
-
-        currentTermIndex = batch1.length
-        progressInterval = setInterval(() => {
-          currentTermIndex++
-          if (currentTermIndex <= terms.length) {
-            const currentTerm = batch2[currentTermIndex - batch1.length - 1]?.term || ''
-            setBilingualProgress({
-              current: currentTermIndex,
-              total: terms.length,
-              message: language === 'pl'
-                ? `Etap 2/2: "${currentTerm}"`
-                : `Stage 2/2: "${currentTerm}"`
-            })
-          }
-        }, 500)
-
-        const response2 = await fetch('/api/match-bilingual-terms', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sourceTerms: batch2,
-            sourceText: documentText,
-            targetText: targetDocText,
-            sourceLanguage: detectedLanguage || 'unknown',
-            targetLanguage: selectedTargetLanguage,
-            apiKey: apiKey
-          })
-        })
-
-        clearInterval(progressInterval)
-
-        if (!response2.ok) {
-          throw new Error(`Etap 2 nieudany: ${response2.status}`)
-        }
-
-        const result2 = await response2.json()
-        allMatchedTerms = [...allMatchedTerms, ...result2.matchedTerms]
-        console.log(`✅ Etap 2 zakończony: ${result2.matchedTerms.length} terminów`)
-        console.log(`✅ Łącznie: ${allMatchedTerms.length} terminów`)
-
+        batches = [terms.slice(0, midpoint), terms.slice(midpoint)]
+        console.log(`📊 Podział na 2 etapy: ${terms.length} terminów, dokument ${targetDocText.length} znaków`)
       } else {
-        // Standardowe przetwarzanie (bez podziału)
+        // Standardowe przetwarzanie bez podziału
+        batches = [terms]
         console.log(`📊 Standardowe przetwarzanie: ${terms.length} terminów, dokument ${targetDocText.length} znaków`)
+      }
 
-        let currentTermIndex = 0
+      let allMatchedTerms: Term[] = []
+      let processedTerms = 0
+
+      // Przetwarzaj każdy batch
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex]
+        const batchNumber = batchIndex + 1
+        const totalBatches = batches.length
+
+        console.log(`   Etap ${batchNumber}/${totalBatches}: ${batch.length} terminów`)
+
+        if (totalBatches > 1) {
+          setBilingualProgress({
+            current: processedTerms,
+            total: terms.length,
+            message: language === 'pl'
+              ? `Etap ${batchNumber}/${totalBatches}: Przetwarzanie ${batch.length} terminów...`
+              : `Stage ${batchNumber}/${totalBatches}: Processing ${batch.length} terms...`
+          })
+        }
+
+        // Progress interval dla bieżącego batcha
+        let currentTermIndex = processedTerms
         progressInterval = setInterval(() => {
-          currentTermIndex++
-          if (currentTermIndex <= terms.length) {
-            const currentTerm = terms[currentTermIndex - 1]?.term || ''
+          const localIndex = currentTermIndex - processedTerms
+          if (localIndex < batch.length) {
+            const currentTerm = batch[localIndex]?.term || ''
             setBilingualProgress({
-              current: currentTermIndex,
+              current: currentTermIndex + 1,
               total: terms.length,
-              message: language === 'pl'
-                ? `Dopasowywanie terminu: "${currentTerm}"`
-                : `Matching term: "${currentTerm}"`
+              message: totalBatches > 1
+                ? (language === 'pl' ? `Etap ${batchNumber}/${totalBatches}: "${currentTerm}"` : `Stage ${batchNumber}/${totalBatches}: "${currentTerm}"`)
+                : (language === 'pl' ? `Dopasowywanie terminu: "${currentTerm}"` : `Matching term: "${currentTerm}"`)
             })
+            currentTermIndex++
           }
         }, 500)
 
@@ -818,7 +754,7 @@ export default function Home() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sourceTerms: terms,
+            sourceTerms: batch,
             sourceText: documentText,
             targetText: targetDocText,
             sourceLanguage: detectedLanguage || 'unknown',
@@ -830,35 +766,40 @@ export default function Home() {
         clearInterval(progressInterval)
 
         if (!response.ok) {
-          // Obsługa błędu 504 (Gateway Timeout)
+          // Obsługa błędów
           if (response.status === 504) {
             throw new Error(
               language === 'pl'
-                ? 'Timeout: Dokument jest zbyt duży. Spróbuj z mniejszą liczbą terminów lub krótszym dokumentem.'
-                : 'Timeout: Document is too large. Try with fewer terms or a shorter document.'
+                ? `Timeout w etapie ${batchNumber}/${totalBatches}. Spróbuj z mniejszą liczbą terminów.`
+                : `Timeout in stage ${batchNumber}/${totalBatches}. Try with fewer terms.`
             )
           }
 
-          // Sprawdź czy odpowiedź to JSON przed parsowaniem
           const contentType = response.headers.get('content-type')
           if (contentType && contentType.includes('application/json')) {
             const error = await response.json()
             console.error('❌ API Error response:', error)
-            throw new Error(error.error || 'Błąd dopasowywania terminów')
+            throw new Error(error.error || `Etap ${batchNumber} nieudany`)
           } else {
-            // Odpowiedź nie jest JSON (np. HTML z błędem serwera)
             const errorText = await response.text()
             console.error('❌ Non-JSON error response:', errorText.substring(0, 200))
             throw new Error(
               language === 'pl'
-                ? `Błąd serwera (${response.status}): ${response.statusText}`
-                : `Server error (${response.status}): ${response.statusText}`
+                ? `Błąd serwera w etapie ${batchNumber}/${totalBatches}: ${response.status}`
+                : `Server error in stage ${batchNumber}/${totalBatches}: ${response.status}`
             )
           }
         }
 
-        const fullResponse = await response.json()
-        allMatchedTerms = fullResponse.matchedTerms
+        const result = await response.json()
+        allMatchedTerms = [...allMatchedTerms, ...result.matchedTerms]
+        processedTerms += batch.length
+
+        console.log(`✅ Etap ${batchNumber}/${totalBatches} zakończony: ${result.matchedTerms.length} terminów`)
+      }
+
+      if (batches.length > 1) {
+        console.log(`✅ Łącznie: ${allMatchedTerms.length} terminów z ${batches.length} etapów`)
       }
 
       setProgress(80)
