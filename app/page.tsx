@@ -1656,7 +1656,7 @@ export default function Home() {
                   const nextNumber = todayProjects.length + 1
                   const defaultName = `${baseNamePrefix}_${nextNumber}`
 
-                  const name = prompt(language === 'pl' ? 'Nazwa nowego projektu (pojedynczy dokument):' : 'New project name (single document):', defaultName)
+                  const name = prompt(language === 'pl' ? 'Nazwa nowego projektu jednodokumentowego:' : 'New single-document project name:', defaultName)
                   if (name) {
                     const newProject = projectStorage.save({
                       name,
