@@ -190,11 +190,8 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey }: FileUp
         return
       }
 
-      // Wyciągnij nazwę pliku z URL
-      const urlObj = new URL(urlInput.trim())
-      const pathParts = urlObj.pathname.split('/')
-      const lastPart = pathParts[pathParts.length - 1] || urlObj.hostname
-      const fileName = lastPart || (language === 'pl' ? 'Dokument z URL' : 'Document from URL')
+      // Użyj tytułu dokumentu z API (jeśli dostępny), w przeciwnym razie hostname
+      const fileName = data.documentTitle || new URL(urlInput.trim()).hostname
 
       await onExtract(text, fileName, apiKey)
     } catch (error) {

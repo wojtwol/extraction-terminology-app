@@ -23,6 +23,7 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
   const [sourceFile, setSourceFile] = useState<File | null>(null)
   const [sourceText, setSourceText] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')
+  const [sourceDocumentTitle, setSourceDocumentTitle] = useState<string>('')
   const [sourceLang, setSourceLang] = useState<string>('')
   const [detectingSourceLang, setDetectingSourceLang] = useState(false)
   const [loadingSourceUrl, setLoadingSourceUrl] = useState(false)
@@ -32,6 +33,7 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
   const [targetFile, setTargetFile] = useState<File | null>(null)
   const [targetText, setTargetText] = useState('')
   const [targetUrl, setTargetUrl] = useState('')
+  const [targetDocumentTitle, setTargetDocumentTitle] = useState<string>('')
   const [targetLang, setTargetLang] = useState<string>('')
   const [detectingTargetLang, setDetectingTargetLang] = useState(false)
   const [loadingTargetUrl, setLoadingTargetUrl] = useState(false)
@@ -208,6 +210,7 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       }
 
       const text = data.text
+      const documentTitle = data.documentTitle
 
       if (text.length < 100) {
         alert(language === 'pl' ? 'Dokument jest zbyt krótki' : 'Document is too short')
@@ -217,10 +220,12 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       if (type === 'source') {
         setSourceText(text)
         setSourceFile(null)
+        setSourceDocumentTitle(documentTitle || new URL(url.trim()).hostname)
         await detectLanguage(text, 'source')
       } else {
         setTargetText(text)
         setTargetFile(null)
+        setTargetDocumentTitle(documentTitle || new URL(url.trim()).hostname)
         await detectLanguage(text, 'target')
       }
     } catch (error) {
@@ -253,9 +258,8 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       sourceFileName = language === 'pl' ? 'Wklejony tekst' : 'Pasted text'
     } else if (sourceInputMode === 'url' && sourceText) {
       finalSourceText = sourceText
-      const urlObj = new URL(sourceUrl.trim())
-      const pathParts = urlObj.pathname.split('/')
-      sourceFileName = pathParts[pathParts.length - 1] || urlObj.hostname
+      // Użyj zapisanego tytułu dokumentu (z API) lub fallback do hostname
+      sourceFileName = sourceDocumentTitle || new URL(sourceUrl.trim()).hostname
     } else {
       alert(txt.bothRequired)
       return
@@ -270,9 +274,8 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey 
       targetFileName = language === 'pl' ? 'Wklejony tekst' : 'Pasted text'
     } else if (targetInputMode === 'url' && targetText) {
       finalTargetText = targetText
-      const urlObj = new URL(targetUrl.trim())
-      const pathParts = urlObj.pathname.split('/')
-      targetFileName = pathParts[pathParts.length - 1] || urlObj.hostname
+      // Użyj zapisanego tytułu dokumentu (z API) lub fallback do hostname
+      targetFileName = targetDocumentTitle || new URL(targetUrl.trim()).hostname
     } else {
       alert(txt.bothRequired)
       return

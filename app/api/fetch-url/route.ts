@@ -89,6 +89,57 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Pobrano ${text.length.toLocaleString()} znaków`)
 
+    // Ekstrakcja tytułu dokumentu z tagu <title>
+    let documentTitle = validUrl.hostname // Domyślnie użyj hostname
+    const titleMatch = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+    if (titleMatch && titleMatch[1]) {
+      let extractedTitle = titleMatch[1]
+
+      // Dekoduj HTML entities w tytule
+      const htmlEntitiesForTitle: { [key: string]: string } = {
+        '&nbsp;': ' ',
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&apos;': "'",
+        '&ndash;': '–',
+        '&mdash;': '—',
+        '&euro;': '€',
+        '&pound;': '£',
+        '&copy;': '©',
+        '&reg;': '®',
+        '&trade;': '™',
+        '&hellip;': '...',
+        '&bull;': '•',
+        '&middot;': '·',
+        '&laquo;': '«',
+        '&raquo;': '»',
+        '&deg;': '°'
+      }
+
+      for (const [entity, char] of Object.entries(htmlEntitiesForTitle)) {
+        extractedTitle = extractedTitle.replace(new RegExp(entity, 'g'), char)
+      }
+
+      // Dekoduj numeryczne HTML entities
+      extractedTitle = extractedTitle.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+      extractedTitle = extractedTitle.replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+
+      // Usuń zbędne białe znaki
+      extractedTitle = extractedTitle.replace(/\s+/g, ' ').trim()
+
+      if (extractedTitle && extractedTitle.length > 0 && extractedTitle.length < 500) {
+        documentTitle = extractedTitle
+        console.log(`📋 Wyekstrahowano tytuł: "${documentTitle}"`)
+      } else {
+        console.log(`⚠️  Tytuł jest zbyt długi lub pusty, używam hostname`)
+      }
+    } else {
+      console.log(`⚠️  Nie znaleziono tagu <title>, używam hostname: ${documentTitle}`)
+    }
+
     // Zaawansowane czyszczenie HTML - usuń tagi, zostaw tekst
     let cleanedText = text
 
@@ -186,7 +237,8 @@ export async function POST(request: NextRequest) {
       text: cleanedText,
       originalLength: text.length,
       cleanedLength: cleanedText.length,
-      contentType
+      contentType,
+      documentTitle  // Dodajemy tytuł dokumentu
     })
 
   } catch (error: any) {
