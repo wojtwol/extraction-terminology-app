@@ -691,89 +691,185 @@ export default function Home() {
       console.log('🔄 Rozpoczynam dopasowywanie terminów...')
       setProgress(10)
 
-      // Symulowany postęp - aktualizacja co 500ms (czas przetwarzania jednego terminu w API)
-      let currentTermIndex = 0
-      progressInterval = setInterval(() => {
-        currentTermIndex++
-        if (currentTermIndex <= terms.length) {
-          const currentTerm = terms[currentTermIndex - 1]?.term || ''
-          setBilingualProgress({
-            current: currentTermIndex,
-            total: terms.length,
-            message: language === 'pl'
-              ? `Dopasowywanie terminu: "${currentTerm}"`
-              : `Matching term: "${currentTerm}"`
-          })
-        }
-      }, 500)
+      // Sprawdź czy trzeba podzielić na dwa etapy (duży dokument + wiele terminów)
+      const shouldSplit = terms.length > 15 && targetDocText.length > 100000
+      let allMatchedTerms: Term[] = []
 
-      const response = await fetch('/api/match-bilingual-terms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceTerms: terms,
-          sourceText: documentText,
-          targetText: targetDocText,
-          sourceLanguage: detectedLanguage || 'unknown',
-          targetLanguage: selectedTargetLanguage,
-          apiKey: apiKey
+      if (shouldSplit) {
+        console.log(`📊 Podział na 2 etapy: ${terms.length} terminów, dokument ${targetDocText.length} znaków`)
+        const midpoint = Math.ceil(terms.length / 2)
+        const batch1 = terms.slice(0, midpoint)
+        const batch2 = terms.slice(midpoint)
+
+        console.log(`   Etap 1: ${batch1.length} terminów`)
+        console.log(`   Etap 2: ${batch2.length} terminów`)
+
+        // ETAP 1
+        setBilingualProgress({
+          current: 0,
+          total: terms.length,
+          message: language === 'pl' ? `Etap 1/2: Przetwarzanie ${batch1.length} terminów...` : `Stage 1/2: Processing ${batch1.length} terms...`
         })
-      })
 
-      // Zatrzymaj symulowany postęp
-      clearInterval(progressInterval)
+        let currentTermIndex = 0
+        progressInterval = setInterval(() => {
+          currentTermIndex++
+          if (currentTermIndex <= batch1.length) {
+            const currentTerm = batch1[currentTermIndex - 1]?.term || ''
+            setBilingualProgress({
+              current: currentTermIndex,
+              total: terms.length,
+              message: language === 'pl'
+                ? `Etap 1/2: "${currentTerm}"`
+                : `Stage 1/2: "${currentTerm}"`
+            })
+          }
+        }, 500)
+
+        const response1 = await fetch('/api/match-bilingual-terms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceTerms: batch1,
+            sourceText: documentText,
+            targetText: targetDocText,
+            sourceLanguage: detectedLanguage || 'unknown',
+            targetLanguage: selectedTargetLanguage,
+            apiKey: apiKey
+          })
+        })
+
+        clearInterval(progressInterval)
+
+        if (!response1.ok) {
+          throw new Error(`Etap 1 nieudany: ${response1.status}`)
+        }
+
+        const result1 = await response1.json()
+        allMatchedTerms = [...result1.matchedTerms]
+        console.log(`✅ Etap 1 zakończony: ${result1.matchedTerms.length} terminów`)
+
+        // ETAP 2
+        setBilingualProgress({
+          current: batch1.length,
+          total: terms.length,
+          message: language === 'pl' ? `Etap 2/2: Przetwarzanie ${batch2.length} terminów...` : `Stage 2/2: Processing ${batch2.length} terms...`
+        })
+
+        currentTermIndex = batch1.length
+        progressInterval = setInterval(() => {
+          currentTermIndex++
+          if (currentTermIndex <= terms.length) {
+            const currentTerm = batch2[currentTermIndex - batch1.length - 1]?.term || ''
+            setBilingualProgress({
+              current: currentTermIndex,
+              total: terms.length,
+              message: language === 'pl'
+                ? `Etap 2/2: "${currentTerm}"`
+                : `Stage 2/2: "${currentTerm}"`
+            })
+          }
+        }, 500)
+
+        const response2 = await fetch('/api/match-bilingual-terms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceTerms: batch2,
+            sourceText: documentText,
+            targetText: targetDocText,
+            sourceLanguage: detectedLanguage || 'unknown',
+            targetLanguage: selectedTargetLanguage,
+            apiKey: apiKey
+          })
+        })
+
+        clearInterval(progressInterval)
+
+        if (!response2.ok) {
+          throw new Error(`Etap 2 nieudany: ${response2.status}`)
+        }
+
+        const result2 = await response2.json()
+        allMatchedTerms = [...allMatchedTerms, ...result2.matchedTerms]
+        console.log(`✅ Etap 2 zakończony: ${result2.matchedTerms.length} terminów`)
+        console.log(`✅ Łącznie: ${allMatchedTerms.length} terminów`)
+
+      } else {
+        // Standardowe przetwarzanie (bez podziału)
+        console.log(`📊 Standardowe przetwarzanie: ${terms.length} terminów, dokument ${targetDocText.length} znaków`)
+
+        let currentTermIndex = 0
+        progressInterval = setInterval(() => {
+          currentTermIndex++
+          if (currentTermIndex <= terms.length) {
+            const currentTerm = terms[currentTermIndex - 1]?.term || ''
+            setBilingualProgress({
+              current: currentTermIndex,
+              total: terms.length,
+              message: language === 'pl'
+                ? `Dopasowywanie terminu: "${currentTerm}"`
+                : `Matching term: "${currentTerm}"`
+            })
+          }
+        }, 500)
+
+        const response = await fetch('/api/match-bilingual-terms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceTerms: terms,
+            sourceText: documentText,
+            targetText: targetDocText,
+            sourceLanguage: detectedLanguage || 'unknown',
+            targetLanguage: selectedTargetLanguage,
+            apiKey: apiKey
+          })
+        })
+
+        clearInterval(progressInterval)
+
+        if (!response.ok) {
+          // Obsługa błędu 504 (Gateway Timeout)
+          if (response.status === 504) {
+            throw new Error(
+              language === 'pl'
+                ? 'Timeout: Dokument jest zbyt duży. Spróbuj z mniejszą liczbą terminów lub krótszym dokumentem.'
+                : 'Timeout: Document is too large. Try with fewer terms or a shorter document.'
+            )
+          }
+
+          // Sprawdź czy odpowiedź to JSON przed parsowaniem
+          const contentType = response.headers.get('content-type')
+          if (contentType && contentType.includes('application/json')) {
+            const error = await response.json()
+            console.error('❌ API Error response:', error)
+            throw new Error(error.error || 'Błąd dopasowywania terminów')
+          } else {
+            // Odpowiedź nie jest JSON (np. HTML z błędem serwera)
+            const errorText = await response.text()
+            console.error('❌ Non-JSON error response:', errorText.substring(0, 200))
+            throw new Error(
+              language === 'pl'
+                ? `Błąd serwera (${response.status}): ${response.statusText}`
+                : `Server error (${response.status}): ${response.statusText}`
+            )
+          }
+        }
+
+        const fullResponse = await response.json()
+        allMatchedTerms = fullResponse.matchedTerms
+      }
+
       setProgress(80)
 
-      console.log('📡 API Response status:', response.status)
-      console.log('📡 API Response ok:', response.ok)
-
-      if (!response.ok) {
-        // Obsługa błędu 504 (Gateway Timeout)
-        if (response.status === 504) {
-          throw new Error(
-            language === 'pl'
-              ? 'Timeout: Dokument jest zbyt duży. Spróbuj z mniejszą liczbą terminów lub krótszym dokumentem.'
-              : 'Timeout: Document is too large. Try with fewer terms or a shorter document.'
-          )
-        }
-
-        // Sprawdź czy odpowiedź to JSON przed parsowaniem
-        const contentType = response.headers.get('content-type')
-        if (contentType && contentType.includes('application/json')) {
-          const error = await response.json()
-          console.error('❌ API Error response:', error)
-          throw new Error(error.error || 'Błąd dopasowywania terminów')
-        } else {
-          // Odpowiedź nie jest JSON (np. HTML z błędem serwera)
-          const errorText = await response.text()
-          console.error('❌ Non-JSON error response:', errorText.substring(0, 200))
-          throw new Error(
-            language === 'pl'
-              ? `Błąd serwera (${response.status}): ${response.statusText}`
-              : `Server error (${response.status}): ${response.statusText}`
-          )
-        }
-      }
-
-      const fullResponse = await response.json()
-      console.log('📦 Full API response:', fullResponse)
-
-      const { matchedTerms, stats, errors } = fullResponse
-
-      console.log('📊 Matched terms received:', matchedTerms.length)
-      console.log('📋 First 3 matched terms:', matchedTerms.slice(0, 3))
-      console.log('🎯 Terms with targetTerm:', matchedTerms.filter((t: Term) => t.targetTerm).length)
-      console.log('📊 Stats from API:', stats)
-
-      // Log errors if any
-      if (errors && errors.length > 0) {
-        console.error('❌ ERRORS FROM API:', errors.length)
-        console.error('❌ First 5 errors:', errors.slice(0, 5))
-        console.error('❌ All error messages:', errors.map((e: any) => e.error))
-      }
+      // Wyświetl statystyki
+      console.log('📊 Matched terms received:', allMatchedTerms.length)
+      console.log('📋 First 3 matched terms:', allMatchedTerms.slice(0, 3))
+      console.log('🎯 Terms with targetTerm:', allMatchedTerms.filter((t: Term) => t.targetTerm).length)
 
       // Check for terms without target
-      const missingTerms = matchedTerms.filter((t: Term) => !t.targetTerm)
+      const missingTerms = allMatchedTerms.filter((t: Term) => !t.targetTerm)
       if (missingTerms.length > 0) {
         console.warn('⚠️ Terms without targetTerm:', missingTerms.length)
         console.warn('⚠️ Sample missing term:', missingTerms[0])
@@ -807,7 +903,7 @@ export default function Home() {
         description: language === 'pl'
           ? `Glosariusz dwujęzyczny utworzony z: ${currentGlossary.name}`
           : `Bilingual glossary created from: ${currentGlossary.name}`,
-        terms: matchedTerms
+        terms: allMatchedTerms
       }
 
       newGlossary.versions = [initialVersion]
@@ -837,12 +933,12 @@ export default function Home() {
 
       setProgress(100)
       setBilingualProgress({
-        current: matchedTerms.length,
+        current: allMatchedTerms.length,
         total: terms.length,
         message: language === 'pl' ? 'Zakończono!' : 'Completed!'
       })
 
-      console.log(`✅ Utworzono glosariusz dwujęzyczny: ${matchedTerms.length} terminów`)
+      console.log(`✅ Utworzono glosariusz dwujęzyczny: ${allMatchedTerms.length} terminów`)
 
       setTimeout(() => {
         setProgress(0)
