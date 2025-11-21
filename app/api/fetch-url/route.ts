@@ -7,6 +7,50 @@ export const runtime = 'nodejs'
 function formatEurLexTitle(title: string): string | null {
   // Wzorce do wykrywania typów dokumentów i numerów
   const patterns = [
+    // Wyrok TSUE / CJEU Judgment - najwyższy priorytet
+    {
+      regex: /(?:Wyrok|WYROK).*?(?:w sprawie|sprawie)\s*([CT]-\d+\/\d+(?:\s*P)?)/i,
+      polish: 'Wyrok TSUE w sprawie',
+      english: 'CJEU Judgment, Case'
+    },
+    {
+      regex: /(?:Judgment|JUDGMENT|Arrêt).*?(?:Case|case|affaire)\s*([CT]-\d+\/\d+(?:\s*P)?)/i,
+      polish: 'Wyrok TSUE w sprawie',
+      english: 'CJEU Judgment, Case'
+    },
+    // Opinia rzecznika generalnego / Advocate General Opinion
+    {
+      regex: /(?:Opinia rzecznika generalnego|OPINIA RZECZNIKA GENERALNEGO).*?(?:w sprawie|sprawie)\s*([CT]-\d+\/\d+(?:\s*P)?)/i,
+      polish: 'Opinia RG w sprawie',
+      english: 'AG Opinion, Case'
+    },
+    {
+      regex: /(?:Opinion of (?:the )?Advocate General|OPINION OF (?:THE )?ADVOCATE GENERAL).*?(?:Case|case)\s*([CT]-\d+\/\d+(?:\s*P)?)/i,
+      polish: 'Opinia RG w sprawie',
+      english: 'AG Opinion, Case'
+    },
+    // Postanowienie / Order
+    {
+      regex: /(?:Postanowienie|POSTANOWIENIE).*?(?:w sprawie|sprawie)\s*([CT]-\d+\/\d+(?:\s*P)?)/i,
+      polish: 'Postanowienie TSUE w sprawie',
+      english: 'CJEU Order, Case'
+    },
+    {
+      regex: /(?:Order|ORDER).*?(?:Case|case)\s*([CT]-\d+\/\d+(?:\s*P)?)/i,
+      polish: 'Postanowienie TSUE w sprawie',
+      english: 'CJEU Order, Case'
+    },
+    // Pytanie prejudycjalne / Request for preliminary ruling
+    {
+      regex: /(?:Pytanie prejudycjalne|PYTANIE PREJUDYCJALNE).*?(?:w sprawie|sprawie)\s*([CT]-\d+\/\d+(?:\s*P)?)/i,
+      polish: 'Pytanie prejudycjalne w sprawie',
+      english: 'Preliminary ruling, Case'
+    },
+    {
+      regex: /(?:Request for (?:a )?preliminary ruling|REQUEST FOR (?:A )?PRELIMINARY RULING).*?(?:Case|case)\s*([CT]-\d+\/\d+(?:\s*P)?)/i,
+      polish: 'Pytanie prejudycjalne w sprawie',
+      english: 'Preliminary ruling, Case'
+    },
     // Rozporządzenie / Regulation
     {
       regex: /(?:Rozporządzenie|ROZPORZĄDZENIE).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?|No\.?)?\s*(\d+\/\d+)/i,
@@ -51,7 +95,7 @@ function formatEurLexTitle(title: string): string | null {
       polish: 'Zalecenie nr',
       english: 'Recommendation No'
     },
-    // Opinia / Opinion
+    // Opinia instytucji / Institutional Opinion
     {
       regex: /(?:Opinia|OPINIA).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
       polish: 'Opinia nr',
@@ -64,8 +108,8 @@ function formatEurLexTitle(title: string): string | null {
     }
   ]
 
-  // Sprawdź język tytułu
-  const isPolish = /(?:Rozporządzenie|Dyrektywa|Decyzja|Zalecenie|Opinia)/i.test(title)
+  // Sprawdź język tytułu - rozszerzone wykrywanie
+  const isPolish = /(?:Wyrok|Rozporządzenie|Dyrektywa|Decyzja|Zalecenie|Opinia|Postanowienie|Pytanie prejudycjalne|rzecznika generalnego)/i.test(title)
 
   // Spróbuj dopasować jeden z wzorców
   for (const pattern of patterns) {

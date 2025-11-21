@@ -1341,6 +1341,7 @@ export default function Home() {
 
             if (jsonData.length >= 2) {
               let headerRowIndex = -1
+              let nrColIndex = -1
               let termColIndex = -1
               let occurrencesColIndex = -1
               let documentColIndex = -1
@@ -1350,9 +1351,24 @@ export default function Home() {
 
               for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
                 const row = jsonData[i]
-                termColIndex = row.findIndex((cell: any) =>
-                  typeof cell === 'string' && (cell.toLowerCase().includes('termin') || cell.toLowerCase().includes('term'))
-                )
+
+                // Najpierw szukaj kolumny Nr
+                nrColIndex = row.findIndex((cell: any) => {
+                  if (typeof cell !== 'string') return false
+                  const cellLower = cell.toLowerCase().trim()
+                  return cellLower === 'nr' || cellLower === 'no.' || cellLower === 'no' || cellLower === 'nr.'
+                })
+
+                // Potem szukaj kolumny Termin - musi być na początku lub jako całe słowo
+                termColIndex = row.findIndex((cell: any) => {
+                  if (typeof cell !== 'string') return false
+                  const cellLower = cell.toLowerCase().trim()
+                  // Dokładne dopasowanie lub na początku
+                  return cellLower === 'termin' ||
+                         cellLower === 'term' ||
+                         cellLower.startsWith('termin ') ||
+                         cellLower.startsWith('term ')
+                })
 
                 if (termColIndex !== -1) {
                   headerRowIndex = i
@@ -1376,11 +1392,31 @@ export default function Home() {
               }
 
               if (headerRowIndex !== -1 && termColIndex !== -1) {
+                let lastTerm: Term | null = null
+
                 for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
                   const row = jsonData[i]
                   const termValue = row[termColIndex]
 
-                  if (termValue && typeof termValue === 'string' && termValue.trim() !== '') {
+                  // Jeśli komórka terminu jest pusta lub zawiera tylko whitespace, to jest to kolejny kontekst dla poprzedniego terminu
+                  const isEmptyTermCell = !termValue || (typeof termValue === 'string' && termValue.trim() === '')
+
+                  if (isEmptyTermCell && lastTerm) {
+                    // To jest kolejny kontekst dla poprzedniego terminu (format multi-context)
+                    const newContext: TermContext = {
+                      documentId: documentColIndex !== -1 ? (row[documentColIndex] || file.name) : file.name,
+                      documentName: documentColIndex !== -1 ? (row[documentColIndex] || file.name) : file.name,
+                      context: contextColIndex !== -1 ? (row[contextColIndex] || '') : '',
+                      positions: [],
+                      occurrences: occurrencesColIndex !== -1 ? parseInt(row[occurrencesColIndex]) || 0 : 0
+                    }
+
+                    if (!lastTerm.contexts) {
+                      lastTerm.contexts = []
+                    }
+                    lastTerm.contexts.push(newContext)
+                  } else if (termValue && typeof termValue === 'string' && termValue.trim() !== '') {
+                    // Nowy termin
                     const term: Term = {
                       id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                       term: termValue.trim(),
@@ -1403,7 +1439,17 @@ export default function Home() {
                       }
                     }
 
+                    // Jeśli to termin z wieloma kontekstami, stwórz pierwszy kontekst
+                    term.contexts = [{
+                      documentId: term.sourceDocument || file.name,
+                      documentName: term.sourceDocument || file.name,
+                      context: term.context,
+                      positions: term.positions,
+                      occurrences: term.occurrences
+                    }]
+
                     allImportedTerms.push(term)
+                    lastTerm = term
                   }
                 }
               }
