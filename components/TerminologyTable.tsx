@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Term } from '@/app/page'
+import { Term, TermContext } from '@/app/page'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { SourceDocument, getColorClasses } from '@/utils/projectStorage'
 
@@ -85,6 +85,34 @@ export default function TerminologyTable({
     const aPos = a.positions && a.positions.length > 0 ? a.positions[0] : Infinity
     const bPos = b.positions && b.positions.length > 0 ? b.positions[0] : Infinity
     return aPos - bPos
+  })
+
+  // Rozwiń terminy z wieloma kontekstami na osobne wiersze
+  interface TermRow {
+    term: Term
+    contextIndex: number // Indeks kontekstu (0 = pierwszy wiersz pokazuje term)
+    termContext: TermContext | null // Kontekst dla tego wiersza
+  }
+
+  const expandedRows: TermRow[] = []
+  sortedTerms.forEach(term => {
+    if (term.contexts && term.contexts.length > 0) {
+      // Termin ma wiele kontekstów - utwórz wiersz dla każdego
+      term.contexts.forEach((ctx, idx) => {
+        expandedRows.push({
+          term,
+          contextIndex: idx,
+          termContext: ctx
+        })
+      })
+    } else {
+      // Stary format lub brak contexts - jeden wiersz
+      expandedRows.push({
+        term,
+        contextIndex: 0,
+        termContext: null
+      })
+    }
   })
 
   // Check if any term has a definition
@@ -626,20 +654,33 @@ export default function TerminologyTable({
               </tr>
             </thead>
           <tbody>
-            {sortedTerms.map((term, index) => (
+            {expandedRows.map((row, index) => {
+              const term = row.term
+              const isFirstContext = row.contextIndex === 0
+              const ctx = row.termContext
+
+              // Dla wiersza z kontekstem używamy danych z ctx, inaczej z term
+              const displayOccurrences = ctx ? ctx.occurrences : term.occurrences
+              const displayContext = ctx ? ctx.context : term.context
+              const displayDocumentName = ctx ? ctx.documentName : (term.sourceDocument || fileName || '-')
+
+              return (
               <tr
-                key={term.id}
+                key={`${term.id}-${row.contextIndex}`}
                 className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${
                   selectedTermId === term.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
                 } ${
-                  term.isNew ? 'bg-green-50 border-l-4 border-l-green-500' : ''
+                  term.isNew && isFirstContext ? 'bg-green-50 border-l-4 border-l-green-500' : ''
+                } ${
+                  !isFirstContext ? 'bg-gray-50' : '' // Lekko szare tło dla kolejnych wierszy tego samego terminu
                 }`}
               >
-                <td className="px-2 py-3 text-sm text-gray-600">{index + 1}</td>
+                <td className="px-2 py-3 text-sm text-gray-600">{isFirstContext ? index + 1 : ''}</td>
 
-                {/* Termin */}
+                {/* Termin - tylko w pierwszym wierszu */}
                 <td className={`px-3 py-3 ${term.term.split(' ').length >= 4 ? 'max-w-xs' : ''}`}>
-                      {editingId === term.id ? (
+                  {isFirstContext ? (
+                      editingId === term.id ? (
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -680,37 +721,38 @@ export default function TerminologyTable({
                             </span>
                           )}
                         </div>
-                      )}
+                      )
+                  ) : null}
                     </td>
 
                     {/* Wystąpienia */}
                     <td className="px-2 py-3 text-sm text-gray-600 text-center">
                       <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                        {term.occurrences}
+                        {displayOccurrences}
                       </span>
                     </td>
 
                     {/* Dokument źródłowy */}
                     <td className="px-2 py-3 text-sm text-gray-600">
                       {(() => {
-                        const doc = getDocumentForTerm(term)
-                        const documentName = term.sourceDocument || fileName || '-'
+                        // Znajdź dokument dla kontekstu lub terminu
+                        const doc = documents?.find(d => d.fileName === displayDocumentName)
 
                         if (doc && doc.color) {
                           const colorClasses = getColorClasses(doc.color)
                           return (
                             <div
                               className={`inline-block px-2 py-1 rounded text-xs font-medium truncate max-w-full ${colorClasses.bgClass} ${colorClasses.textClass} border ${colorClasses.borderClass}`}
-                              title={documentName}
+                              title={displayDocumentName}
                             >
-                              {documentName}
+                              {displayDocumentName}
                             </div>
                           )
                         }
 
                         return (
-                          <div className="text-xs text-gray-500 truncate" title={documentName}>
-                            {documentName}
+                          <div className="text-xs text-gray-500 truncate" title={displayDocumentName}>
+                            {displayDocumentName}
                           </div>
                         )
                       })()}
@@ -790,7 +832,7 @@ export default function TerminologyTable({
                 <td className="px-3 py-3 text-sm text-gray-600 break-words">
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
-                      {highlightTermInContext(term.context, term.term)}
+                      {highlightTermInContext(displayContext, term.term)}
                     </div>
                     <button
                       onClick={() => handleOpenModal(term)}
@@ -802,8 +844,9 @@ export default function TerminologyTable({
                   </div>
                 </td>
 
-                {/* Akcje */}
+                {/* Akcje - tylko w pierwszym wierszu */}
                 <td className="px-2 py-3 text-center">
+                  {isFirstContext ? (
                   <div className="flex justify-center gap-1">
                     <button
                       onClick={() => handleEdit(term)}
@@ -820,9 +863,11 @@ export default function TerminologyTable({
                       🗑
                     </button>
                   </div>
+                  ) : null}
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

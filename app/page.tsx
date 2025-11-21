@@ -1155,37 +1155,78 @@ export default function Home() {
       return
     }
 
-    // Merge logic - deduplikacja po polu term (case-sensitive)
-    const existingTermsMap = new Map<string, Term>()
+    // Merge logic - zachowanie kontekstów z różnych dokumentów
+    const termsMap = new Map<string, Term>()
 
-    // Najpierw dodaj istniejące terminy
+    // Dodaj istniejące terminy
     terms.forEach(term => {
-      existingTermsMap.set(term.term, term)
+      if (!termsMap.has(term.term)) {
+        // Jeśli termin ma contexts[], użyj ich
+        if (term.contexts && term.contexts.length > 0) {
+          termsMap.set(term.term, { ...term })
+        } else {
+          // Konwertuj stary format (single context) do nowego (contexts[])
+          const termContext: TermContext = {
+            documentId: term.sourceDocument || 'unknown',
+            documentName: term.sourceDocument || fileName || 'Unknown',
+            context: term.context,
+            positions: term.positions,
+            occurrences: term.occurrences
+          }
+          termsMap.set(term.term, {
+            ...term,
+            contexts: [termContext]
+          })
+        }
+      }
     })
 
-    // Następnie dodaj/nadpisz z importowanych terminów
     let addedCount = 0
-    let updatedCount = 0
+    let mergedCount = 0
 
     importedTerms.forEach(importedTerm => {
-      if (existingTermsMap.has(importedTerm.term)) {
-        // Termin już istnieje - możemy zdecydować czy nadpisać czy pominąć
-        // Tutaj pomijamy (nie nadpisujemy istniejących terminów)
-        updatedCount++
+      const existingTerm = termsMap.get(importedTerm.term)
+
+      if (existingTerm) {
+        // Termin już istnieje - dodaj nowy kontekst
+        const newContext: TermContext = {
+          documentId: importedTerm.sourceDocument || 'unknown',
+          documentName: importedTerm.sourceDocument || source,
+          context: importedTerm.context,
+          positions: importedTerm.positions,
+          occurrences: importedTerm.occurrences
+        }
+
+        if (!existingTerm.contexts) {
+          existingTerm.contexts = []
+        }
+        existingTerm.contexts.push(newContext)
+        mergedCount++
       } else {
-        // Nowy termin
-        existingTermsMap.set(importedTerm.term, importedTerm)
+        // Nowy termin - utwórz z contexts[]
+        const termContext: TermContext = {
+          documentId: importedTerm.sourceDocument || 'unknown',
+          documentName: importedTerm.sourceDocument || source,
+          context: importedTerm.context,
+          positions: importedTerm.positions,
+          occurrences: importedTerm.occurrences
+        }
+
+        termsMap.set(importedTerm.term, {
+          ...importedTerm,
+          contexts: [termContext]
+        })
         addedCount++
       }
     })
 
     // Konwertuj mapę z powrotem na tablicę
-    const mergedTerms = Array.from(existingTermsMap.values())
+    const mergedTerms = Array.from(termsMap.values())
 
     // Zapisz jako nową wersję
     const description = language === 'pl'
-      ? `Import z ${source}: +${addedCount} nowych, ${updatedCount} pominiętych (duplikaty)`
-      : `Import from ${source}: +${addedCount} new, ${updatedCount} skipped (duplicates)`
+      ? `Import z ${source}: +${addedCount} nowych terminów, ${mergedCount} kontekstów dodanych`
+      : `Import from ${source}: +${addedCount} new terms, ${mergedCount} contexts added`
 
     projectStorage.addVersion(
       currentProject.id,
@@ -1205,8 +1246,8 @@ export default function Home() {
 
     // Pokaż komunikat
     const message = language === 'pl'
-      ? `Import zakończony!\n\nDodano: ${addedCount} nowych terminów\nPominięto: ${updatedCount} duplikatów\n\nŁącznie terminów: ${mergedTerms.length}`
-      : `Import completed!\n\nAdded: ${addedCount} new terms\nSkipped: ${updatedCount} duplicates\n\nTotal terms: ${mergedTerms.length}`
+      ? `Import zakończony!\n\nDodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów\n\nŁącznie terminów: ${mergedTerms.length}`
+      : `Import completed!\n\nAdded: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents\n\nTotal terms: ${mergedTerms.length}`
 
     alert(message)
     console.log(`✅ ${description}`)
@@ -1365,28 +1406,77 @@ export default function Home() {
           }
         }
 
-        // Merge z deduplikacją
-        const existingTermsMap = new Map<string, Term>()
-        terms.forEach(term => existingTermsMap.set(term.term, term))
+        // Merge z zachowaniem kontekstów z różnych dokumentów
+        const termsMap = new Map<string, Term>()
+
+        // Dodaj istniejące terminy
+        terms.forEach(term => {
+          if (!termsMap.has(term.term)) {
+            // Jeśli termin ma contexts[], użyj ich
+            if (term.contexts && term.contexts.length > 0) {
+              termsMap.set(term.term, { ...term })
+            } else {
+              // Konwertuj stary format (single context) do nowego (contexts[])
+              const termContext: TermContext = {
+                documentId: term.sourceDocument || 'unknown',
+                documentName: term.sourceDocument || fileName || 'Unknown',
+                context: term.context,
+                positions: term.positions,
+                occurrences: term.occurrences
+              }
+              termsMap.set(term.term, {
+                ...term,
+                contexts: [termContext]
+              })
+            }
+          }
+        })
 
         let addedCount = 0
-        let skippedCount = 0
+        let mergedCount = 0
 
         allImportedTerms.forEach(importedTerm => {
-          if (existingTermsMap.has(importedTerm.term)) {
-            skippedCount++
+          const existingTerm = termsMap.get(importedTerm.term)
+
+          if (existingTerm) {
+            // Termin już istnieje - dodaj nowy kontekst
+            const newContext: TermContext = {
+              documentId: importedTerm.sourceDocument || 'unknown',
+              documentName: importedTerm.sourceDocument || 'Unknown',
+              context: importedTerm.context,
+              positions: importedTerm.positions,
+              occurrences: importedTerm.occurrences
+            }
+
+            if (!existingTerm.contexts) {
+              existingTerm.contexts = []
+            }
+            existingTerm.contexts.push(newContext)
+            mergedCount++
           } else {
-            existingTermsMap.set(importedTerm.term, importedTerm)
+            // Nowy termin - utwórz z contexts[]
+            const termContext: TermContext = {
+              documentId: importedTerm.sourceDocument || 'unknown',
+              documentName: importedTerm.sourceDocument || 'Unknown',
+              context: importedTerm.context,
+              positions: importedTerm.positions,
+              occurrences: importedTerm.occurrences
+            }
+
+            termsMap.set(importedTerm.term, {
+              ...importedTerm,
+              contexts: [termContext]
+            })
             addedCount++
           }
         })
 
-        const mergedTerms = Array.from(existingTermsMap.values())
+        const mergedTerms = Array.from(termsMap.values())
 
         // Zapisz jako nową wersję
         const description = language === 'pl'
-          ? `Połączono ${files.length} glosariuszy: +${addedCount} nowych, ${skippedCount} pominiętych`
-          : `Merged ${files.length} glossaries: +${addedCount} new, ${skippedCount} skipped`
+          ? `Połączono ${files.length} glosariuszy: +${addedCount} nowych terminów, ${mergedCount} kontekstów dodanych`
+          : `Merged ${files.length} glossaries: +${addedCount} new terms, ${mergedCount} contexts added`
 
         projectStorage.addVersion(
           currentProject.id,
@@ -1404,8 +1494,8 @@ export default function Home() {
         refreshGlossary()
 
         alert(language === 'pl'
-          ? `Połączono ${files.length} glosariuszy!\n\nDodano: ${addedCount} nowych terminów\nPominięto: ${skippedCount} duplikatów\n\nŁącznie terminów: ${mergedTerms.length}`
-          : `Merged ${files.length} glossaries!\n\nAdded: ${addedCount} new terms\nSkipped: ${skippedCount} duplicates\n\nTotal terms: ${mergedTerms.length}`)
+          ? `Połączono ${files.length} glosariuszy!\n\nDodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów\n\nŁącznie terminów: ${mergedTerms.length}`
+          : `Merged ${files.length} glossaries!\n\nAdded: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents\n\nTotal terms: ${mergedTerms.length}`)
 
         console.log(`✅ ${description}`)
       } catch (error) {
