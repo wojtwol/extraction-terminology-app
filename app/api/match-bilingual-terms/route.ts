@@ -164,9 +164,9 @@ export async function POST(request: NextRequest) {
       // 2. Wyciągnij okno z dokumentu docelowego (adaptywny rozmiar)
       // Dla bardzo długich dokumentów użyj mniejszego okna % aby nie przekroczyć limitu znaków
       let windowSizePercent = 20  // domyślnie ±20%
-      const maxWindowChars = 30000  // Maksymalnie 30k znaków w oknie
+      const maxWindowChars = 10000  // Maksymalnie 10k znaków w oknie (zmniejszone dla szybkości)
 
-      // Jeśli 40% dokumentu > 30k znaków, zmniejsz procent okna
+      // Jeśli 40% dokumentu > 10k znaków, zmniejsz procent okna
       const estimatedWindowChars = (40 / 100) * targetText.length
       if (estimatedWindowChars > maxWindowChars) {
         windowSizePercent = (maxWindowChars / targetText.length) * 100 / 2  // /2 bo ±
@@ -206,8 +206,8 @@ INSTRUCTIONS:
 Respond with just the target term or "NOT_FOUND".`
 
         const response = await client.messages.create({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 100,
+          model: 'claude-3-5-haiku-20241022',  // Szybszy model dla prostego dopasowywania
+          max_tokens: 50,
           temperature: 0,
           messages: [{
             role: 'user',
@@ -265,10 +265,7 @@ Respond with just the target term or "NOT_FOUND".`
           }
         }
 
-        // Delay między requestami aby nie przekroczyć rate limit
-        if (sourceTerms.indexOf(sourceTerm) < sourceTerms.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500))
-        }
+        // Usunięto delay - Haiku jest na tyle szybki, że rate limiting nie powinien być problemem
 
       } catch (aiError: any) {
         const errorMsg = aiError?.message || aiError?.toString() || 'Unknown error'
