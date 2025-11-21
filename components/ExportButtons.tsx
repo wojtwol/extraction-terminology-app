@@ -32,6 +32,14 @@ export default function ExportButtons({
   const is2Column = selectedColumnView === '2'
   const is4Column = selectedColumnView === '4'
 
+  // Funkcja pomocnicza do zaznaczania terminu w kontekście
+  const highlightTermInContext = (context: string, term: string): string => {
+    if (!context || !term) return context
+    // Case-insensitive replace with red highlighting
+    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+    return context.replace(regex, '<span style="color: #dc3545; font-weight: 600;">$1</span>')
+  }
+
   const exportToCSV = () => {
     let csvContent: string[][]
 
@@ -103,8 +111,187 @@ export default function ExportButtons({
     downloadFile(csvString, filename, 'text/csv;charset=utf-8;')
   }
 
+  const exportBilingualToHTML = () => {
+    const t = {
+      title: language === 'pl' ? 'Glosariusz dwujęzyczny' : 'Bilingual Glossary',
+      termCount: language === 'pl' ? 'Liczba terminów:' : 'Number of terms:',
+      createdAt: language === 'pl' ? 'Data utworzenia:' : 'Created at:',
+      viewMode: language === 'pl' ? 'Widok:' : 'View:',
+      columns2: language === 'pl' ? '2 kolumny' : '2 columns',
+      columns4: language === 'pl' ? '4 kolumny' : '4 columns',
+      nr: language === 'pl' ? 'Nr' : 'No.',
+      sourceTerm: language === 'pl' ? 'Termin źródłowy' : 'Source Term',
+      sourceContext: language === 'pl' ? 'Kontekst źródłowy' : 'Source Context',
+      targetTerm: language === 'pl' ? 'Termin docelowy' : 'Target Term',
+      targetContext: language === 'pl' ? 'Kontekst docelowy' : 'Target Context'
+    }
+
+    const locale = language === 'pl' ? 'pl-PL' : 'en-US'
+    const lang = language === 'pl' ? 'pl' : 'en'
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${t.title} - ${fileName}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 15px;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 0.95em;
+      margin-bottom: 20px;
+    }
+    .metadata {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 10px;
+    }
+    .metadata-item {
+      display: flex;
+      gap: 8px;
+    }
+    .metadata-label {
+      font-weight: 600;
+      color: #495057;
+    }
+    table {
+      width: 100%;
+      background: white;
+      border-collapse: collapse;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 14px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.95em;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e9ecef;
+      vertical-align: top;
+    }
+    tr:hover {
+      background: #f8f9fa;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    .term {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    .context {
+      font-size: 0.85em;
+      color: #6c757d;
+      font-style: italic;
+      line-height: 1.4;
+    }
+    .nr-col {
+      width: 40px;
+      text-align: center;
+      color: #adb5bd;
+      font-weight: 500;
+    }
+    .highlighted-term {
+      color: #dc3545;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>IURIDICO EJ GTEXTT</h1>
+    <p class="subtitle">Bilingual Glossary and Terminology Tool</p>
+
+    <div class="metadata">
+      <div class="metadata-item">
+        <span class="metadata-label">${t.termCount}</span>
+        <span>${terms.length}</span>
+      </div>
+      <div class="metadata-item">
+        <span class="metadata-label">${t.viewMode}</span>
+        <span>${is2Column ? t.columns2 : t.columns4}</span>
+      </div>
+      <div class="metadata-item">
+        <span class="metadata-label">${t.createdAt}</span>
+        <span>${new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="nr-col">${t.nr}</th>
+          <th style="width: ${is2Column ? '45%' : '22%'};">${t.sourceTerm}</th>
+          ${is4Column ? `<th style="width: 28%;">${t.sourceContext}</th>` : ''}
+          <th style="width: ${is2Column ? '45%' : '22%'};">${t.targetTerm}</th>
+          ${is4Column ? `<th style="width: 28%;">${t.targetContext}</th>` : ''}
+        </tr>
+      </thead>
+      <tbody>
+        ${terms.map((term, index) => `
+          <tr>
+            <td class="nr-col">${index + 1}</td>
+            <td class="term">${term.term}</td>
+            ${is4Column ? `<td class="context">${highlightTermInContext(term.context || '', term.term)}</td>` : ''}
+            <td class="term">${term.targetTerm || '<span style="color: #adb5bd;">-</span>'}</td>
+            ${is4Column ? `<td class="context">${term.targetTerm ? highlightTermInContext(term.targetContext || '', term.targetTerm) : '<span style="color: #adb5bd;">-</span>'}</td>` : ''}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
+`
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' })
+    const suffix = is2Column ? '_dwujezyczny_2kol' : '_dwujezyczny_4kol'
+    const filename = `${fileName}${suffix}.html`
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+  }
+
   const exportToHTML = () => {
-    // Sprawdź czy są definicje
+    // Obsługa glosariuszy dwujęzycznych
+    if (isBilingual) {
+      exportBilingualToHTML()
+      return
+    }
+
+    // Sprawdź czy są definicje (dla jednojęzycznych)
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
 
     // Dynamiczne szerokości kolumn (z uwzględnieniem kolumny Dokument)
