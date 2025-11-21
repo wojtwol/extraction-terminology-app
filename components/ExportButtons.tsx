@@ -525,8 +525,110 @@ export default function ExportButtons({
     downloadFile(htmlContent, `${fileName}_glosariusz.html`, 'text/html;charset=utf-8;')
   }
 
+  const exportBilingualToXLSX = () => {
+    const t = {
+      title: language === 'pl' ? 'Glosariusz dwujęzyczny' : 'Bilingual Glossary',
+      sourceDoc: language === 'pl' ? 'Dokument źródłowy:' : 'Source Document:',
+      createdAt: language === 'pl' ? 'Data utworzenia:' : 'Created at:',
+      termCount: language === 'pl' ? 'Liczba terminów:' : 'Number of terms:',
+      viewMode: language === 'pl' ? 'Widok:' : 'View:',
+      columns2: language === 'pl' ? '2 kolumny' : '2 columns',
+      columns4: language === 'pl' ? '4 kolumny' : '4 columns',
+      nr: language === 'pl' ? 'Nr' : 'No.',
+      sourceTerm: language === 'pl' ? 'Termin źródłowy' : 'Source Term',
+      sourceContext: language === 'pl' ? 'Kontekst źródłowy' : 'Source Context',
+      targetTerm: language === 'pl' ? 'Termin docelowy' : 'Target Term',
+      targetContext: language === 'pl' ? 'Kontekst docelowy' : 'Target Context'
+    }
+
+    const locale = language === 'pl' ? 'pl-PL' : 'en-US'
+    const numCols = is2Column ? 2 : 4
+
+    // Nagłówek z metadanymi
+    const emptyRow = Array(numCols).fill('')
+    const metadataRows = [
+      [t.title],
+      emptyRow,
+      [t.termCount, terms.length],
+      [t.viewMode, is2Column ? t.columns2 : t.columns4],
+      [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })],
+      emptyRow
+    ]
+
+    // Nagłówki kolumn
+    let headerRow: string[]
+    if (is2Column) {
+      headerRow = [t.sourceTerm, t.targetTerm]
+    } else {
+      headerRow = [t.sourceTerm, t.sourceContext, t.targetTerm, t.targetContext]
+    }
+
+    // Wiersze danych
+    const dataRows = terms.map(term => {
+      if (is2Column) {
+        return [
+          term.term,
+          term.targetTerm || ''
+        ]
+      } else {
+        return [
+          term.term,
+          term.context || '',
+          term.targetTerm || '',
+          term.targetContext || ''
+        ]
+      }
+    })
+
+    // Stwórz arkusz
+    const allRows = [...metadataRows, headerRow, ...dataRows]
+    const worksheet = XLSX.utils.aoa_to_sheet(allRows)
+
+    // Stylizacja nagłówka tabeli (wiersz z kolumnami)
+    const headerRowIndex = metadataRows.length
+    const headerStyle = {
+      fill: { fgColor: { rgb: '667eea' } },
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'center' }
+    }
+
+    headerRow.forEach((_, colIndex) => {
+      const cellRef = XLSX.utils.encode_cell({ r: headerRowIndex, c: colIndex })
+      if (!worksheet[cellRef]) worksheet[cellRef] = { t: 's', v: '' }
+      worksheet[cellRef].s = headerStyle
+    })
+
+    // Szerokości kolumn
+    if (is2Column) {
+      worksheet['!cols'] = [
+        { wch: 40 }, // Source Term
+        { wch: 40 }  // Target Term
+      ]
+    } else {
+      worksheet['!cols'] = [
+        { wch: 30 }, // Source Term
+        { wch: 50 }, // Source Context
+        { wch: 30 }, // Target Term
+        { wch: 50 }  // Target Context
+      ]
+    }
+
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, language === 'pl' ? 'Glosariusz' : 'Glossary')
+
+    const suffix = is2Column ? '_dwujezyczny_2kol' : '_dwujezyczny_4kol'
+    const filename = `${fileName}${suffix}.xlsx`
+    XLSX.writeFile(workbook, filename)
+  }
+
   const exportToXLSX = () => {
-    // Sprawdź czy są jakieś definicje
+    // Obsługa glosariuszy dwujęzycznych
+    if (isBilingual) {
+      exportBilingualToXLSX()
+      return
+    }
+
+    // Sprawdź czy są jakieś definicje (dla jednojęzycznych)
     const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
     const numCols = hasDefinitions ? 7 : 5  // 7 z definicjami, 5 bez
 
