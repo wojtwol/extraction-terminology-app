@@ -234,9 +234,20 @@ TEXT:`
     // Model można skonfigurować przez zmienną środowiskową ANTHROPIC_MODEL
     const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
 
+    // Dynamiczny max_tokens w zależności od liczby terminów
+    // Dla wielu terminów potrzeba więcej tokenów na odpowiedź
+    const estimatedTokensPerTerm = 100 // ~100 tokenów na termin (term + context)
+    const baseTokens = 1000 // Bazowe tokeny na strukturę JSON
+    const calculatedMaxTokens = Math.min(
+      baseTokens + (maxTerms * estimatedTokensPerTerm),
+      8192 // Maksymalny limit dla Claude
+    )
+
+    console.log(`🔢 Maksymalna liczba tokenów dla odpowiedzi: ${calculatedMaxTokens} (dla ${maxTerms} terminów)`)
+
     const message = await anthropic.messages.create({
       model,
-      max_tokens: 4096,
+      max_tokens: calculatedMaxTokens,
       messages: [
         {
           role: 'user',
@@ -250,7 +261,14 @@ TEXT:`
     // KROK 3: Ekstrakcja JSON z odpowiedzi
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
 
-    console.log('📝 Pierwszych 200 znaków odpowiedzi:', responseText.substring(0, 200))
+    console.log('📝 Długość odpowiedzi:', responseText.length, 'znaków')
+    console.log('📝 Pierwszych 300 znaków odpowiedzi:', responseText.substring(0, 300))
+
+    // Sprawdź czy odpowiedź została obcięta (stop_reason)
+    if (message.stop_reason === 'max_tokens') {
+      console.warn('⚠️  UWAGA: Odpowiedź Claude została obcięta (max_tokens)!')
+      console.warn(`   Rozważ zmniejszenie liczby terminów lub zwiększenie max_tokens`)
+    }
 
     // Usuń markdown jeśli jest
     let cleanedResponse = responseText.trim()
@@ -264,9 +282,12 @@ TEXT:`
     const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
       console.error('❌ Nie znaleziono JSON w odpowiedzi')
-      console.error('Odpowiedź Claude:', responseText.substring(0, 500))
+      console.error('Pełna odpowiedź Claude (pierwsze 1000 znaków):')
+      console.error(responseText.substring(0, 1000))
+      console.error('Ostatnie 500 znaków odpowiedzi:')
+      console.error(responseText.substring(Math.max(0, responseText.length - 500)))
       return NextResponse.json(
-        { terms: [], error: 'Claude nie zwrócił poprawnego JSON. Spróbuj ponownie.' },
+        { terms: [], error: 'Claude nie zwrócił poprawnego JSON. Odpowiedź mogła zostać obcięta. Spróbuj zmniejszyć liczbę terminów.' },
         { status: 500 }
       )
     }
@@ -274,11 +295,30 @@ TEXT:`
     let parsedResponse
     try {
       parsedResponse = JSON.parse(jsonMatch[0])
-    } catch (parseError) {
-      console.error('❌ Błąd parsowania JSON:', parseError)
-      console.error('JSON do parsowania:', jsonMatch[0].substring(0, 500))
+    } catch (parseError: any) {
+      console.error('❌ Błąd parsowania JSON:', parseError.message)
+      console.error('Pozycja błędu:', parseError.message)
+      console.error('JSON do parsowania (pierwsze 1000 znaków):', jsonMatch[0].substring(0, 1000))
+      console.error('JSON do parsowania (ostatnie 500 znaków):', jsonMatch[0].substring(Math.max(0, jsonMatch[0].length - 500)))
+
+      // Sprawdź czy JSON jest obcięty (brak zamykającego nawiasu)
+      const openBraces = (jsonMatch[0].match(/\{/g) || []).length
+      const closeBraces = (jsonMatch[0].match(/\}/g) || []).length
+      const openBrackets = (jsonMatch[0].match(/\[/g) || []).length
+      const closeBrackets = (jsonMatch[0].match(/\]/g) || []).length
+
+      if (openBraces > closeBraces || openBrackets > closeBrackets) {
+        console.error('❌ JSON jest niekompletny (obcięty)!')
+        console.error(`   Nawiasy klamrowe: ${openBraces} otwierających, ${closeBraces} zamykających`)
+        console.error(`   Nawiasy kwadratowe: ${openBrackets} otwierających, ${closeBrackets} zamykających`)
+        return NextResponse.json(
+          { terms: [], error: `Odpowiedź została obcięta (za dużo terminów). Zmniejsz liczbę terminów z ${maxTerms} do ${Math.floor(maxTerms * 0.7)} i spróbuj ponownie.` },
+          { status: 500 }
+        )
+      }
+
       return NextResponse.json(
-        { terms: [], error: 'Błąd parsowania odpowiedzi. Spróbuj ponownie.' },
+        { terms: [], error: 'Błąd parsowania odpowiedzi: ' + parseError.message + '. Spróbuj ponownie lub zmniejsz liczbę terminów.' },
         { status: 500 }
       )
     }
