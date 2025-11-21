@@ -1814,6 +1814,58 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* Project Name Modal */}
+        {showProjectNameModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg shadow-2xl border-2 border-blue-400 p-8 max-w-md w-full">
+              <div className="flex items-start gap-4 mb-6">
+                <span className="text-4xl flex-shrink-0">
+                  {projectType === 'single' ? '📝' : '📚'}
+                </span>
+                <div className="flex-1">
+                  <h3 className="font-bold text-xl text-blue-900 mb-2">
+                    {projectType === 'single'
+                      ? (language === 'pl' ? 'Nazwa nowego projektu (pojedynczy dokument):' : 'New project name (single document):')
+                      : (language === 'pl' ? 'Nazwa nowego projektu wielodokumentowego:' : 'New multi-document project name:')}
+                  </h3>
+                  <input
+                    type="text"
+                    value={projectNameInput}
+                    onChange={(e) => setProjectNameInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateProject()
+                      if (e.key === 'Escape') {
+                        setShowProjectNameModal(false)
+                        setProjectNameInput('')
+                      }
+                    }}
+                    className="w-full px-4 py-3 rounded-lg border-2 border-blue-300 focus:border-blue-500 focus:outline-none text-gray-800 bg-white"
+                    placeholder={defaultProjectName}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowProjectNameModal(false)
+                    setProjectNameInput('')
+                  }}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                >
+                  {language === 'pl' ? 'Anuluj' : 'Cancel'}
+                </button>
+                <button
+                  onClick={handleCreateProject}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                >
+                  {language === 'pl' ? 'Utwórz' : 'Create'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     )
   }
@@ -2648,58 +2700,6 @@ export default function Home() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Project Name Modal */}
-      {showProjectNameModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg shadow-2xl border-2 border-blue-400 p-8 max-w-md w-full">
-            <div className="flex items-start gap-4 mb-6">
-              <span className="text-4xl flex-shrink-0">
-                {projectType === 'single' ? '📝' : '📚'}
-              </span>
-              <div className="flex-1">
-                <h3 className="font-bold text-xl text-blue-900 mb-2">
-                  {projectType === 'single'
-                    ? (language === 'pl' ? 'Nazwa nowego projektu (pojedynczy dokument):' : 'New project name (single document):')
-                    : (language === 'pl' ? 'Nazwa nowego projektu wielodokumentowego:' : 'New multi-document project name:')}
-                </h3>
-                <input
-                  type="text"
-                  value={projectNameInput}
-                  onChange={(e) => setProjectNameInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleCreateProject()
-                    if (e.key === 'Escape') {
-                      setShowProjectNameModal(false)
-                      setProjectNameInput('')
-                    }
-                  }}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-blue-300 focus:border-blue-500 focus:outline-none text-gray-800 bg-white"
-                  placeholder={defaultProjectName}
-                  autoFocus
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowProjectNameModal(false)
-                  setProjectNameInput('')
-                }}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-              >
-                {language === 'pl' ? 'Anuluj' : 'Cancel'}
-              </button>
-              <button
-                onClick={handleCreateProject}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                {language === 'pl' ? 'Utwórz' : 'Create'}
-              </button>
             </div>
           </div>
         </div>
