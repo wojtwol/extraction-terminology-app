@@ -167,6 +167,12 @@ export default function Home() {
   // Notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string, details?: string } | null>(null)
 
+  // Project name modal state
+  const [showProjectNameModal, setShowProjectNameModal] = useState(false)
+  const [projectNameInput, setProjectNameInput] = useState('')
+  const [projectType, setProjectType] = useState<'single' | 'multi'>('single')
+  const [defaultProjectName, setDefaultProjectName] = useState('')
+
   // Skrót do terminów z aktualnej wersji
   const terms = currentVersion?.terms || []
 
@@ -245,6 +251,61 @@ export default function Home() {
     } else {
       setCurrentVersion(null)
     }
+  }
+
+  // Obsługa utworzenia nowego projektu
+  const handleCreateProject = () => {
+    const name = projectNameInput.trim()
+    if (!name) return
+
+    if (projectType === 'single') {
+      const newProject = projectStorage.save({
+        name,
+        fileName: '',
+        documentText: '',
+        detectedLanguage: ''
+      })
+      setCurrentProject(newProject)
+      setProjectName(newProject.name)
+      refreshGlossary()
+
+      // Pokaż notification sukcesu
+      setNotification({
+        type: 'success',
+        message: language === 'pl' ? 'Projekt utworzony!' : 'Project created!',
+        details: language === 'pl'
+          ? `Nowy projekt "${name}" został utworzony. Załaduj dokument, aby rozpocząć.`
+          : `New project "${name}" has been created. Load a document to get started.`
+      })
+    } else {
+      const newProject = projectStorage.save({
+        name,
+        fileName: '',
+        documentText: '',
+        detectedLanguage: ''
+      })
+      // Oznacz jako projekt wielodokumentowy
+      projectStorage.update(newProject.id, { isMultiDocument: true, documents: [] })
+      const updatedProject = projectStorage.getById(newProject.id)
+      if (updatedProject) {
+        setCurrentProject(updatedProject)
+        setProjectName(updatedProject.name)
+        refreshGlossary()
+
+        // Pokaż notification sukcesu
+        setNotification({
+          type: 'success',
+          message: language === 'pl' ? 'Projekt wielodokumentowy utworzony!' : 'Multi-document project created!',
+          details: language === 'pl'
+            ? `Projekt "${name}" został utworzony. Dodaj dokumenty, aby rozpocząć.`
+            : `Project "${name}" has been created. Add documents to get started.`
+        })
+      }
+    }
+
+    // Zamknij modal
+    setShowProjectNameModal(false)
+    setProjectNameInput('')
   }
 
   // Generuj definicje dla wszystkich terminów (bulk)
@@ -1656,27 +1717,11 @@ export default function Home() {
                   const nextNumber = todayProjects.length + 1
                   const defaultName = `${baseNamePrefix}_${nextNumber}`
 
-                  const name = prompt(language === 'pl' ? 'Nazwa nowego projektu jednodokumentowego:' : 'New single-document project name:', defaultName)
-                  if (name) {
-                    const newProject = projectStorage.save({
-                      name,
-                      fileName: '',
-                      documentText: '',
-                      detectedLanguage: ''
-                    })
-                    setCurrentProject(newProject)
-                    setProjectName(newProject.name)
-                    refreshGlossary()
-
-                    // Pokaż notification sukcesu
-                    setNotification({
-                      type: 'success',
-                      message: language === 'pl' ? 'Projekt utworzony!' : 'Project created!',
-                      details: language === 'pl'
-                        ? `Nowy projekt "${name}" został utworzony. Załaduj dokument, aby rozpocząć.`
-                        : `New project "${name}" has been created. Load a document to get started.`
-                    })
-                  }
+                  // Pokaż modal do wprowadzenia nazwy
+                  setProjectType('single')
+                  setDefaultProjectName(defaultName)
+                  setProjectNameInput(defaultName)
+                  setShowProjectNameModal(true)
                 }}
                 className="w-full px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
               >
@@ -1698,32 +1743,11 @@ export default function Home() {
                   const nextNumber = todayProjects.length + 1
                   const defaultName = `${baseNamePrefix}_${nextNumber}`
 
-                  const name = prompt(language === 'pl' ? 'Nazwa nowego projektu wielodokumentowego:' : 'New multi-document project name:', defaultName)
-                  if (name) {
-                    const newProject = projectStorage.save({
-                      name,
-                      fileName: '',
-                      documentText: '',
-                      detectedLanguage: ''
-                    })
-                    // Oznacz jako projekt wielodokumentowy
-                    projectStorage.update(newProject.id, { isMultiDocument: true, documents: [] })
-                    const updatedProject = projectStorage.getById(newProject.id)
-                    if (updatedProject) {
-                      setCurrentProject(updatedProject)
-                      setProjectName(updatedProject.name)
-                      refreshGlossary()
-
-                      // Pokaż notification sukcesu
-                      setNotification({
-                        type: 'success',
-                        message: language === 'pl' ? 'Projekt wielodokumentowy utworzony!' : 'Multi-document project created!',
-                        details: language === 'pl'
-                          ? `Projekt "${name}" został utworzony. Dodaj dokumenty, aby rozpocząć.`
-                          : `Project "${name}" has been created. Add documents to get started.`
-                      })
-                    }
-                  }
+                  // Pokaż modal do wprowadzenia nazwy
+                  setProjectType('multi')
+                  setDefaultProjectName(defaultName)
+                  setProjectNameInput(defaultName)
+                  setShowProjectNameModal(true)
                 }}
                 className="w-full px-6 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-lg"
               >
@@ -2624,6 +2648,58 @@ export default function Home() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Name Modal */}
+      {showProjectNameModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg shadow-2xl border-2 border-blue-400 p-8 max-w-md w-full">
+            <div className="flex items-start gap-4 mb-6">
+              <span className="text-4xl flex-shrink-0">
+                {projectType === 'single' ? '📝' : '📚'}
+              </span>
+              <div className="flex-1">
+                <h3 className="font-bold text-xl text-blue-900 mb-2">
+                  {projectType === 'single'
+                    ? (language === 'pl' ? 'Nazwa nowego projektu (pojedynczy dokument):' : 'New project name (single document):')
+                    : (language === 'pl' ? 'Nazwa nowego projektu wielodokumentowego:' : 'New multi-document project name:')}
+                </h3>
+                <input
+                  type="text"
+                  value={projectNameInput}
+                  onChange={(e) => setProjectNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateProject()
+                    if (e.key === 'Escape') {
+                      setShowProjectNameModal(false)
+                      setProjectNameInput('')
+                    }
+                  }}
+                  className="w-full px-4 py-3 rounded-lg border-2 border-blue-300 focus:border-blue-500 focus:outline-none text-gray-800 bg-white"
+                  placeholder={defaultProjectName}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowProjectNameModal(false)
+                  setProjectNameInput('')
+                }}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              >
+                {language === 'pl' ? 'Anuluj' : 'Cancel'}
+              </button>
+              <button
+                onClick={handleCreateProject}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+              >
+                {language === 'pl' ? 'Utwórz' : 'Create'}
+              </button>
             </div>
           </div>
         </div>
