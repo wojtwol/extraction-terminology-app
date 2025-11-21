@@ -163,6 +163,7 @@ export default function Home() {
   const [selectedTargetLanguage, setSelectedTargetLanguage] = useState('')
   const [selectedColumnView, setSelectedColumnView] = useState<'2' | '4'>('4')
   const [bilingualProgress, setBilingualProgress] = useState({ current: 0, total: 0, message: '' })
+  const [bilingualInputMode, setBilingualInputMode] = useState<'file' | 'url' | 'text'>('file')
 
   // Notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string, details?: string } | null>(null)
@@ -612,6 +613,7 @@ export default function Home() {
     setSelectedTargetLanguage('')
     setSelectedColumnView('4')
     setBilingualDialogStep('language')
+    setBilingualInputMode('file')
     setShowBilingualDialog(true)
   }
 
@@ -2496,12 +2498,9 @@ export default function Home() {
                   {/* Przyciski wyboru metody wprowadzania */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => {
-                        ;(window as any).__bilingualInputMode = 'file'
-                        setBilingualDialogStep('document') // Force re-render
-                      }}
+                      onClick={() => setBilingualInputMode('file')}
                       className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        ((window as any).__bilingualInputMode || 'file') === 'file'
+                        bilingualInputMode === 'file'
                           ? 'bg-purple-600 text-white'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
@@ -2509,12 +2508,9 @@ export default function Home() {
                       📁 {language === 'pl' ? 'Plik' : 'File'}
                     </button>
                     <button
-                      onClick={() => {
-                        ;(window as any).__bilingualInputMode = 'url'
-                        setBilingualDialogStep('document')
-                      }}
+                      onClick={() => setBilingualInputMode('url')}
                       className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        ((window as any).__bilingualInputMode || 'file') === 'url'
+                        bilingualInputMode === 'url'
                           ? 'bg-purple-600 text-white'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
@@ -2522,12 +2518,9 @@ export default function Home() {
                       🔗 {language === 'pl' ? 'URL' : 'URL'}
                     </button>
                     <button
-                      onClick={() => {
-                        ;(window as any).__bilingualInputMode = 'text'
-                        setBilingualDialogStep('document')
-                      }}
+                      onClick={() => setBilingualInputMode('text')}
                       className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        ((window as any).__bilingualInputMode || 'file') === 'text'
+                        bilingualInputMode === 'text'
                           ? 'bg-purple-600 text-white'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
@@ -2537,7 +2530,7 @@ export default function Home() {
                   </div>
 
                   {/* Tryb: Plik */}
-                  {((window as any).__bilingualInputMode || 'file') === 'file' && (
+                  {bilingualInputMode === 'file' && (
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                       <input
                         type="file"
@@ -2565,7 +2558,7 @@ export default function Home() {
                   )}
 
                   {/* Tryb: URL */}
-                  {((window as any).__bilingualInputMode || 'file') === 'url' && (
+                  {bilingualInputMode === 'url' && (
                     <div className="space-y-3">
                       <input
                         type="url"
@@ -2609,7 +2602,7 @@ export default function Home() {
                   )}
 
                   {/* Tryb: Tekst */}
-                  {((window as any).__bilingualInputMode || 'file') === 'text' && (
+                  {bilingualInputMode === 'text' && (
                     <div className="space-y-3">
                       <textarea
                         placeholder={language === 'pl' ? 'Wklej tekst w języku docelowym tutaj...' : 'Paste target language text here...'}
@@ -2746,7 +2739,7 @@ export default function Home() {
                         setBilingualDialogStep('document')
                         ;(window as any).__bilingualTargetFile = null
                         ;(window as any).__bilingualTargetText = null
-                        ;(window as any).__bilingualInputMode = 'file'
+                        setBilingualInputMode('file')
                       }}
                       className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                     >
@@ -2754,14 +2747,13 @@ export default function Home() {
                     </button>
                     <button
                       onClick={async () => {
-                        const inputMode = (window as any).__bilingualInputMode || 'file'
                         const text = (window as any).__bilingualTargetText
                         const file = (window as any).__bilingualTargetFile
 
-                        if (inputMode === 'file' && file) {
+                        if (bilingualInputMode === 'file' && file) {
                           // File mode: extract text from file
                           await handleBilingualDocumentLoad(file)
-                        } else if ((inputMode === 'url' || inputMode === 'text') && text) {
+                        } else if ((bilingualInputMode === 'url' || bilingualInputMode === 'text') && text) {
                           // URL/Text mode: use text directly
                           if (!text || text.trim().length === 0) {
                             setNotification({
