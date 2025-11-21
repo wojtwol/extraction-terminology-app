@@ -11,51 +11,95 @@ interface ExportButtonsProps {
   fileName: string
   documentText: string
   onImportTerms?: (terms: Term[], source: string) => void  // Callback do importu terminów
+  glossaryMode?: 'monolingual' | 'bilingual' | null  // Tryb glosariusza
+  selectedColumnView?: '2' | '4'  // Widok kolumn dla dwujęzycznego (2 lub 4)
+  targetDocumentText?: string  // Tekst dokumentu docelowego (dla dwujęzycznych)
 }
 
 export default function ExportButtons({
   terms,
   fileName,
   documentText,
-  onImportTerms
+  onImportTerms,
+  glossaryMode,
+  selectedColumnView = '4',
+  targetDocumentText
 }: ExportButtonsProps) {
   const { language } = useLanguage()
 
-  const exportToCSV = () => {
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+  // Sprawdź czy jest to glosariusz dwujęzyczny
+  const isBilingual = glossaryMode === 'bilingual'
+  const is2Column = selectedColumnView === '2'
+  const is4Column = selectedColumnView === '4'
 
+  const exportToCSV = () => {
     let csvContent: string[][]
-    if (hasDefinitions) {
-      csvContent = [
-        ['Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
-        ...terms.map(term => [
-          term.term,
-          term.occurrences.toString(),
-          term.sourceDocument || fileName || 'Dokument',
-          term.definition || '',
-          term.definitionSource === 'document' ? 'Z dokumentu' :
-           term.definitionSource === 'edited' ? 'Edytowano' :
-           term.definitionSource === 'ai' ? 'AI' : '',
-          term.context || ''
-        ])
-      ]
+
+    if (isBilingual) {
+      // Eksport glosariusza dwujęzycznego
+      if (is2Column) {
+        // 2 kolumny: Termin źródłowy | Termin docelowy
+        csvContent = [
+          [language === 'pl' ? 'Termin źródłowy' : 'Source Term', language === 'pl' ? 'Termin docelowy' : 'Target Term'],
+          ...terms.map(term => [
+            term.term,
+            term.targetTerm || ''
+          ])
+        ]
+      } else {
+        // 4 kolumny: Termin źródłowy | Kontekst źródłowy | Termin docelowy | Kontekst docelowy
+        csvContent = [
+          [
+            language === 'pl' ? 'Termin źródłowy' : 'Source Term',
+            language === 'pl' ? 'Kontekst źródłowy' : 'Source Context',
+            language === 'pl' ? 'Termin docelowy' : 'Target Term',
+            language === 'pl' ? 'Kontekst docelowy' : 'Target Context'
+          ],
+          ...terms.map(term => [
+            term.term,
+            term.context || '',
+            term.targetTerm || '',
+            term.targetContext || ''
+          ])
+        ]
+      }
     } else {
-      csvContent = [
-        ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
-        ...terms.map(term => [
-          term.term,
-          term.occurrences.toString(),
-          term.sourceDocument || fileName || 'Dokument',
-          term.context || ''
-        ])
-      ]
+      // Eksport glosariusza jednojęzycznego (istniejący kod)
+      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+
+      if (hasDefinitions) {
+        csvContent = [
+          ['Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
+          ...terms.map(term => [
+            term.term,
+            term.occurrences.toString(),
+            term.sourceDocument || fileName || 'Dokument',
+            term.definition || '',
+            term.definitionSource === 'document' ? 'Z dokumentu' :
+             term.definitionSource === 'edited' ? 'Edytowano' :
+             term.definitionSource === 'ai' ? 'AI' : '',
+            term.context || ''
+          ])
+        ]
+      } else {
+        csvContent = [
+          ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
+          ...terms.map(term => [
+            term.term,
+            term.occurrences.toString(),
+            term.sourceDocument || fileName || 'Dokument',
+            term.context || ''
+          ])
+        ]
+      }
     }
 
     const csvString = csvContent
       .map(row => row.map(cell => `"${cell}"`).join(','))
       .join('\n')
 
-    const filename = `${fileName}_glosariusz.csv`
+    const suffix = isBilingual ? (is2Column ? '_dwujezyczny_2kol' : '_dwujezyczny_4kol') : '_glosariusz'
+    const filename = `${fileName}${suffix}.csv`
     downloadFile(csvString, filename, 'text/csv;charset=utf-8;')
   }
 
