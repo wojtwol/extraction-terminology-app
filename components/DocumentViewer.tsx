@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Term } from '@/app/page'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface DocumentViewerProps {
   documentText: string
@@ -12,6 +13,7 @@ interface DocumentViewerProps {
 }
 
 export default function DocumentViewer({ documentText, selectedTerm, fileName, terms, onAddTermFromSelection }: DocumentViewerProps) {
+  const { language } = useLanguage()
   const [currentOccurrence, setCurrentOccurrence] = useState(0)
   const [selectedText, setSelectedText] = useState('')
   const [showAddButton, setShowAddButton] = useState(false)
@@ -185,7 +187,7 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
     <div className="bg-white rounded-lg shadow-lg p-6 relative">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-xl font-semibold text-gray-800">Dokument źródłowy</h3>
+          <h3 className="text-xl font-semibold text-gray-800">{language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}</h3>
           <p className="text-sm text-gray-600">{fileName}</p>
         </div>
 
@@ -193,11 +195,11 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
           <div className="flex items-center gap-3">
             <div className="text-sm text-gray-700">
               <span className="font-semibold">
-                Wybrany termin: {selectedTerm.term}
+                {language === 'pl' ? 'Wybrany termin:' : 'Selected term:'} {selectedTerm.term}
               </span>
               <br />
               <span className="text-xs text-gray-500">
-                Wystąpienie {currentOccurrence + 1} z {selectedTerm.positions.length}
+                {language === 'pl' ? 'Wystąpienie' : 'Occurrence'} {currentOccurrence + 1} {language === 'pl' ? 'z' : 'of'} {selectedTerm.positions.length}
               </span>
             </div>
             <div className="flex gap-2">
@@ -205,17 +207,17 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
                 onClick={navigatePrevious}
                 disabled={currentOccurrence === 0}
                 className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
-                title="Poprzednie wystąpienie"
+                title={language === 'pl' ? 'Poprzednie wystąpienie' : 'Previous occurrence'}
               >
-                ← Poprzedni
+                ← {language === 'pl' ? 'Poprzedni' : 'Previous'}
               </button>
               <button
                 onClick={navigateNext}
                 disabled={!selectedTerm || currentOccurrence >= selectedTerm.positions.length - 1}
                 className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
-                title="Następne wystąpienie"
+                title={language === 'pl' ? 'Następne wystąpienie' : 'Next occurrence'}
               >
-                Następny →
+                {language === 'pl' ? 'Następny' : 'Next'} →
               </button>
             </div>
           </div>
@@ -225,16 +227,20 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
       {!selectedTerm && terms.length > 0 && (
         <div className="mb-4 space-y-2">
           <p className="text-sm text-gray-500 italic">
-            Wszystkie terminy z glosariusza są podświetlone na czerwono. Kliknij na termin w tabeli, aby podświetlić jego wystąpienia na żółto.
+            {language === 'pl'
+              ? 'Wszystkie terminy z glosariusza są podświetlone na czerwono. Kliknij na termin w tabeli, aby podświetlić jego wystąpienia na żółto.'
+              : 'All glossary terms are highlighted in red. Click on a term in the table to highlight its occurrences in yellow.'}
           </p>
           {onAddTermFromSelection && (
             <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex-1">
                 <p className="text-sm text-blue-800 font-semibold">
-                  💡 Szybkie dodawanie terminów
+                  💡 {language === 'pl' ? 'Szybkie dodawanie terminów' : 'Quick term adding'}
                 </p>
                 <p className="text-xs text-blue-600 mt-0.5">
-                  Zaznacz dowolny fragment tekstu w dokumencie poniżej, a następnie kliknij przycisk:
+                  {language === 'pl'
+                    ? 'Zaznacz dowolny fragment tekstu w dokumencie poniżej, a następnie kliknij przycisk:'
+                    : 'Select any text fragment in the document below, then click the button:'}
                 </p>
               </div>
               <button
@@ -242,18 +248,20 @@ export default function DocumentViewer({ documentText, selectedTerm, fileName, t
                   if (selectedText) {
                     handleAddSelectedTerm()
                   } else {
-                    alert('Najpierw zaznacz fragment tekstu w dokumencie poniżej.')
+                    alert(language === 'pl' ? 'Najpierw zaznacz fragment tekstu w dokumencie poniżej.' : 'First select a text fragment in the document below.')
                   }
                 }}
                 disabled={!selectedText}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
-                title={selectedText ? `Dodaj zaznaczony tekst: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"` : 'Zaznacz tekst w dokumencie'}
+                title={selectedText
+                  ? (language === 'pl' ? `Dodaj zaznaczony tekst: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"` : `Add selected text: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`)
+                  : (language === 'pl' ? 'Zaznacz tekst w dokumencie' : 'Select text in document')}
               >
                 <span>➕</span>
                 <span>
                   {selectedText
-                    ? `Dodaj "${selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText}"`
-                    : 'Dodaj zaznaczony tekst'}
+                    ? (language === 'pl' ? `Dodaj "${selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText}"` : `Add "${selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText}"`)
+                    : (language === 'pl' ? 'Dodaj zaznaczony tekst' : 'Add selected text')}
                 </span>
               </button>
             </div>
