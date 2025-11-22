@@ -357,6 +357,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
               placeholder={t.urlPlaceholder}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isLoading || isLoadingUrl}
+              autoComplete="off"
             />
             <p className="text-xs text-gray-500 mt-2">
               <strong>{language === 'pl' ? 'Przykłady:' : 'Examples:'}</strong> EUR-Lex, HUDOC (ECHR){language === 'pl' ? ', akty prawne, dokumenty XML' : ', legal documents, XML files'}
