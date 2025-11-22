@@ -658,13 +658,13 @@ export default function TerminologyTable({
             <thead>
               <tr className="bg-gray-100 border-b-2 border-gray-300">
                 <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
-                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '200px'}}>{t.term}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '170px' : '200px'}}>{t.term}</th>
                 <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
-                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '126px' : '140px'}}>
                   {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
                 </th>
-                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '22%' : '12%'}}>{t.definition}</th>
-                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '22%' : '32%'}}>{t.context}</th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '26%' : '12%'}}>{t.definition}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '26%' : '32%'}}>{t.context}</th>
                 <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
               </tr>
             </thead>
