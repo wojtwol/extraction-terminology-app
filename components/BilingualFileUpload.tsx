@@ -397,13 +397,17 @@ export default function BilingualFileUpload({ onExtract, isLoading, savedApiKey,
         {inputMode === 'url' && (
           <div className="space-y-3">
             <input
-              type="url"
+              type="text"
+              inputMode="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder={txt.urlPlaceholder}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
               disabled={isLoading || loadingUrl}
               autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
+              name="bilingual-url-input"
             />
             <button
               onClick={() => handleUrlFetch(type)}
