@@ -857,7 +857,7 @@ export default function TerminologyTable({
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col gap-1 w-fit">
+                        <div className="inline-flex flex-col gap-1">
                           <button
                             onClick={() => handleGenerateDefinitionClick(term.id, term.term)}
                             disabled={loadingDefinitions.has(term.id)}
