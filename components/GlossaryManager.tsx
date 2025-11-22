@@ -37,7 +37,7 @@ export default function GlossaryManager({
       return
     }
 
-    const result = projectStorage.addGlossary(projectId, newGlossaryName.trim())
+    const result = projectStorage.addGlossary(projectId, newGlossaryName.trim(), [], undefined, language)
     if (result) {
       setNewGlossaryName('')
       setShowNewGlossaryDialog(false)
@@ -107,7 +107,7 @@ export default function GlossaryManager({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleString(language === 'pl' ? 'pl-PL' : 'en-US', {
+    return date.toLocaleString(language === 'pl' ? 'pl-PL' : 'en-GB', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -223,7 +223,7 @@ export default function GlossaryManager({
               onClick={() => setShowVersions(!showVersions)}
               className="text-sm font-semibold text-gray-700 hover:text-gray-900 flex items-center gap-1"
             >
-              {showVersions ? '▼' : '▶'} Historia wersji ({currentGlossary.versions.length})
+              {showVersions ? '▼' : '▶'} {language === 'pl' ? 'Historia wersji' : 'Version history'} ({currentGlossary.versions.length})
             </button>
           </div>
 
@@ -252,7 +252,7 @@ export default function GlossaryManager({
                           )}
                           {version.id === currentGlossary.currentVersionId && (
                             <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded">
-                              Aktualna
+                              {language === 'pl' ? 'Aktualna' : 'Current'}
                             </span>
                           )}
                         </div>
@@ -261,11 +261,11 @@ export default function GlossaryManager({
                           <div className="text-gray-500 mt-1 italic">{version.changesSummary}</div>
                         )}
                         <div className="text-gray-500 mt-1">
-                          {formatDate(version.createdAt)} • {version.terms.length} terminów
+                          {formatDate(version.createdAt)} • {version.terms.length} {language === 'pl' ? 'terminów' : 'terms'}
                         </div>
                         {version.extractionParams && (
                           <div className="text-gray-500 mt-1">
-                            Parametry: {version.extractionParams.minTerms}-{version.extractionParams.maxTerms} terminów
+                            {language === 'pl' ? 'Parametry' : 'Parameters'}: {version.extractionParams.minTerms}-{version.extractionParams.maxTerms} {language === 'pl' ? 'terminów' : 'terms'}
                           </div>
                         )}
                       </div>
@@ -275,17 +275,17 @@ export default function GlossaryManager({
                             <button
                               onClick={() => handleRestoreVersion(version.id)}
                               className="px-2 py-1 text-blue-600 hover:text-blue-800 text-xs"
-                              title="Przywróć tę wersję"
+                              title={language === 'pl' ? 'Przywróć tę wersję' : 'Restore this version'}
                             >
-                              ↺ Przywróć
+                              ↺ {language === 'pl' ? 'Przywróć' : 'Restore'}
                             </button>
                             {currentGlossary.versions.length > 1 && (
                               <button
                                 onClick={() => handleDeleteVersion(version.id)}
                                 className="px-2 py-1 text-red-600 hover:text-red-800 text-xs"
-                                title="Usuń wersję"
+                                title={language === 'pl' ? 'Usuń wersję' : 'Delete version'}
                               >
-                                Usuń
+                                {language === 'pl' ? 'Usuń' : 'Delete'}
                               </button>
                             )}
                           </>

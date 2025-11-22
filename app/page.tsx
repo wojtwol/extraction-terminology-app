@@ -287,7 +287,7 @@ export default function Home() {
         fileName: '',
         documentText: '',
         detectedLanguage: ''
-      })
+      }, language)
       setCurrentProject(newProject)
       setProjectName(newProject.name)
       refreshGlossary()
@@ -306,7 +306,7 @@ export default function Home() {
         fileName: '',
         documentText: '',
         detectedLanguage: ''
-      })
+      }, language)
       // Oznacz jako projekt wielodokumentowy
       projectStorage.update(newProject.id, { isMultiDocument: true, documents: [] })
       const updatedProject = projectStorage.getById(newProject.id)
@@ -1903,7 +1903,9 @@ export default function Home() {
 
   // Zapisz jako nowy projekt
   const handleSaveProject = () => {
-    const name = prompt('Nazwa projektu:', fileName || 'Nowy glosariusz')
+    const promptText = language === 'pl' ? 'Nazwa projektu:' : 'Project name:'
+    const defaultName = fileName || (language === 'pl' ? 'Nowy glosariusz' : 'New glossary')
+    const name = prompt(promptText, defaultName)
     if (!name) return
 
     const project = projectStorage.save({
@@ -1911,12 +1913,12 @@ export default function Home() {
       fileName,
       documentText,
       detectedLanguage
-    })
+    }, language)
 
     setCurrentProject(project)
     setProjectName(name)
     refreshGlossary()
-    alert('Projekt został zapisany!')
+    alert(language === 'pl' ? 'Projekt został zapisany!' : 'Project saved!')
   }
 
   // Wczytaj projekt

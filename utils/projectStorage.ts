@@ -184,21 +184,21 @@ export const projectStorage = {
   },
 
   // Zapisz nowy projekt z początkowym glosariuszem
-  save(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'glossaries' | 'currentGlossaryId'>): Project {
+  save(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'glossaries' | 'currentGlossaryId'>, language: string = 'pl'): Project {
     const projects = this.getAll()
 
     const initialVersion: GlossaryVersion = {
       id: `version-${Date.now()}-1`,
       versionNumber: 1,
       createdAt: new Date().toISOString(),
-      description: 'Wersja początkowa',
+      description: language === 'pl' ? 'Wersja początkowa' : 'Initial version',
       terms: [],
       isSnapshot: true
     }
 
     const initialGlossary: Glossary = {
       id: `glossary-${Date.now()}`,
-      name: 'Glosariusz główny',
+      name: language === 'pl' ? 'Glosariusz główny' : 'Main Glossary',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       currentVersionId: initialVersion.id,
@@ -304,7 +304,7 @@ export const projectStorage = {
   // === OPERACJE NA GLOSARIUSZACH ===
 
   // Dodaj nowy glosariusz do projektu
-  addGlossary(projectId: string, name: string, terms: Term[] = [], extractionParams?: GlossaryVersion['extractionParams']): Glossary | null {
+  addGlossary(projectId: string, name: string, terms: Term[] = [], extractionParams?: GlossaryVersion['extractionParams'], language: string = 'pl'): Glossary | null {
     const project = this.getById(projectId)
     if (!project) return null
 
@@ -312,7 +312,7 @@ export const projectStorage = {
       id: `version-${Date.now()}-1`,
       versionNumber: 1,
       createdAt: new Date().toISOString(),
-      description: 'Wersja początkowa',
+      description: language === 'pl' ? 'Wersja początkowa' : 'Initial version',
       terms,
       extractionParams,
       isSnapshot: true
