@@ -2453,22 +2453,22 @@ export default function Home() {
                     }}
                     className="w-full px-4 py-2.5 bg-white border-2 border-purple-500 text-gray-700 rounded-lg hover:border-purple-600 focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition-all font-medium text-sm cursor-pointer"
                   >
-                    <option value="">Wybierz akcję...</option>
+                    <option value="">{language === 'pl' ? 'Wybierz akcję...' : 'Select action...'}</option>
 
                     {currentProject && currentGlossary && (
-                      <option value="snapshot">📸 Utwórz snapshot</option>
+                      <option value="snapshot">📸 {language === 'pl' ? 'Utwórz snapshot' : 'Create snapshot'}</option>
                     )}
 
                     {documentText && (
-                      <option value="add-term">➕ Dodaj termin ręcznie</option>
+                      <option value="add-term">➕ {language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}</option>
                     )}
 
                     <option value="save-project" disabled={terms.length === 0}>
-                      💾 {currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt'}
+                      💾 {currentProject ? (language === 'pl' ? 'Zapisz zmiany' : 'Save changes') : (language === 'pl' ? 'Zapisz jako projekt' : 'Save as project')}
                     </option>
 
                     <option value="local-save" disabled={terms.length === 0}>
-                      💾 Zapisz lokalnie (JSON)
+                      💾 {language === 'pl' ? 'Zapisz lokalnie (JSON)' : 'Save locally (JSON)'}
                     </option>
 
                     <option value="merge-glossaries">

@@ -1528,7 +1528,7 @@ export default function ExportButtons({
           onChange={handleImportChange}
           className="w-full px-4 py-2.5 bg-white border-2 border-indigo-500 text-gray-700 rounded-lg hover:border-indigo-600 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 transition-all font-medium text-sm cursor-pointer"
         >
-          <option value="">Wybierz format...</option>
+          <option value="">{language === 'pl' ? 'Wybierz format...' : 'Select format...'}</option>
           <option value="json">📥 Import JSON</option>
           <option value="xlsx">📥 Import XLSX</option>
         </select>
@@ -1537,37 +1537,37 @@ export default function ExportButtons({
       {/* Export Dropdown - Disabled when no terms */}
       <div className="w-full">
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Eksport
+          {language === 'pl' ? 'Eksport' : 'Export'}
         </label>
         <select
           onChange={handleExportChange}
           disabled={!hasTerms}
           className="w-full px-4 py-2.5 bg-white border-2 border-emerald-500 text-gray-700 rounded-lg hover:border-emerald-600 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 transition-all font-medium text-sm cursor-pointer disabled:bg-gray-200 disabled:border-gray-300 disabled:cursor-not-allowed disabled:text-gray-500"
         >
-          <option value="">Wybierz format...</option>
-          <option value="xlsx">📊 Excel (XLSX){isBilingual ? ` - ${is2Column ? '2 kolumny' : '4 kolumny'}` : ''}</option>
-          <option value="pdf">📄 PDF{isBilingual ? ` - ${is2Column ? '2 kolumny' : '4 kolumny'}` : ''}</option>
-          <option value="csv">📊 CSV{isBilingual ? ` - ${is2Column ? '2 kolumny' : '4 kolumny'}` : ''}</option>
-          <option value="html">🌐 HTML{isBilingual ? ` - ${is2Column ? '2 kolumny' : '4 kolumny'}` : ''}</option>
+          <option value="">{language === 'pl' ? 'Wybierz format...' : 'Select format...'}</option>
+          <option value="xlsx">📊 Excel (XLSX){isBilingual ? ` - ${is2Column ? (language === 'pl' ? '2 kolumny' : '2 columns') : (language === 'pl' ? '4 kolumny' : '4 columns')}` : ''}</option>
+          <option value="pdf">📄 PDF{isBilingual ? ` - ${is2Column ? (language === 'pl' ? '2 kolumny' : '2 columns') : (language === 'pl' ? '4 kolumny' : '4 columns')}` : ''}</option>
+          <option value="csv">📊 CSV{isBilingual ? ` - ${is2Column ? (language === 'pl' ? '2 kolumny' : '2 columns') : (language === 'pl' ? '4 kolumny' : '4 columns')}` : ''}</option>
+          <option value="html">🌐 HTML{isBilingual ? ` - ${is2Column ? (language === 'pl' ? '2 kolumny' : '2 columns') : (language === 'pl' ? '4 kolumny' : '4 columns')}` : ''}</option>
           <option value="json">💾 JSON</option>
         </select>
         {isBilingual ? (
           <p className="text-xs text-gray-500 mt-2">
             {is2Column ? (
               <>
-                <strong>Widok 2-kolumnowy:</strong> Termin źródłowy | Termin docelowy
+                <strong>{language === 'pl' ? 'Widok 2-kolumnowy:' : '2-column view:'}</strong> {language === 'pl' ? 'Termin źródłowy | Termin docelowy' : 'Source Term | Target Term'}
               </>
             ) : (
               <>
-                <strong>Widok 4-kolumnowy:</strong> Termin źródłowy | Kontekst źródłowy | Termin docelowy | Kontekst docelowy
+                <strong>{language === 'pl' ? 'Widok 4-kolumnowy:' : '4-column view:'}</strong> {language === 'pl' ? 'Termin źródłowy | Kontekst źródłowy | Termin docelowy | Kontekst docelowy' : 'Source Term | Source Context | Target Term | Target Context'}
                 <br />
-                <span className="text-red-600">Terminy w kontekście wyróżnione czerwonym kolorem</span>
+                <span className="text-red-600">{language === 'pl' ? 'Terminy w kontekście wyróżnione czerwonym kolorem' : 'Terms in context highlighted in red'}</span>
               </>
             )}
           </p>
         ) : (
           <p className="text-xs text-gray-500 mt-2">
-            <strong>XLSX, PDF i HTML</strong> zawierają definicje
+            <strong>XLSX, PDF {language === 'pl' ? 'i' : 'and'} HTML</strong> {language === 'pl' ? 'zawierają definicje' : 'include definitions'}
           </p>
         )}
       </div>
