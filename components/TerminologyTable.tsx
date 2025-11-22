@@ -663,8 +663,8 @@ export default function TerminologyTable({
                 <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '140px'}}>
                   {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
                 </th>
-                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '10%'}}>{t.definition}</th>
-                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '17%' : '35%'}}>{t.context}</th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '28%' : '14%'}}>{t.definition}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '17%' : '31%'}}>{t.context}</th>
                 <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
               </tr>
             </thead>
