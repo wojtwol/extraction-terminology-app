@@ -58,7 +58,7 @@ export default function DocumentManager({ projectId, documents, onRefresh }: Doc
                     {doc.language} • {doc.text.length.toLocaleString()} {language === 'pl' ? 'znaków' : 'chars'}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {language === 'pl' ? 'Dodano:' : 'Added:'} {new Date(doc.addedAt).toLocaleString(language === 'pl' ? 'pl-PL' : 'en-US')}
+                    {language === 'pl' ? 'Dodano:' : 'Added:'} {new Date(doc.addedAt).toLocaleString(language === 'pl' ? 'pl-PL' : 'en-GB')}
                   </p>
                 </div>
                 <button

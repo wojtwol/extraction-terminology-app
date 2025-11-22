@@ -166,7 +166,7 @@ export default function ExportButtons({
       targetContext: language === 'pl' ? 'Kontekst docelowy' : 'Target Context'
     }
 
-    const locale = language === 'pl' ? 'pl-PL' : 'en-US'
+    const locale = language === 'pl' ? 'pl-PL' : 'en-GB'
     const lang = language === 'pl' ? 'pl' : 'en'
 
     const htmlContent = `
@@ -357,7 +357,7 @@ export default function ExportButtons({
       ai: 'AI'
     }
 
-    const locale = language === 'pl' ? 'pl-PL' : 'en-US'
+    const locale = language === 'pl' ? 'pl-PL' : 'en-GB'
     const lang = language === 'pl' ? 'pl' : 'en'
 
     const htmlContent = `
@@ -589,7 +589,7 @@ export default function ExportButtons({
       targetContext: language === 'pl' ? 'Kontekst docelowy' : 'Target Context'
     }
 
-    const locale = language === 'pl' ? 'pl-PL' : 'en-US'
+    const locale = language === 'pl' ? 'pl-PL' : 'en-GB'
     const numCols = is2Column ? 2 : 4
 
     // Nagłówek z metadanymi
@@ -711,7 +711,7 @@ export default function ExportButtons({
       aiGenerated: language === 'pl' ? 'Wygenerowane AI' : 'AI Generated'
     }
 
-    const locale = language === 'pl' ? 'pl-PL' : 'en-US'
+    const locale = language === 'pl' ? 'pl-PL' : 'en-GB'
 
     // Przygotuj puste komórki dla scalania
     const emptyRow = Array(numCols).fill('')

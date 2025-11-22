@@ -2179,7 +2179,7 @@ export default function Home() {
               <button
                 onClick={() => {
                   // Generuj domyślną nazwę z numerem porządkowym
-                  const today = new Date().toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-US')
+                  const today = new Date().toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-GB')
                   const baseNamePrefix = language === 'pl' ? `Glosariusz ${today}` : `Glossary ${today}`
 
                   // Znajdź wszystkie projekty z dzisiejszą datą
@@ -2205,7 +2205,7 @@ export default function Home() {
               <button
                 onClick={() => {
                   // Generuj domyślną nazwę z numerem porządkowym
-                  const today = new Date().toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-US')
+                  const today = new Date().toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-GB')
                   const baseNamePrefix = language === 'pl' ? `Glosariusz wielodokumentowy ${today}` : `Multi-doc Glossary ${today}`
 
                   // Znajdź wszystkie projekty z dzisiejszą datą
@@ -2253,7 +2253,7 @@ export default function Home() {
                               } • {project.detectedLanguage || (language === 'pl' ? 'Brak dokumentu' : 'No document')}
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
-                              {language === 'pl' ? 'Zmieniono:' : 'Modified:'} {new Date(project.updatedAt).toLocaleString(language === 'pl' ? 'pl-PL' : 'en-US')}
+                              {language === 'pl' ? 'Zmieniono:' : 'Modified:'} {new Date(project.updatedAt).toLocaleString(language === 'pl' ? 'pl-PL' : 'en-GB')}
                             </p>
                           </div>
                           <button
