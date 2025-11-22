@@ -232,13 +232,16 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
             </span>
           )}
         </div>
+        {/* Hidden honeypot fields to prevent Chrome password save prompt */}
+        <input type="text" name="fake-username" style={{display: 'none'}} autoComplete="username" />
+        <input type="password" name="fake-password" style={{display: 'none'}} autoComplete="new-password" />
         <input
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder="sk-ant-..."
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          autoComplete="off"
+          autoComplete="new-password"
           data-form-type="other"
           data-lpignore="true"
           name="anthropic-api-key"
