@@ -354,3 +354,47 @@ export function findExistingTermByNormalization(
 
   return null
 }
+
+// Normalizacja nazwy dokumentu źródłowego do formatu: "Rodzaj YYYY/NNNN"
+// Przykład: "Regulation 2017_1939 EPPO.xlsx" → "Regulation 2017/1939"
+export function normalizeSourceDocumentName(name: string): string {
+  if (!name) return name
+
+  // Wzorce dla aktów prawnych z numerem YYYY/NNNN lub YYYY_NNNN
+  const legalActPatterns = [
+    // Regulation 2017/1939 lub Regulation 2017_1939
+    /^(Regulation|Rozporządzenie)\s*(?:No\.?\s*)?(\d{4})[_\/](\d+)/i,
+    // Directive 2017/1939 lub Directive 2017_1939
+    /^(Directive|Dyrektywa)\s*(?:No\.?\s*)?(\d{4})[_\/](\d+)/i,
+    // Decision 2017/1939 lub Decision 2017_1939
+    /^(Decision|Decyzja)\s*(?:No\.?\s*)?(\d{4})[_\/](\d+)/i,
+    // Recommendation 2017/1939 lub Recommendation 2017_1939
+    /^(Recommendation|Zalecenie)\s*(?:No\.?\s*)?(\d{4})[_\/](\d+)/i,
+    // Opinion 2017/1939 lub Opinion 2017_1939
+    /^(Opinion|Opinia)\s*(?:No\.?\s*)?(\d{4})[_\/](\d+)/i,
+  ]
+
+  for (const pattern of legalActPatterns) {
+    const match = name.match(pattern)
+    if (match) {
+      const type = match[1]
+      const year = match[2]
+      const number = match[3]
+      // Zwróć znormalizowaną nazwę: "Typ YYYY/NNNN"
+      return `${type} ${year}/${number}`
+    }
+  }
+
+  // Jeśli nie pasuje do wzorca aktów prawnych, spróbuj przynajmniej zamienić _ na /
+  // w ciągach wyglądających jak numery (YYYY_NNNN)
+  const numberPattern = /(\d{4})_(\d+)/g
+  const normalized = name.replace(numberPattern, '$1/$2')
+
+  // Usuń rozszerzenie pliku jeśli jest
+  const withoutExtension = normalized.replace(/\.(xlsx|xls|json|csv|pdf|docx|txt|html)$/i, '')
+
+  // Usuń "No" lub "nr" jeśli jest przed numerem
+  const withoutNo = withoutExtension.replace(/\s+(?:No\.?|nr\.?)\s+(\d)/gi, ' $1')
+
+  return withoutNo.trim()
+}

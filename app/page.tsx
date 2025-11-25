@@ -11,7 +11,7 @@ import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
 import DocumentManager from '@/components/DocumentManager'
 import { Project, Glossary, GlossaryVersion, projectStorage, SourceDocument } from '@/utils/projectStorage'
-import { normalizeTermForComparison, areTermVariants, getPreferredTermForm, convertToSingular } from '@/utils/termNormalization'
+import { normalizeTermForComparison, areTermVariants, getPreferredTermForm, convertToSingular, normalizeSourceDocumentName } from '@/utils/termNormalization'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 // Kontekst terminu w pojedynczym dokumencie
