@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx-js-style'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { normalizeSourceDocumentName } from '@/utils/termNormalization'
 
 interface ExportButtonsProps {
   terms: Term[]
@@ -34,7 +35,7 @@ export default function ExportButtons({
   const is2Column = selectedColumnView === '2'
   const is4Column = selectedColumnView === '4'
 
-  // Zbierz unikalne tytuły dokumentów źródłowych z terminów
+  // Zbierz unikalne tytuły dokumentów źródłowych z terminów (znormalizowane)
   const getSourceDocumentTitles = (): string => {
     const titles = new Set<string>()
 
@@ -43,19 +44,19 @@ export default function ExportButtons({
       if (term.contexts && term.contexts.length > 0) {
         term.contexts.forEach(ctx => {
           if (ctx.documentName) {
-            titles.add(ctx.documentName)
+            titles.add(normalizeSourceDocumentName(ctx.documentName))
           }
         })
       }
       // Sprawdź sourceDocument (single-document mode)
       if (term.sourceDocument) {
-        titles.add(term.sourceDocument)
+        titles.add(normalizeSourceDocumentName(term.sourceDocument))
       }
     })
 
-    // Jeśli nie znaleziono tytułów, użyj fileName jako fallback
+    // Jeśli nie znaleziono tytułów, użyj fileName jako fallback (też znormalizowany)
     if (titles.size === 0) {
-      return fileName
+      return normalizeSourceDocumentName(fileName)
     }
 
     // Zwróć tytuły połączone separatorem

@@ -1254,9 +1254,10 @@ export default function Home() {
           termsMap.set(term.term, { ...term })
         } else {
           // Konwertuj stary format (single context) do nowego (contexts[])
+          const docName = normalizeSourceDocumentName(term.sourceDocument || fileName || 'Unknown')
           const termContext: TermContext = {
             documentId: term.sourceDocument || 'unknown',
-            documentName: term.sourceDocument || fileName || 'Unknown',
+            documentName: docName,
             context: term.context,
             positions: term.positions,
             occurrences: term.occurrences
@@ -1321,9 +1322,10 @@ export default function Home() {
           })
         } else {
           // Stary format - pojedynczy kontekst
+          const importDocName = normalizeSourceDocumentName(importedTerm.sourceDocument || source)
           const newContext: TermContext = {
             documentId: importedTerm.sourceDocument || 'unknown',
-            documentName: importedTerm.sourceDocument || source,
+            documentName: importDocName,
             context: importedTerm.context,
             positions: importedTerm.positions,
             occurrences: importedTerm.occurrences
@@ -1356,9 +1358,10 @@ export default function Home() {
           })
         } else {
           // Stary format - utwórz contexts[] z pojedynczego kontekstu
+          const newDocName = normalizeSourceDocumentName(importedTerm.sourceDocument || source)
           const termContext: TermContext = {
             documentId: importedTerm.sourceDocument || 'unknown',
-            documentName: importedTerm.sourceDocument || source,
+            documentName: newDocName,
             context: importedTerm.context,
             positions: importedTerm.positions,
             occurrences: importedTerm.occurrences
