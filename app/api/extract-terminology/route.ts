@@ -8,6 +8,7 @@ interface Term {
   context: string
   occurrences: number
   positions: number[]
+  variants?: string[] // Warianty terminu (plural/singular, and/or) - zgrupowane razem
 }
 
 export const maxDuration = 300 // Timeout 300 sekund dla Vercel Pro (wymagane dla dużych dokumentów)
@@ -355,26 +356,71 @@ TEXT:`
     console.log(`\n✅ Zakończono przetwarzanie wszystkich ${chunks.length} części`)
     console.log(`📊 Zebrano ${allChunkTerms.length} terminów (przed deduplikacją)`)
 
-    // KROK 6: Deduplikacja terminów i znajdź pozycje w PEŁNYM tekście
+    // KROK 6: Deduplikacja terminów z normalizacją (plural/singular, and/or)
+    // Używamy znormalizowanej formy jako klucza, ale zachowujemy wariant z największą liczbą wystąpień
     const uniqueTermsMap = new Map<string, any>()
+    const normalizedKeyMap = new Map<string, string>() // normalizedKey -> originalKey
 
     for (let i = 0; i < allChunkTerms.length; i++) {
       const term = allChunkTerms[i]
       const termLower = term.term.toLowerCase()
+      const normalizedKey = normalizeTermForComparison(term.term)
 
-      if (!uniqueTermsMap.has(termLower)) {
-        // Znajdź wszystkie wystąpienia w PEŁNYM dokumencie
-        const positions = findTermPositions(text, term.term)
+      // Znajdź wszystkie wystąpienia w PEŁNYM dokumencie
+      const positions = findTermPositions(text, term.term)
+      const occurrences = positions.length > 0 ? positions.length : (term.occurrences || 1)
 
+      // Sprawdź czy mamy już termin o tej samej znormalizowanej formie
+      if (normalizedKeyMap.has(normalizedKey)) {
+        const existingKey = normalizedKeyMap.get(normalizedKey)!
+        const existing = uniqueTermsMap.get(existingKey)
+
+        // Porównaj wystąpienia - zachowaj wariant z większą liczbą wystąpień
+        if (occurrences > existing.occurrences) {
+          // Nowy wariant ma więcej wystąpień - zastąp stary
+          console.log(`   🔄 Zastępuję "${existing.term}" (${existing.occurrences}x) przez "${term.term}" (${occurrences}x) - wariant z większą liczbą wystąpień`)
+
+          // Dodaj wystąpienia starego wariantu do nowego (sumowanie)
+          const combinedOccurrences = occurrences + existing.occurrences
+          const combinedPositions = [...positions, ...existing.positions].sort((a, b) => a - b)
+
+          uniqueTermsMap.delete(existingKey)
+          uniqueTermsMap.set(termLower, {
+            id: `term-${i}-${Date.now()}`,
+            term: term.term,
+            context: term.context || existing.context || '',
+            occurrences: combinedOccurrences,
+            positions: combinedPositions.slice(0, 100), // Limit do 100 pozycji
+            variants: [...(existing.variants || [existing.term]), term.term] // Zachowaj wszystkie warianty
+          })
+          normalizedKeyMap.set(normalizedKey, termLower)
+        } else {
+          // Stary wariant ma więcej lub tyle samo wystąpień - dodaj do niego
+          existing.occurrences += occurrences
+          existing.positions = [...existing.positions, ...positions].sort((a, b) => a - b).slice(0, 100)
+          if (!existing.variants) existing.variants = [existing.term]
+          if (!existing.variants.includes(term.term)) {
+            existing.variants.push(term.term)
+          }
+          console.log(`   ➕ Łączę "${term.term}" (${occurrences}x) z "${existing.term}" - razem ${existing.occurrences}x`)
+
+          // Zaktualizuj kontekst jeśli nowy jest lepszy
+          if (term.context && term.context.length > existing.context.length) {
+            existing.context = term.context
+          }
+        }
+      } else if (!uniqueTermsMap.has(termLower)) {
+        // Nowy termin - dodaj do mapy
         uniqueTermsMap.set(termLower, {
           id: `term-${i}-${Date.now()}`,
           term: term.term,
           context: term.context || '',
-          occurrences: positions.length > 0 ? positions.length : (term.occurrences || 1),
+          occurrences: occurrences,
           positions: positions
         })
+        normalizedKeyMap.set(normalizedKey, termLower)
       } else {
-        // Jeśli termin już istnieje, możemy zaktualizować kontekst jeśli jest lepszy (dłuższy)
+        // Termin już istnieje (dokładnie ta sama forma) - połącz wystąpienia
         const existing = uniqueTermsMap.get(termLower)
         if (term.context && term.context.length > existing.context.length) {
           existing.context = term.context
@@ -497,4 +543,96 @@ function findTermPositions(text: string, term: string): number[] {
 
   // Ogranicz do 100 wystąpień (dla wydajności)
   return positions.slice(0, 100)
+}
+
+// Normalizacja liczby mnogiej do pojedynczej (angielski)
+function singularize(word: string): string {
+  const lower = word.toLowerCase()
+
+  // Wyjątki - słowa które nie zmieniają się lub mają nieregularną formę
+  const irregulars: Record<string, string> = {
+    'children': 'child',
+    'people': 'person',
+    'men': 'man',
+    'women': 'woman',
+    'teeth': 'tooth',
+    'feet': 'foot',
+    'mice': 'mouse',
+    'geese': 'goose',
+    'criteria': 'criterion',
+    'phenomena': 'phenomenon',
+    'data': 'datum',
+    'analyses': 'analysis',
+    'bases': 'basis',
+    'crises': 'crisis',
+    'theses': 'thesis',
+    'hypotheses': 'hypothesis',
+    'axes': 'axis',
+    'indices': 'index',
+    'appendices': 'appendix',
+    'matrices': 'matrix'
+  }
+
+  if (irregulars[lower]) {
+    return irregulars[lower]
+  }
+
+  // Słowa kończące się na -ies -> -y (np. authorities -> authority)
+  if (lower.endsWith('ies') && lower.length > 4) {
+    return lower.slice(0, -3) + 'y'
+  }
+
+  // Słowa kończące się na -es (po s, x, z, ch, sh) -> usunięcie -es
+  if (lower.endsWith('sses') || lower.endsWith('xes') ||
+      lower.endsWith('zes') || lower.endsWith('ches') ||
+      lower.endsWith('shes')) {
+    return lower.slice(0, -2)
+  }
+
+  // Słowa kończące się na -ves -> -f lub -fe (np. lives -> life)
+  if (lower.endsWith('ves')) {
+    // Sprawdź czy lepiej -f czy -fe
+    const withF = lower.slice(0, -3) + 'f'
+    const withFe = lower.slice(0, -3) + 'fe'
+    // Preferuj -fe dla typowych słów
+    if (['lives', 'wives', 'knives', 'leaves', 'halves'].includes(lower)) {
+      return withFe
+    }
+    return withF
+  }
+
+  // Standardowe -s na końcu -> usunięcie -s
+  if (lower.endsWith('s') && lower.length > 3 && !lower.endsWith('ss') && !lower.endsWith('us') && !lower.endsWith('is')) {
+    return lower.slice(0, -1)
+  }
+
+  return lower
+}
+
+// Normalizacja terminu do porównania (deduplikacja)
+function normalizeTermForComparison(term: string): string {
+  // 1. Zamień spójniki "or" na "and" dla spójnego porównania
+  let normalized = term.toLowerCase()
+    .replace(/\s+or\s+/g, ' and ')
+    .replace(/\s+&\s+/g, ' and ')
+
+  // 2. Podziel na słowa i znormalizuj każde słowo (singularizacja)
+  const words = normalized.split(/\s+/)
+  const singularizedWords = words.map(word => {
+    // Nie normalizuj spójników i przyimków
+    const skipWords = ['and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'in', 'on', 'at', 'by', 'with']
+    if (skipWords.includes(word)) {
+      return word
+    }
+    return singularize(word)
+  })
+
+  return singularizedWords.join(' ')
+}
+
+// Funkcja do sprawdzania czy dwa terminy są wariantami (singular/plural, and/or)
+function areTermVariants(term1: string, term2: string): boolean {
+  const norm1 = normalizeTermForComparison(term1)
+  const norm2 = normalizeTermForComparison(term2)
+  return norm1 === norm2
 }

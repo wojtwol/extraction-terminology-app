@@ -48,6 +48,9 @@ export interface Term {
   targetOccurrences?: number
   targetPositions?: number[]
   targetSource?: 'document' | 'ai' | 'manual' | 'missing'
+
+  // Warianty terminu (np. plural/singular, and/or) - zgrupowane razem
+  variants?: string[]
 }
 
 // Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście (case sensitive)
