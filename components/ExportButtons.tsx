@@ -608,16 +608,18 @@ export default function ExportButtons({
 
     const locale = language === 'pl' ? 'pl-PL' : 'en-GB'
     const numCols = is2Column ? 2 : 4
+    const lastCol = numCols - 1
 
-    // Nagłówek z metadanymi
+    // Nagłówek z metadanymi - struktura z miejscem na scalenia
     const emptyRow = Array(numCols).fill('')
     const metadataRows = [
-      [t.title],
-      emptyRow,
-      [t.termCount, sortedTerms.length],
-      [t.viewMode, is2Column ? t.columns2 : t.columns4],
-      [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })],
-      emptyRow
+      ['IURIDICO EJ GTEXTT', ...Array(numCols - 1).fill('')],  // Wiersz 0
+      [t.title, ...Array(numCols - 1).fill('')],                // Wiersz 1
+      emptyRow,                                                  // Wiersz 2
+      [t.termCount, sortedTerms.length.toString(), ...Array(numCols - 2).fill('')],  // Wiersz 3
+      [t.viewMode, is2Column ? t.columns2 : t.columns4, ...Array(numCols - 2).fill('')],  // Wiersz 4
+      [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), ...Array(numCols - 2).fill('')],  // Wiersz 5
+      emptyRow                                                   // Wiersz 6
     ]
 
     // Nagłówki kolumn
@@ -648,6 +650,61 @@ export default function ExportButtons({
     // Stwórz arkusz
     const allRows = [...metadataRows, headerRow, ...dataRows]
     const worksheet = XLSX.utils.aoa_to_sheet(allRows)
+
+    // Scalanie komórek dla nagłówków i metadanych
+    worksheet['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } }, // Wiersz 0: IURIDICO EJ GTEXTT
+      { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } }, // Wiersz 1: Tytuł glosariusza
+      // Metadane - wartości scalone (kolumna 1 do końca)
+      { s: { r: 3, c: 1 }, e: { r: 3, c: lastCol } }, // Liczba terminów - wartość
+      { s: { r: 4, c: 1 }, e: { r: 4, c: lastCol } }, // Widok - wartość
+      { s: { r: 5, c: 1 }, e: { r: 5, c: lastCol } }  // Data - wartość
+    ]
+
+    // Stylizacja tytułu głównego
+    const titleStyle = {
+      font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '5B47A8' } },
+      alignment: { horizontal: 'center', vertical: 'center' }
+    }
+    const subtitleStyle = {
+      font: { sz: 12, color: { rgb: 'FFFFFF' }, italic: true },
+      fill: { fgColor: { rgb: '667eea' } },
+      alignment: { horizontal: 'center', vertical: 'center' }
+    }
+
+    // Stylizuj tytuły
+    for (let c = 0; c <= lastCol; c++) {
+      const cell0 = XLSX.utils.encode_cell({ r: 0, c })
+      const cell1 = XLSX.utils.encode_cell({ r: 1, c })
+      if (!worksheet[cell0]) worksheet[cell0] = { t: 's', v: '' }
+      if (!worksheet[cell1]) worksheet[cell1] = { t: 's', v: '' }
+      worksheet[cell0].s = titleStyle
+      worksheet[cell1].s = subtitleStyle
+    }
+
+    // Stylizacja metadanych
+    const metaLabelStyle = {
+      font: { bold: true, sz: 11 },
+      fill: { fgColor: { rgb: 'E8E8E8' } },
+      alignment: { vertical: 'center' }
+    }
+    const metaValueStyle = {
+      font: { sz: 11 },
+      alignment: { vertical: 'center' }
+    }
+
+    for (let r = 3; r <= 5; r++) {
+      const labelCell = XLSX.utils.encode_cell({ r, c: 0 })
+      if (!worksheet[labelCell]) worksheet[labelCell] = { t: 's', v: '' }
+      worksheet[labelCell].s = metaLabelStyle
+
+      for (let c = 1; c <= lastCol; c++) {
+        const valueCell = XLSX.utils.encode_cell({ r, c })
+        if (!worksheet[valueCell]) worksheet[valueCell] = { t: 's', v: '' }
+        worksheet[valueCell].s = metaValueStyle
+      }
+    }
 
     // Stylizacja nagłówka tabeli (wiersz z kolumnami)
     const headerRowIndex = metadataRows.length
@@ -680,17 +737,29 @@ export default function ExportButtons({
     // Szerokości kolumn - dostosowane do szerokości ekranu
     if (is2Column) {
       worksheet['!cols'] = [
-        { wch: 50 }, // Source Term (zwiększone)
-        { wch: 50 }  // Target Term (zwiększone)
+        { wch: 50 }, // Source Term
+        { wch: 50 }  // Target Term
       ]
     } else {
       worksheet['!cols'] = [
-        { wch: 25 }, // Source Term (zmniejszone)
-        { wch: 50 }, // Source Context
-        { wch: 25 }, // Target Term (zmniejszone)
-        { wch: 50 }  // Target Context
+        { wch: 30 }, // Source Term
+        { wch: 45 }, // Source Context
+        { wch: 30 }, // Target Term
+        { wch: 45 }  // Target Context
       ]
     }
+
+    // Wysokości wierszy
+    worksheet['!rows'] = [
+      { hpt: 25 }, // Tytuł główny
+      { hpt: 22 }, // Podtytuł
+      { hpt: 15 }, // Pusty
+      { hpt: 20 }, // Metadane
+      { hpt: 20 }, // Metadane
+      { hpt: 20 }, // Metadane
+      { hpt: 15 }, // Pusty
+      { hpt: 25 }  // Nagłówek tabeli
+    ]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, language === 'pl' ? 'Glosariusz' : 'Glossary')
@@ -771,13 +840,14 @@ export default function ExportButtons({
       })
     }
 
+    // Przygotuj dane z wartościami w kolumnie 2 (dla scalania)
     const data = [
       emptyRow,  // Wiersz 1 - tytuł
       emptyRow,  // Wiersz 2 - podtytuł
       emptyRow,  // Wiersz 3 - pusty
-      [t.sourceDoc, fileName, ...Array(numCols - 2).fill('')],
-      [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), ...Array(numCols - 2).fill('')],
-      [t.termCount, sortedTerms.length.toString(), ...Array(numCols - 2).fill('')],
+      [t.sourceDoc, '', fileName, ...Array(numCols - 3).fill('')],
+      [t.createdAt, '', new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), ...Array(numCols - 3).fill('')],
+      [t.termCount, '', sortedTerms.length.toString(), ...Array(numCols - 3).fill('')],
       emptyRow,  // Pusty wiersz
       headerRow,
       ...dataRows
@@ -789,11 +859,19 @@ export default function ExportButtons({
 
     const ws = XLSX.utils.aoa_to_sheet(data)
 
-    // Scalanie komórek dla nazwy aplikacji (wiersze 1-2, wszystkie kolumny)
+    // Scalanie komórek dla nazwy aplikacji i metadanych
     const lastCol = numCols - 1
     ws['!merges'] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } }, // Wiersz 1: IURIDICO EJ GTEXTT
-      { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } }  // Wiersz 2: Glossary/Bilingual Glossary
+      { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } }, // Wiersz 2: Glossary/Bilingual Glossary
+      // Metadane - etykiety (kolumny 0-1 scalone)
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } }, // Dokument źródłowy
+      { s: { r: 4, c: 0 }, e: { r: 4, c: 1 } }, // Data utworzenia
+      { s: { r: 5, c: 0 }, e: { r: 5, c: 1 } }, // Liczba terminów
+      // Metadane - wartości (kolumny 2-end scalone)
+      { s: { r: 3, c: 2 }, e: { r: 3, c: lastCol } }, // Wartość: nazwa pliku
+      { s: { r: 4, c: 2 }, e: { r: 4, c: lastCol } }, // Wartość: data
+      { s: { r: 5, c: 2 }, e: { r: 5, c: lastCol } }  // Wartość: liczba
     ]
 
     // Dynamiczne szerokości kolumn
