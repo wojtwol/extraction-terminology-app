@@ -178,11 +178,10 @@ export function pluralize(word: string): string {
 }
 
 // Normalizacja terminu do porównania (deduplikacja)
-// Zamienia plural na singular, "or" na "and"
+// Zamienia plural na singular, zachowuje spójniki (and/or) bez zmian
 export function normalizeTermForComparison(term: string): string {
-  // 1. Zamień spójniki "or" na "and" dla spójnego porównania
+  // 1. Normalizuj "&" do "and" (to ten sam spójnik)
   let normalized = term.toLowerCase()
-    .replace(/\s+or\s+/g, ' and ')
     .replace(/\s+&\s+/g, ' and ')
 
   // 2. Podziel na słowa i znormalizuj każde słowo (singularizacja)
@@ -199,7 +198,7 @@ export function normalizeTermForComparison(term: string): string {
   return singularizedWords.join(' ')
 }
 
-// Funkcja do sprawdzania czy dwa terminy są wariantami (singular/plural, and/or)
+// Funkcja do sprawdzania czy dwa terminy są wariantami (singular/plural)
 export function areTermVariants(term1: string, term2: string): boolean {
   const norm1 = normalizeTermForComparison(term1)
   const norm2 = normalizeTermForComparison(term2)
