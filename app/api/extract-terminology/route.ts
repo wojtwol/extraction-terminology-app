@@ -366,63 +366,73 @@ TEXT:`
       const termLower = term.term.toLowerCase()
       const normalizedKey = normalizeTermForComparison(term.term)
 
-      // Znajdź wszystkie wystąpienia w PEŁNYM dokumencie
-      const positions = findTermPositions(text, term.term)
+      // Generuj wszystkie warianty terminu (singular/plural)
+      const termVariants = generateTermVariants(term.term)
+
+      // Znajdź wystąpienia WSZYSTKICH wariantów w PEŁNYM dokumencie
+      let allPositions: number[] = []
+      const foundVariants: string[] = []
+
+      for (const variant of termVariants) {
+        const variantPositions = findTermPositions(text, variant)
+        if (variantPositions.length > 0) {
+          allPositions = [...allPositions, ...variantPositions]
+          if (!foundVariants.includes(variant)) {
+            foundVariants.push(variant)
+          }
+        }
+      }
+
+      // Usuń duplikaty pozycji i posortuj
+      allPositions = Array.from(new Set(allPositions)).sort((a, b) => a - b)
+
+      const positions = allPositions
       const occurrences = positions.length > 0 ? positions.length : (term.occurrences || 1)
+
+      if (foundVariants.length > 1) {
+        console.log(`   🔄 Znaleziono warianty dla "${term.term}": ${foundVariants.join(', ')} (razem ${occurrences}x)`)
+      }
 
       // Sprawdź czy mamy już termin o tej samej znormalizowanej formie
       if (normalizedKeyMap.has(normalizedKey)) {
         const existingKey = normalizedKeyMap.get(normalizedKey)!
         const existing = uniqueTermsMap.get(existingKey)
 
-        // Porównaj wystąpienia - zachowaj wariant z większą liczbą wystąpień
-        if (occurrences > existing.occurrences) {
-          // Nowy wariant ma więcej wystąpień - zastąp stary
-          console.log(`   🔄 Zastępuję "${existing.term}" (${existing.occurrences}x) przez "${term.term}" (${occurrences}x) - wariant z większą liczbą wystąpień`)
+        // Pozycje są już połączone dla wszystkich wariantów, więc bierzemy unię (bez duplikatów)
+        const combinedPositions = Array.from(new Set([...existing.positions, ...positions])).sort((a, b) => a - b)
 
-          // Dodaj wystąpienia starego wariantu do nowego (sumowanie)
-          const combinedOccurrences = occurrences + existing.occurrences
-          const combinedPositions = [...positions, ...existing.positions].sort((a, b) => a - b)
+        // Połącz warianty
+        const allVariants = Array.from(new Set([
+          ...(existing.variants || [existing.term]),
+          ...foundVariants
+        ]))
 
-          uniqueTermsMap.delete(existingKey)
-          uniqueTermsMap.set(termLower, {
-            id: `term-${i}-${Date.now()}`,
-            term: term.term,
-            context: term.context || existing.context || '',
-            occurrences: combinedOccurrences,
-            positions: combinedPositions.slice(0, 100), // Limit do 100 pozycji
-            variants: [...(existing.variants || [existing.term]), term.term] // Zachowaj wszystkie warianty
-          })
-          normalizedKeyMap.set(normalizedKey, termLower)
-        } else {
-          // Stary wariant ma więcej lub tyle samo wystąpień - dodaj do niego
-          existing.occurrences += occurrences
-          existing.positions = [...existing.positions, ...positions].sort((a, b) => a - b).slice(0, 100)
-          if (!existing.variants) existing.variants = [existing.term]
-          if (!existing.variants.includes(term.term)) {
-            existing.variants.push(term.term)
-          }
-          console.log(`   ➕ Łączę "${term.term}" (${occurrences}x) z "${existing.term}" - razem ${existing.occurrences}x`)
+        // Zaktualizuj istniejący termin
+        existing.positions = combinedPositions.slice(0, 100)
+        existing.occurrences = combinedPositions.length
+        existing.variants = allVariants
 
-          // Zaktualizuj kontekst jeśli nowy jest lepszy
-          if (term.context && term.context.length > existing.context.length) {
-            existing.context = term.context
-          }
+        // Zaktualizuj kontekst jeśli nowy jest lepszy
+        if (term.context && term.context.length > (existing.context?.length || 0)) {
+          existing.context = term.context
         }
+
+        console.log(`   ➕ Łączę "${term.term}" z "${existing.term}" - warianty: ${allVariants.join(', ')} (${existing.occurrences}x)`)
       } else if (!uniqueTermsMap.has(termLower)) {
-        // Nowy termin - dodaj do mapy
+        // Nowy termin - dodaj do mapy z wariantami
         uniqueTermsMap.set(termLower, {
           id: `term-${i}-${Date.now()}`,
           term: term.term,
           context: term.context || '',
           occurrences: occurrences,
-          positions: positions
+          positions: positions.slice(0, 100),
+          variants: foundVariants.length > 1 ? foundVariants : undefined
         })
         normalizedKeyMap.set(normalizedKey, termLower)
       } else {
-        // Termin już istnieje (dokładnie ta sama forma) - połącz wystąpienia
+        // Termin już istnieje (dokładnie ta sama forma) - zaktualizuj kontekst jeśli lepszy
         const existing = uniqueTermsMap.get(termLower)
-        if (term.context && term.context.length > existing.context.length) {
+        if (term.context && term.context.length > (existing.context?.length || 0)) {
           existing.context = term.context
         }
       }
@@ -529,10 +539,10 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-// Funkcja pomocnicza do znajdowania pozycji terminu w tekście (case sensitive)
+// Funkcja pomocnicza do znajdowania pozycji terminu w tekście (case insensitive)
 function findTermPositions(text: string, term: string): number[] {
   const positions: number[] = []
-  const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, 'g')
+  const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, 'gi') // case insensitive
   const matches = Array.from(text.matchAll(regex))
 
   matches.forEach(match => {
@@ -635,4 +645,117 @@ function areTermVariants(term1: string, term2: string): boolean {
   const norm1 = normalizeTermForComparison(term1)
   const norm2 = normalizeTermForComparison(term2)
   return norm1 === norm2
+}
+
+// Generuj warianty terminu (singular/plural)
+function generateTermVariants(term: string): string[] {
+  const variants: string[] = [term]
+  const words = term.split(/\s+/)
+
+  // Dla każdego słowa, wygeneruj wariant singular/plural
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]
+    const wordLower = word.toLowerCase()
+
+    // Skip krótkie słowa i spójniki
+    if (word.length <= 2 || ['and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'in', 'on', 'at', 'by', 'with'].includes(wordLower)) {
+      continue
+    }
+
+    // Wygeneruj formę pojedynczą jeśli słowo jest w liczbie mnogiej
+    const singular = singularize(word)
+    if (singular !== wordLower) {
+      const variantWords = [...words]
+      // Zachowaj oryginalną wielkość liter
+      variantWords[i] = word[0] === word[0].toUpperCase()
+        ? singular.charAt(0).toUpperCase() + singular.slice(1)
+        : singular
+      const variant = variantWords.join(' ')
+      if (!variants.includes(variant)) {
+        variants.push(variant)
+      }
+    }
+
+    // Wygeneruj formę mnogą jeśli słowo jest w liczbie pojedynczej
+    const plural = pluralize(word)
+    if (plural !== wordLower) {
+      const variantWords = [...words]
+      variantWords[i] = word[0] === word[0].toUpperCase()
+        ? plural.charAt(0).toUpperCase() + plural.slice(1)
+        : plural
+      const variant = variantWords.join(' ')
+      if (!variants.includes(variant)) {
+        variants.push(variant)
+      }
+    }
+  }
+
+  return variants
+}
+
+// Konwersja liczby pojedynczej na mnogą (angielski)
+function pluralize(word: string): string {
+  const lower = word.toLowerCase()
+
+  // Wyjątki - nieregularne formy
+  const irregulars: Record<string, string> = {
+    'child': 'children',
+    'person': 'people',
+    'man': 'men',
+    'woman': 'women',
+    'tooth': 'teeth',
+    'foot': 'feet',
+    'mouse': 'mice',
+    'goose': 'geese',
+    'criterion': 'criteria',
+    'phenomenon': 'phenomena',
+    'datum': 'data',
+    'analysis': 'analyses',
+    'basis': 'bases',
+    'crisis': 'crises',
+    'thesis': 'theses',
+    'hypothesis': 'hypotheses',
+    'axis': 'axes',
+    'index': 'indices',
+    'appendix': 'appendices',
+    'matrix': 'matrices',
+    'country': 'countries',
+    'authority': 'authorities',
+    'party': 'parties',
+    'body': 'bodies',
+    'agency': 'agencies',
+    'category': 'categories',
+    'territory': 'territories',
+    'activity': 'activities'
+  }
+
+  if (irregulars[lower]) {
+    return irregulars[lower]
+  }
+
+  // Słowa kończące się na -y (po spółgłosce) -> -ies
+  if (lower.endsWith('y') && lower.length > 2) {
+    const beforeY = lower.charAt(lower.length - 2)
+    const vowels = 'aeiou'
+    if (!vowels.includes(beforeY)) {
+      return lower.slice(0, -1) + 'ies'
+    }
+  }
+
+  // Słowa kończące się na -s, -x, -z, -ch, -sh -> -es
+  if (lower.endsWith('s') || lower.endsWith('x') || lower.endsWith('z') ||
+      lower.endsWith('ch') || lower.endsWith('sh')) {
+    return lower + 'es'
+  }
+
+  // Słowa kończące się na -f lub -fe -> -ves
+  if (lower.endsWith('f')) {
+    return lower.slice(0, -1) + 'ves'
+  }
+  if (lower.endsWith('fe')) {
+    return lower.slice(0, -2) + 'ves'
+  }
+
+  // Standardowe - dodaj -s
+  return lower + 's'
 }
