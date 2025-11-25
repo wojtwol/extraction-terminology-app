@@ -398,10 +398,46 @@ export const projectStorage = {
   // === OPERACJE NA WERSJACH ===
 
   // Maksymalna liczba wersji auto-save (snapshoty nie są liczone)
-  // Zmniejszono z 30 na 10 aby zapobiec zapełnieniu localStorage przy dużych glosariuszach
-  MAX_AUTO_SAVE_VERSIONS: 10,
+  MAX_AUTO_SAVE_VERSIONS: 5,
 
-  // Dodaj nową wersję do glosariusza (automatyczne wersjonowanie)
+  // Agresywne czyszczenie starych wersji przed zapisem
+  cleanupOldVersions(project: Project, currentGlossaryId: string, keepOnlyCurrent: boolean = false): void {
+    project.glossaries.forEach(glossary => {
+      if (keepOnlyCurrent) {
+        // Zachowaj tylko aktualną wersję
+        const currentVersion = glossary.versions.find(v => v.id === glossary.currentVersionId)
+        if (currentVersion) {
+          glossary.versions = [currentVersion]
+        }
+      } else {
+        // Zachowaj tylko ostatnie 2 wersje auto-save + snapshoty
+        const autoSaveVersions = glossary.versions.filter(v => !v.isSnapshot)
+        const snapshots = glossary.versions.filter(v => v.isSnapshot)
+
+        if (autoSaveVersions.length > 2) {
+          // Sortuj od najnowszej
+          autoSaveVersions.sort((a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          // Zachowaj tylko 2 najnowsze
+          const toKeep = autoSaveVersions.slice(0, 2)
+          glossary.versions = [...snapshots, ...toKeep]
+        }
+      }
+    })
+
+    // Wyczyść też documentText z innych glosariuszy jeśli zajmuje dużo miejsca
+    if (keepOnlyCurrent) {
+      project.glossaries.forEach(glossary => {
+        if (glossary.id !== currentGlossaryId) {
+          glossary.sourceDocumentText = undefined
+          glossary.targetDocumentText = undefined
+        }
+      })
+    }
+  },
+
+  // Dodaj nową wersję do glosariusza (automatyczne wersjonowanie z retry)
   addVersion(
     projectId: string,
     glossaryId: string,
@@ -438,7 +474,6 @@ export const projectStorage = {
       // Ogranicz liczbę wersji auto-save (zachowaj snapshoty i ostatnie N auto-save)
       const autoSaveVersions = glossary.versions.filter(v => !v.isSnapshot)
       if (autoSaveVersions.length > this.MAX_AUTO_SAVE_VERSIONS) {
-        // Znajdź najstarsze auto-save do usunięcia (nie usuwaj aktualnej wersji)
         const versionsToRemove = autoSaveVersions
           .filter(v => v.id !== glossary.currentVersionId)
           .slice(0, autoSaveVersions.length - this.MAX_AUTO_SAVE_VERSIONS)
@@ -446,14 +481,33 @@ export const projectStorage = {
         glossary.versions = glossary.versions.filter(
           v => v.isSnapshot || !versionsToRemove.some(r => r.id === v.id)
         )
-
         console.log(`🧹 Usunięto ${versionsToRemove.length} starych wersji auto-save`)
       }
 
-      const updatedProject = this.update(projectId, { glossaries: project.glossaries })
+      // Próba zapisu
+      let updatedProject = this.update(projectId, { glossaries: project.glossaries })
+
+      // Jeśli zapis się nie powiódł (quota exceeded), wyczyść agresywnie i spróbuj ponownie
       if (!updatedProject) {
-        console.error('❌ Błąd zapisu do localStorage')
-        return null
+        console.log('⚠️ Zapis nie powiódł się, czyszczę stare wersje...')
+
+        // Wyczyść stare wersje ze wszystkich glosariuszy
+        this.cleanupOldVersions(project, glossaryId, false)
+        updatedProject = this.update(projectId, { glossaries: project.glossaries })
+
+        // Jeśli nadal nie działa, zachowaj tylko aktualną wersję
+        if (!updatedProject) {
+          console.log('⚠️ Nadal brak miejsca, zachowuję tylko aktualne wersje...')
+          this.cleanupOldVersions(project, glossaryId, true)
+          updatedProject = this.update(projectId, { glossaries: project.glossaries })
+        }
+
+        if (!updatedProject) {
+          console.error('❌ Nie udało się zapisać nawet po czyszczeniu')
+          return null
+        }
+
+        console.log('✅ Zapis powiódł się po czyszczeniu')
       }
 
       return newVersion
