@@ -186,6 +186,10 @@ export default function Home() {
   const [showMergeProjectDialog, setShowMergeProjectDialog] = useState(false)
   const [selectedGlossariesForMerge, setSelectedGlossariesForMerge] = useState<string[]>([])
 
+  // Expand glossary dialog state
+  const [showExpandGlossaryDialog, setShowExpandGlossaryDialog] = useState(false)
+  const [expandGlossaryInput, setExpandGlossaryInput] = useState('')
+
   // Info dialog state (modal that requires OK click to close)
   const [infoDialog, setInfoDialog] = useState<{
     title: string
@@ -445,8 +449,8 @@ export default function Home() {
     }
   }
 
-  // Rozbudowa glosariusza - automatyczne poszukiwanie nowych terminów
-  const handleExpandGlossary = async () => {
+  // Rozbudowa glosariusza - otwórz dialog
+  const handleExpandGlossary = () => {
     if (!documentText || !apiKey || !currentProject || !currentGlossary) {
       setNotification({
         type: 'error',
@@ -458,17 +462,16 @@ export default function Home() {
       return
     }
 
-    // Prompt użytkownika o nowe parametry
-    const newMaxTermsStr = prompt(
-      language === 'pl'
-        ? `Rozbudowa glosariusza\n\nAktualnie: ${terms.length} terminów\n\nPodaj nową maksymalną liczbę terminów (większą niż obecna):`
-        : `Glossary expansion\n\nCurrent: ${terms.length} terms\n\nEnter new maximum number of terms (greater than current):`,
-      Math.max(maxTerms, terms.length + 20).toString()
-    )
+    // Ustaw domyślną wartość i otwórz dialog
+    setExpandGlossaryInput(Math.max(maxTerms, terms.length + 20).toString())
+    setShowExpandGlossaryDialog(true)
+  }
 
-    if (!newMaxTermsStr) return
+  // Wykonaj rozbudowę glosariusza
+  const doExpandGlossary = async () => {
+    if (!currentProject || !currentGlossary) return
 
-    const newMaxTerms = parseInt(newMaxTermsStr, 10)
+    const newMaxTerms = parseInt(expandGlossaryInput, 10)
     if (isNaN(newMaxTerms) || newMaxTerms <= terms.length) {
       setNotification({
         type: 'error',
@@ -480,6 +483,7 @@ export default function Home() {
       return
     }
 
+    setShowExpandGlossaryDialog(false)
     setIsLoading(true)
     setExtractionSuggestion(null)
     setProgress(0)
@@ -3656,6 +3660,65 @@ export default function Home() {
                   {language === 'pl' ? 'Połącz' : 'Merge'} ({selectedGlossariesForMerge.length})
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog rozbudowy glosariusza */}
+      {showExpandGlossaryDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* Header */}
+            <div className="p-6 bg-gradient-to-r from-purple-500 to-indigo-600">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                📈 {language === 'pl' ? 'Rozbudowa glosariusza' : 'Expand Glossary'}
+              </h2>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                {language === 'pl'
+                  ? `Aktualnie: ${terms.length} terminów`
+                  : `Current: ${terms.length} terms`}
+              </p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {language === 'pl'
+                  ? 'Podaj nową maksymalną liczbę terminów (większą niż obecna):'
+                  : 'Enter new maximum number of terms (greater than current):'}
+              </label>
+              <input
+                type="number"
+                value={expandGlossaryInput}
+                onChange={(e) => setExpandGlossaryInput(e.target.value)}
+                min={terms.length + 1}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    doExpandGlossary()
+                  } else if (e.key === 'Escape') {
+                    setShowExpandGlossaryDialog(false)
+                  }
+                }}
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => setShowExpandGlossaryDialog(false)}
+                className="flex-1 px-6 py-3 rounded-lg font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                {language === 'pl' ? 'Anuluj' : 'Cancel'}
+              </button>
+              <button
+                onClick={doExpandGlossary}
+                className="flex-1 px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
