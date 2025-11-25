@@ -1226,34 +1226,67 @@ export default function Home() {
       const existingTerm = termsMap.get(importedTerm.term)
 
       if (existingTerm) {
-        // Termin już istnieje - dodaj nowy kontekst
-        const newContext: TermContext = {
-          documentId: importedTerm.sourceDocument || 'unknown',
-          documentName: importedTerm.sourceDocument || source,
-          context: importedTerm.context,
-          positions: importedTerm.positions,
-          occurrences: importedTerm.occurrences
-        }
+        // Termin już istnieje - dodaj nowe konteksty
+        if (importedTerm.contexts && importedTerm.contexts.length > 0) {
+          // Importowany termin ma już tablicę contexts - dodaj wszystkie
+          if (!existingTerm.contexts) {
+            existingTerm.contexts = []
+          }
+          importedTerm.contexts.forEach(ctx => {
+            // Sprawdź czy kontekst z tego dokumentu już istnieje
+            const exists = existingTerm.contexts!.some(
+              ec => ec.documentName === ctx.documentName
+            )
+            if (!exists) {
+              existingTerm.contexts!.push(ctx)
+              mergedCount++
+            }
+          })
+        } else {
+          // Stary format - pojedynczy kontekst
+          const newContext: TermContext = {
+            documentId: importedTerm.sourceDocument || 'unknown',
+            documentName: importedTerm.sourceDocument || source,
+            context: importedTerm.context,
+            positions: importedTerm.positions,
+            occurrences: importedTerm.occurrences
+          }
 
-        if (!existingTerm.contexts) {
-          existingTerm.contexts = []
+          if (!existingTerm.contexts) {
+            existingTerm.contexts = []
+          }
+          // Sprawdź czy kontekst z tego dokumentu już istnieje
+          const exists = existingTerm.contexts.some(
+            ec => ec.documentName === newContext.documentName
+          )
+          if (!exists) {
+            existingTerm.contexts.push(newContext)
+            mergedCount++
+          }
         }
-        existingTerm.contexts.push(newContext)
-        mergedCount++
       } else {
-        // Nowy termin - utwórz z contexts[]
-        const termContext: TermContext = {
-          documentId: importedTerm.sourceDocument || 'unknown',
-          documentName: importedTerm.sourceDocument || source,
-          context: importedTerm.context,
-          positions: importedTerm.positions,
-          occurrences: importedTerm.occurrences
-        }
+        // Nowy termin
+        if (importedTerm.contexts && importedTerm.contexts.length > 0) {
+          // Termin ma już tablicę contexts - zachowaj ją
+          termsMap.set(importedTerm.term, {
+            ...importedTerm,
+            contexts: [...importedTerm.contexts]
+          })
+        } else {
+          // Stary format - utwórz contexts[] z pojedynczego kontekstu
+          const termContext: TermContext = {
+            documentId: importedTerm.sourceDocument || 'unknown',
+            documentName: importedTerm.sourceDocument || source,
+            context: importedTerm.context,
+            positions: importedTerm.positions,
+            occurrences: importedTerm.occurrences
+          }
 
-        termsMap.set(importedTerm.term, {
-          ...importedTerm,
-          contexts: [termContext]
-        })
+          termsMap.set(importedTerm.term, {
+            ...importedTerm,
+            contexts: [termContext]
+          })
+        }
         addedCount++
       }
     })
