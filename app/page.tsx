@@ -185,6 +185,14 @@ export default function Home() {
   const [showMergeProjectDialog, setShowMergeProjectDialog] = useState(false)
   const [selectedGlossariesForMerge, setSelectedGlossariesForMerge] = useState<string[]>([])
 
+  // Info dialog state (modal that requires OK click to close)
+  const [infoDialog, setInfoDialog] = useState<{
+    title: string
+    message: string
+    details?: string
+    type: 'success' | 'error' | 'info'
+  } | null>(null)
+
   // Skrót do terminów z aktualnej wersji
   const terms = currentVersion?.terms || []
 
@@ -1326,12 +1334,18 @@ export default function Home() {
     }
     refreshGlossary()
 
-    // Pokaż komunikat
-    const message = language === 'pl'
-      ? `Import zakończony!\n\nDodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów\n\nŁącznie terminów: ${mergedTerms.length}`
-      : `Import completed!\n\nAdded: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents\n\nTotal terms: ${mergedTerms.length}`
+    // Pokaż stylizowany dialog informacyjny
+    setInfoDialog({
+      type: 'success',
+      title: language === 'pl' ? 'Import zakończony!' : 'Import completed!',
+      message: language === 'pl'
+        ? `Dodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów`
+        : `Added: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents`,
+      details: language === 'pl'
+        ? `Łącznie terminów: ${mergedTerms.length}`
+        : `Total terms: ${mergedTerms.length}`
+    })
 
-    alert(message)
     console.log(`✅ ${description}`)
   }
 
@@ -3562,6 +3576,63 @@ export default function Home() {
                   {language === 'pl' ? 'Połącz' : 'Merge'} ({selectedGlossariesForMerge.length})
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog informacyjny (wymaga kliknięcia OK) */}
+      {infoDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* Header z gradientem zależnym od typu */}
+            <div className={`p-6 ${
+              infoDialog.type === 'success'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-600'
+                : infoDialog.type === 'error'
+                ? 'bg-gradient-to-r from-red-500 to-rose-600'
+                : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+            }`}>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                {infoDialog.type === 'success' && '✅'}
+                {infoDialog.type === 'error' && '❌'}
+                {infoDialog.type === 'info' && 'ℹ️'}
+                {infoDialog.title}
+              </h2>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="text-gray-700 whitespace-pre-line mb-4">
+                {infoDialog.message}
+              </div>
+              {infoDialog.details && (
+                <div className={`text-sm p-3 rounded-lg ${
+                  infoDialog.type === 'success'
+                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    : infoDialog.type === 'error'
+                    ? 'bg-red-50 text-red-800 border border-red-200'
+                    : 'bg-blue-50 text-blue-800 border border-blue-200'
+                }`}>
+                  {infoDialog.details}
+                </div>
+              )}
+            </div>
+
+            {/* Footer z przyciskiem OK */}
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => setInfoDialog(null)}
+                className={`w-full px-6 py-3 rounded-lg font-semibold text-white transition-all shadow-lg hover:shadow-xl ${
+                  infoDialog.type === 'success'
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                    : infoDialog.type === 'error'
+                    ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700'
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                }`}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
