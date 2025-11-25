@@ -22,6 +22,9 @@ interface TerminologyTableProps {
   targetDocumentText?: string
   // Props dla multi-document mode
   documents?: SourceDocument[]
+  // Sortowanie (kontrolowane z page.tsx)
+  sortBy?: 'alphabetical' | 'occurrences' | 'position'
+  onSortChange?: (sortBy: 'alphabetical' | 'occurrences' | 'position') => void
 }
 
 export default function TerminologyTable({
@@ -38,11 +41,16 @@ export default function TerminologyTable({
   targetLanguage,
   columnView = '4',
   targetDocumentText,
-  documents
+  documents,
+  sortBy: sortByProp = 'alphabetical',
+  onSortChange
 }: TerminologyTableProps) {
   const { t, language } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences' | 'position'>('alphabetical')
+  // Używamy lokalnego stanu jeśli nie przekazano props (dla kompatybilności wstecznej)
+  const [localSortBy, setLocalSortBy] = useState<'alphabetical' | 'occurrences' | 'position'>('alphabetical')
+  const sortBy = onSortChange ? sortByProp : localSortBy
+  const setSortBy = onSortChange || setLocalSortBy
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set())

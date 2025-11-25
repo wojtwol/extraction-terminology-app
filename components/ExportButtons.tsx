@@ -14,6 +14,7 @@ interface ExportButtonsProps {
   glossaryMode?: 'monolingual' | 'bilingual' | null  // Tryb glosariusza
   selectedColumnView?: '2' | '4'  // Widok kolumn dla dwujęzycznego (2 lub 4)
   targetDocumentText?: string  // Tekst dokumentu docelowego (dla dwujęzycznych)
+  sortBy?: 'alphabetical' | 'occurrences' | 'position'  // Sposób sortowania terminów
 }
 
 export default function ExportButtons({
@@ -23,7 +24,8 @@ export default function ExportButtons({
   onImportTerms,
   glossaryMode,
   selectedColumnView = '4',
-  targetDocumentText
+  targetDocumentText,
+  sortBy = 'alphabetical'
 }: ExportButtonsProps) {
   const { language } = useLanguage()
 
@@ -31,6 +33,20 @@ export default function ExportButtons({
   const isBilingual = glossaryMode === 'bilingual'
   const is2Column = selectedColumnView === '2'
   const is4Column = selectedColumnView === '4'
+
+  // Sortuj terminy zgodnie z aktualnym sortowaniem (tak jak w TerminologyTable)
+  const sortedTerms = [...terms].sort((a, b) => {
+    if (sortBy === 'alphabetical') {
+      return a.term.localeCompare(b.term, 'pl')
+    }
+    if (sortBy === 'occurrences') {
+      return b.occurrences - a.occurrences
+    }
+    // sortBy === 'position'
+    const aPos = a.positions && a.positions.length > 0 ? a.positions[0] : Infinity
+    const bPos = b.positions && b.positions.length > 0 ? b.positions[0] : Infinity
+    return aPos - bPos
+  })
 
   // Funkcja pomocnicza do zaznaczania terminu w kontekście
   const highlightTermInContext = (context: string, term: string): string => {
@@ -79,6 +95,7 @@ export default function ExportButtons({
     return rows
   }
 
+  // Używaj sortedTerms zamiast terms we wszystkich eksportach
   const exportToCSV = () => {
     let csvContent: string[][]
 
@@ -88,7 +105,7 @@ export default function ExportButtons({
         // 2 kolumny: Termin źródłowy | Termin docelowy
         csvContent = [
           [language === 'pl' ? 'Termin źródłowy' : 'Source Term', language === 'pl' ? 'Termin docelowy' : 'Target Term'],
-          ...terms.map(term => [
+          ...sortedTerms.map(term => [
             term.term,
             term.targetTerm || ''
           ])
@@ -102,7 +119,7 @@ export default function ExportButtons({
             language === 'pl' ? 'Termin docelowy' : 'Target Term',
             language === 'pl' ? 'Kontekst docelowy' : 'Target Context'
           ],
-          ...terms.map(term => [
+          ...sortedTerms.map(term => [
             term.term,
             term.context || '',
             term.targetTerm || '',
@@ -112,8 +129,8 @@ export default function ExportButtons({
       }
     } else {
       // Eksport glosariusza jednojęzycznego - obsługa multi-context
-      const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
-      const expandedRows = expandTermsForExport(terms)
+      const hasDefinitions = sortedTerms.some(t => t.definition && t.definition.trim() !== '')
+      const expandedRows = expandTermsForExport(sortedTerms)
 
       if (hasDefinitions) {
         csvContent = [
@@ -276,7 +293,7 @@ export default function ExportButtons({
     <div class="metadata">
       <div class="metadata-item">
         <span class="metadata-label">${t.termCount}</span>
-        <span>${terms.length}</span>
+        <span>${sortedTerms.length}</span>
       </div>
       <div class="metadata-item">
         <span class="metadata-label">${t.viewMode}</span>
@@ -299,7 +316,7 @@ export default function ExportButtons({
         </tr>
       </thead>
       <tbody>
-        ${terms.map((term, index) => `
+        ${sortedTerms.map((term, index) => `
           <tr>
             <td class="nr-col">${index + 1}</td>
             <td class="term">${term.term}</td>
@@ -332,7 +349,7 @@ export default function ExportButtons({
     }
 
     // Sprawdź czy są definicje (dla jednojęzycznych)
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+    const hasDefinitions = sortedTerms.some(t => t.definition && t.definition.trim() !== '')
 
     // Dynamiczne szerokości kolumn (z uwzględnieniem kolumny Dokument)
     const definitionWidth = hasDefinitions ? '26%' : '12%'  // Zmniejszone o miejsce dla kolumny Dokument
@@ -497,7 +514,7 @@ export default function ExportButtons({
       </div>
       <div class="metadata-item">
         <span class="metadata-label">${t.termCount}</span>
-        <span>${terms.length}</span>
+        <span>${sortedTerms.length}</span>
       </div>
       <div class="metadata-item">
         <span class="metadata-label">${t.createdAt}</span>
@@ -521,7 +538,7 @@ export default function ExportButtons({
       </thead>
       <tbody>
         ${(() => {
-          const expandedRows = expandTermsForExport(terms)
+          const expandedRows = expandTermsForExport(sortedTerms)
           let termNumber = 0
 
           return expandedRows.map(row => {
@@ -597,7 +614,7 @@ export default function ExportButtons({
     const metadataRows = [
       [t.title],
       emptyRow,
-      [t.termCount, terms.length],
+      [t.termCount, sortedTerms.length],
       [t.viewMode, is2Column ? t.columns2 : t.columns4],
       [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })],
       emptyRow
@@ -612,7 +629,7 @@ export default function ExportButtons({
     }
 
     // Wiersze danych
-    const dataRows = terms.map(term => {
+    const dataRows = sortedTerms.map(term => {
       if (is2Column) {
         return [
           term.term,
@@ -691,7 +708,7 @@ export default function ExportButtons({
     }
 
     // Sprawdź czy są jakieś definicje (dla jednojęzycznych)
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
+    const hasDefinitions = sortedTerms.some(t => t.definition && t.definition.trim() !== '')
     const numCols = hasDefinitions ? 7 : 5  // 7 z definicjami, 5 bez
 
     // Tłumaczenia
@@ -717,7 +734,7 @@ export default function ExportButtons({
     const emptyRow = Array(numCols).fill('')
 
     // Przygotuj nagłówek i wiersze danych w zależności od hasDefinitions - obsługa multi-context
-    const expandedRows = expandTermsForExport(terms)
+    const expandedRows = expandTermsForExport(sortedTerms)
     let headerRow: string[]
     let dataRows: (string | number)[][]
     let termNumber = 0
@@ -760,7 +777,7 @@ export default function ExportButtons({
       emptyRow,  // Wiersz 3 - pusty
       [t.sourceDoc, fileName, ...Array(numCols - 2).fill('')],
       [t.createdAt, new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), ...Array(numCols - 2).fill('')],
-      [t.termCount, terms.length.toString(), ...Array(numCols - 2).fill('')],
+      [t.termCount, sortedTerms.length.toString(), ...Array(numCols - 2).fill('')],
       emptyRow,  // Pusty wiersz
       headerRow,
       ...dataRows
@@ -802,7 +819,7 @@ export default function ExportButtons({
 
     // Ustawienia wysokości wierszy dla lepszego formatowania
     ws['!rows'] = []
-    for (let i = 0; i <= terms.length + 7; i++) {
+    for (let i = 0; i <= sortedTerms.length + 7; i++) {
       if (i === 0) {
         ws['!rows'][i] = { hpt: 25 } // Tytuł główny
       } else if (i === 1) {
@@ -980,7 +997,7 @@ export default function ExportButtons({
         language === 'pl' ? 'Termin źródłowy' : 'Source Term',
         language === 'pl' ? 'Termin docelowy' : 'Target Term'
       ]]
-      tableData = terms.map(term => [
+      tableData = sortedTerms.map(term => [
         term.term,
         term.targetTerm || '-'
       ])
@@ -991,7 +1008,7 @@ export default function ExportButtons({
         language === 'pl' ? 'Termin docelowy' : 'Target Term',
         language === 'pl' ? 'Kontekst docelowy' : 'Target Context'
       ]]
-      tableData = terms.map(term => [
+      tableData = sortedTerms.map(term => [
         term.term,
         term.context || '-',
         term.targetTerm || '-',
@@ -1091,11 +1108,11 @@ export default function ExportButtons({
     doc.setTextColor(100, 100, 100)
     doc.text(`Document: ${fileName}`, margin, 25)
     doc.text(`Date: ${dateStr}`, pageWidth / 2, 25)
-    doc.text(`Terms: ${terms.length}`, pageWidth - margin - 20, 25)
+    doc.text(`Terms: ${sortedTerms.length}`, pageWidth - margin - 20, 25)
 
     // Sprawdź czy są definicje - obsługa multi-context
-    const hasDefinitions = terms.some(t => t.definition && t.definition.trim() !== '')
-    const expandedRows = expandTermsForExport(terms)
+    const hasDefinitions = sortedTerms.some(t => t.definition && t.definition.trim() !== '')
+    const expandedRows = expandTermsForExport(sortedTerms)
 
     // Przygotuj dane dla tabeli
     let tableHead: string[][]
@@ -1219,7 +1236,7 @@ export default function ExportButtons({
   }
 
   const exportToJSON = () => {
-    const jsonContent = JSON.stringify(terms, null, 2)
+    const jsonContent = JSON.stringify(sortedTerms, null, 2)
     const suffix = isBilingual ? (is2Column ? '_dwujezyczny_2kol' : '_dwujezyczny_4kol') : '_glosariusz'
     const filename = `${fileName}${suffix}.json`
     downloadFile(jsonContent, filename, 'application/json')
@@ -1255,7 +1272,7 @@ export default function ExportButtons({
           return
         }
 
-        // Walidacja każdego terminu
+        // Walidacja każdego terminu - zachowanie struktury contexts
         const importedTerms: Term[] = data.filter((item: any) => {
           return item && typeof item === 'object' && typeof item.term === 'string'
         }).map((item: any) => ({
@@ -1266,7 +1283,15 @@ export default function ExportButtons({
           positions: Array.isArray(item.positions) ? item.positions : [],
           definition: item.definition || '',
           definitionSource: item.definitionSource || null,
-          sourceDocument: item.sourceDocument || file.name
+          sourceDocument: item.sourceDocument || file.name,
+          // Zachowanie contexts z multi-document mode
+          contexts: Array.isArray(item.contexts) ? item.contexts : undefined,
+          // Zachowanie pól bilingual
+          targetTerm: item.targetTerm || undefined,
+          targetContext: item.targetContext || undefined,
+          targetOccurrences: item.targetOccurrences || undefined,
+          targetPositions: Array.isArray(item.targetPositions) ? item.targetPositions : undefined,
+          targetSource: item.targetSource || undefined
         }))
 
         if (importedTerms.length === 0) {

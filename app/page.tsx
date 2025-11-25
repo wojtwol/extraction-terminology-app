@@ -148,6 +148,9 @@ export default function Home() {
   // Parametry ekstrakcji
   const [minTerms, setMinTerms] = useState(10)
   const [maxTerms, setMaxTerms] = useState(30)
+
+  // Sortowanie terminów (przekazywane do TerminologyTable i ExportButtons)
+  const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences' | 'position'>('alphabetical')
   const [minLength, setMinLength] = useState(3)
   const [minOccurrences, setMinOccurrences] = useState(1)
   const [generateDefinitions, setGenerateDefinitions] = useState(false)
@@ -1069,22 +1072,49 @@ export default function Home() {
     const currentNewTermsCount = updatedTerms.filter(t => t.isNew).length
     const acceptedNewTerms = previousNewTermsCount > 0 && currentNewTermsCount === 0
 
-    // Zapisz jako nową wersję (auto-save)
-    projectStorage.addVersion(
-      currentProject.id,
-      currentGlossary.id,
-      updatedTerms,
-      'Auto-save (edycja)',
-      undefined,
-      false
-    )
+    try {
+      // Zapisz jako nową wersję (auto-save)
+      const newVersion = projectStorage.addVersion(
+        currentProject.id,
+        currentGlossary.id,
+        updatedTerms,
+        'Auto-save (edycja)',
+        undefined,
+        false
+      )
 
-    // Odśwież projekt i glosariusz
-    const updatedProject = projectStorage.getById(currentProject.id)
-    if (updatedProject) {
-      setCurrentProject(updatedProject)
+      if (!newVersion) {
+        console.error('❌ Błąd zapisu wersji - addVersion zwróciło null')
+        return
+      }
+
+      // Odśwież projekt i glosariusz używając świeżych danych z storage
+      const updatedProject = projectStorage.getById(currentProject.id)
+      if (updatedProject) {
+        setCurrentProject(updatedProject)
+
+        // Odśwież glosariusz bezpośrednio z zaktualizowanego projektu
+        const glossary = updatedProject.glossaries.find(g => g.id === currentGlossary.id)
+        if (glossary) {
+          setCurrentGlossary(glossary)
+          const version = glossary.versions.find(v => v.id === glossary.currentVersionId)
+          if (version) {
+            setCurrentVersion(version)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Błąd podczas aktualizacji terminów:', error)
+      // Wyświetl komunikat użytkownikowi
+      setNotification({
+        type: 'error',
+        message: language === 'pl' ? 'Błąd zapisu' : 'Save error',
+        details: language === 'pl'
+          ? 'Nie udało się zapisać zmian. Spróbuj ponownie.'
+          : 'Failed to save changes. Please try again.'
+      })
+      return
     }
-    refreshGlossary()
 
     // Pokaż notification jeśli zaakceptowano nowe terminy
     if (acceptedNewTerms) {
@@ -2563,6 +2593,7 @@ export default function Home() {
                     glossaryMode={glossaryMode}
                     selectedColumnView={selectedColumnView}
                     targetDocumentText={targetDocumentText}
+                    sortBy={sortBy}
                   />
                 </div>
               </div>
@@ -2854,6 +2885,8 @@ export default function Home() {
               columnView={currentGlossary?.columnView || '4'}
               targetDocumentText={currentGlossary?.targetDocumentText}
               documents={currentProject?.documents}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
             />
 
             {/* Document viewer */}

@@ -221,19 +221,36 @@ export const projectStorage = {
 
   // Aktualizuj projekt
   update(id: string, updates: Partial<Project>): Project | null {
-    const projects = this.getAll()
-    const index = projects.findIndex(p => p.id === id)
-    if (index === -1) return null
+    try {
+      const projects = this.getAll()
+      const index = projects.findIndex(p => p.id === id)
+      if (index === -1) return null
 
-    projects[index] = {
-      ...projects[index],
-      ...updates,
-      id: projects[index].id,
-      createdAt: projects[index].createdAt,
-      updatedAt: new Date().toISOString()
+      projects[index] = {
+        ...projects[index],
+        ...updates,
+        id: projects[index].id,
+        createdAt: projects[index].createdAt,
+        updatedAt: new Date().toISOString()
+      }
+
+      // Spróbuj zapisać do localStorage z obsługą błędów
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(projects))
+      } catch (storageError) {
+        // localStorage może być pełny
+        console.error('❌ Błąd zapisu do localStorage:', storageError)
+        if (storageError instanceof DOMException && storageError.name === 'QuotaExceededError') {
+          console.error('⚠️ localStorage jest pełny!')
+        }
+        return null
+      }
+
+      return projects[index]
+    } catch (error) {
+      console.error('❌ Błąd w update:', error)
+      return null
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects))
-    return projects[index]
   },
 
   // Usuń projekt
@@ -380,6 +397,9 @@ export const projectStorage = {
 
   // === OPERACJE NA WERSJACH ===
 
+  // Maksymalna liczba wersji auto-save (snapshoty nie są liczone)
+  MAX_AUTO_SAVE_VERSIONS: 30,
+
   // Dodaj nową wersję do glosariusza (automatyczne wersjonowanie)
   addVersion(
     projectId: string,
@@ -389,32 +409,57 @@ export const projectStorage = {
     extractionParams?: GlossaryVersion['extractionParams'],
     isSnapshot: boolean = false
   ): GlossaryVersion | null {
-    const project = this.getById(projectId)
-    if (!project) return null
+    try {
+      const project = this.getById(projectId)
+      if (!project) return null
 
-    const glossary = project.glossaries.find(g => g.id === glossaryId)
-    if (!glossary) return null
+      const glossary = project.glossaries.find(g => g.id === glossaryId)
+      if (!glossary) return null
 
-    const currentVersion = glossary.versions.find(v => v.id === glossary.currentVersionId)
-    const changesSummary = this.generateChangesSummary(currentVersion?.terms || [], terms)
+      const currentVersion = glossary.versions.find(v => v.id === glossary.currentVersionId)
+      const changesSummary = this.generateChangesSummary(currentVersion?.terms || [], terms)
 
-    const newVersion: GlossaryVersion = {
-      id: `version-${Date.now()}-${glossary.versions.length + 1}`,
-      versionNumber: glossary.versions.length + 1,
-      createdAt: new Date().toISOString(),
-      description,
-      terms,
-      extractionParams,
-      isSnapshot,
-      changesSummary
+      const newVersion: GlossaryVersion = {
+        id: `version-${Date.now()}-${glossary.versions.length + 1}`,
+        versionNumber: glossary.versions.length + 1,
+        createdAt: new Date().toISOString(),
+        description,
+        terms,
+        extractionParams,
+        isSnapshot,
+        changesSummary
+      }
+
+      glossary.versions.push(newVersion)
+      glossary.currentVersionId = newVersion.id
+      glossary.updatedAt = new Date().toISOString()
+
+      // Ogranicz liczbę wersji auto-save (zachowaj snapshoty i ostatnie N auto-save)
+      const autoSaveVersions = glossary.versions.filter(v => !v.isSnapshot)
+      if (autoSaveVersions.length > this.MAX_AUTO_SAVE_VERSIONS) {
+        // Znajdź najstarsze auto-save do usunięcia (nie usuwaj aktualnej wersji)
+        const versionsToRemove = autoSaveVersions
+          .filter(v => v.id !== glossary.currentVersionId)
+          .slice(0, autoSaveVersions.length - this.MAX_AUTO_SAVE_VERSIONS)
+
+        glossary.versions = glossary.versions.filter(
+          v => v.isSnapshot || !versionsToRemove.some(r => r.id === v.id)
+        )
+
+        console.log(`🧹 Usunięto ${versionsToRemove.length} starych wersji auto-save`)
+      }
+
+      const updatedProject = this.update(projectId, { glossaries: project.glossaries })
+      if (!updatedProject) {
+        console.error('❌ Błąd zapisu do localStorage')
+        return null
+      }
+
+      return newVersion
+    } catch (error) {
+      console.error('❌ Błąd w addVersion:', error)
+      return null
     }
-
-    glossary.versions.push(newVersion)
-    glossary.currentVersionId = newVersion.id
-    glossary.updatedAt = new Date().toISOString()
-
-    this.update(projectId, { glossaries: project.glossaries })
-    return newVersion
   },
 
   // Stwórz snapshot (punkt kontrolny)
