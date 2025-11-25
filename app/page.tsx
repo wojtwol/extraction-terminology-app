@@ -1107,6 +1107,17 @@ export default function Home() {
 
       if (!newVersion) {
         console.error('❌ Błąd zapisu wersji - addVersion zwróciło null')
+        // Pokaż błąd użytkownikowi - prawdopodobnie localStorage jest pełny
+        setInfoDialog({
+          type: 'error',
+          title: language === 'pl' ? 'Błąd zapisu' : 'Save Error',
+          message: language === 'pl'
+            ? 'Nie udało się zapisać zmian. Prawdopodobnie pamięć przeglądarki jest pełna.'
+            : 'Failed to save changes. Browser storage is probably full.',
+          details: language === 'pl'
+            ? 'Spróbuj usunąć stare wersje glosariusza lub wyeksportować dane i utworzyć nowy projekt.'
+            : 'Try deleting old glossary versions or export data and create a new project.'
+        })
         return
       }
 

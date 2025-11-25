@@ -398,7 +398,8 @@ export const projectStorage = {
   // === OPERACJE NA WERSJACH ===
 
   // Maksymalna liczba wersji auto-save (snapshoty nie są liczone)
-  MAX_AUTO_SAVE_VERSIONS: 30,
+  // Zmniejszono z 30 na 10 aby zapobiec zapełnieniu localStorage przy dużych glosariuszach
+  MAX_AUTO_SAVE_VERSIONS: 10,
 
   // Dodaj nową wersję do glosariusza (automatyczne wersjonowanie)
   addVersion(
