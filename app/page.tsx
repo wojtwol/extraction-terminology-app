@@ -1818,16 +1818,25 @@ export default function Home() {
       setShowMergeProjectDialog(false)
       setSelectedGlossariesForMerge([])
 
-      alert(language === 'pl'
-        ? `Połączono glosariusze z projektu!\n\nDodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów\n\nŁącznie terminów: ${mergedTerms.length}`
-        : `Merged project glossaries!\n\nAdded: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents\n\nTotal terms: ${mergedTerms.length}`)
+      // Pokaż stylizowane powiadomienie sukcesu
+      setNotification({
+        type: 'success',
+        message: language === 'pl' ? 'Połączono glosariusze z projektu!' : 'Merged project glossaries!',
+        details: language === 'pl'
+          ? `Dodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów\nŁącznie terminów: ${mergedTerms.length}`
+          : `Added: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents\nTotal terms: ${mergedTerms.length}`
+      })
 
       console.log(`✅ ${description}`)
     } catch (error) {
       console.error('Błąd łączenia glosariuszy:', error)
-      alert(language === 'pl'
-        ? 'Błąd podczas łączenia glosariuszy z projektu.'
-        : 'Error merging project glossaries.')
+      setNotification({
+        type: 'error',
+        message: language === 'pl' ? 'Błąd łączenia glosariuszy' : 'Error merging glossaries',
+        details: language === 'pl'
+          ? 'Wystąpił błąd podczas łączenia glosariuszy z projektu.'
+          : 'An error occurred while merging project glossaries.'
+      })
     }
   }
 
