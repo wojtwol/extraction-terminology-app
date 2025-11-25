@@ -800,7 +800,7 @@ export default function ExportButtons({
     const locale = language === 'pl' ? 'pl-PL' : 'en-GB'
 
     // Przygotuj puste komórki dla scalania
-    const emptyRow = Array(numCols).fill('')
+    const emptyRow = () => Array(numCols).fill('')
 
     // Przygotuj nagłówek i wiersze danych w zależności od hasDefinitions - obsługa multi-context
     const expandedRows = expandTermsForExport(sortedTerms)
@@ -840,22 +840,18 @@ export default function ExportButtons({
       })
     }
 
-    // Przygotuj dane z wartościami w kolumnie 2 (dla scalania)
+    // Przygotuj dane - każdy wiersz to NOWA tablica (nie referencja)
     const data = [
-      emptyRow,  // Wiersz 1 - tytuł
-      emptyRow,  // Wiersz 2 - podtytuł
-      emptyRow,  // Wiersz 3 - pusty
+      ['IURIDICO EJ GTEXTT', ...Array(numCols - 1).fill('')],  // Wiersz 0 - tytuł
+      ['Glossary and Terminology Extraction Tool', ...Array(numCols - 1).fill('')],  // Wiersz 1 - podtytuł
+      emptyRow(),  // Wiersz 2 - pusty
       [t.sourceDoc, '', fileName, ...Array(numCols - 3).fill('')],
       [t.createdAt, '', new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), ...Array(numCols - 3).fill('')],
       [t.termCount, '', sortedTerms.length.toString(), ...Array(numCols - 3).fill('')],
-      emptyRow,  // Pusty wiersz
+      emptyRow(),  // Pusty wiersz
       headerRow,
       ...dataRows
     ]
-
-    // Ustaw tytuły w pierwszym i drugim wierszu
-    data[0][0] = 'IURIDICO EJ GTEXTT'
-    data[1][0] = 'Glossary and Terminology Extraction Tool'
 
     const ws = XLSX.utils.aoa_to_sheet(data)
 
