@@ -34,6 +34,36 @@ export default function ExportButtons({
   const is2Column = selectedColumnView === '2'
   const is4Column = selectedColumnView === '4'
 
+  // Zbierz unikalne tytuły dokumentów źródłowych z terminów
+  const getSourceDocumentTitles = (): string => {
+    const titles = new Set<string>()
+
+    terms.forEach(term => {
+      // Sprawdź w contexts (multi-document mode)
+      if (term.contexts && term.contexts.length > 0) {
+        term.contexts.forEach(ctx => {
+          if (ctx.documentName) {
+            titles.add(ctx.documentName)
+          }
+        })
+      }
+      // Sprawdź sourceDocument (single-document mode)
+      if (term.sourceDocument) {
+        titles.add(term.sourceDocument)
+      }
+    })
+
+    // Jeśli nie znaleziono tytułów, użyj fileName jako fallback
+    if (titles.size === 0) {
+      return fileName
+    }
+
+    // Zwróć tytuły połączone separatorem
+    return Array.from(titles).join('; ')
+  }
+
+  const sourceDocumentTitle = getSourceDocumentTitles()
+
   // Sortuj terminy zgodnie z aktualnym sortowaniem (tak jak w TerminologyTable)
   const sortedTerms = [...terms].sort((a, b) => {
     if (sortBy === 'alphabetical') {
@@ -510,7 +540,7 @@ export default function ExportButtons({
     <div class="metadata">
       <div class="metadata-item">
         <span class="metadata-label">${t.sourceDoc}</span>
-        <span>${fileName}</span>
+        <span>${sourceDocumentTitle}</span>
       </div>
       <div class="metadata-item">
         <span class="metadata-label">${t.termCount}</span>
@@ -845,7 +875,7 @@ export default function ExportButtons({
       ['IURIDICO EJ GTEXTT', ...Array(numCols - 1).fill('')],  // Wiersz 0 - tytuł
       ['Glossary and Terminology Extraction Tool', ...Array(numCols - 1).fill('')],  // Wiersz 1 - podtytuł
       emptyRow(),  // Wiersz 2 - pusty
-      [t.sourceDoc, '', fileName, ...Array(numCols - 3).fill('')],
+      [t.sourceDoc, '', sourceDocumentTitle, ...Array(numCols - 3).fill('')],
       [t.createdAt, '', new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), ...Array(numCols - 3).fill('')],
       [t.termCount, '', sortedTerms.length.toString(), ...Array(numCols - 3).fill('')],
       emptyRow(),  // Pusty wiersz
@@ -1180,7 +1210,7 @@ export default function ExportButtons({
 
     doc.setFontSize(7)
     doc.setTextColor(100, 100, 100)
-    doc.text(`Document: ${fileName}`, margin, 25)
+    doc.text(`Document: ${sourceDocumentTitle}`, margin, 25)
     doc.text(`Date: ${dateStr}`, pageWidth / 2, 25)
     doc.text(`Terms: ${sortedTerms.length}`, pageWidth - margin - 20, 25)
 
@@ -1455,7 +1485,7 @@ export default function ExportButtons({
               typeof cell === 'string' && (cell.toLowerCase().includes('wystąpień') || cell.toLowerCase().includes('occurrence'))
             )
             documentColIndex = row.findIndex((cell: any) =>
-              typeof cell === 'string' && cell.toLowerCase().includes('dokument')
+              typeof cell === 'string' && (cell.toLowerCase().includes('dokument') || cell.toLowerCase() === 'document')
             )
             definitionColIndex = row.findIndex((cell: any) =>
               typeof cell === 'string' && (cell.toLowerCase().includes('definicja') || cell.toLowerCase().includes('definition'))

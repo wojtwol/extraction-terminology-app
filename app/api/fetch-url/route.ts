@@ -54,57 +54,57 @@ function formatEurLexTitle(title: string): string | null {
     // Rozporządzenie / Regulation
     {
       regex: /(?:Rozporządzenie|ROZPORZĄDZENIE).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?|No\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Rozporządzenie nr',
-      english: 'Regulation No'
+      polish: 'Rozporządzenie',
+      english: 'Regulation'
     },
     {
       regex: /(?:Regulation|REGULATION).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Rozporządzenie nr',
-      english: 'Regulation No'
+      polish: 'Rozporządzenie',
+      english: 'Regulation'
     },
     // Dyrektywa / Directive
     {
       regex: /(?:Dyrektywa|DYREKTYWA).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Dyrektywa nr',
-      english: 'Directive No'
+      polish: 'Dyrektywa',
+      english: 'Directive'
     },
     {
       regex: /(?:Directive|DIRECTIVE).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Dyrektywa nr',
-      english: 'Directive No'
+      polish: 'Dyrektywa',
+      english: 'Directive'
     },
     // Decyzja / Decision
     {
       regex: /(?:Decyzja|DECYZJA).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Decyzja nr',
-      english: 'Decision No'
+      polish: 'Decyzja',
+      english: 'Decision'
     },
     {
       regex: /(?:Decision|DECISION).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Decyzja nr',
-      english: 'Decision No'
+      polish: 'Decyzja',
+      english: 'Decision'
     },
     // Zalecenie / Recommendation
     {
       regex: /(?:Zalecenie|ZALECENIE).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Zalecenie nr',
-      english: 'Recommendation No'
+      polish: 'Zalecenie',
+      english: 'Recommendation'
     },
     {
       regex: /(?:Recommendation|RECOMMENDATION).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Zalecenie nr',
-      english: 'Recommendation No'
+      polish: 'Zalecenie',
+      english: 'Recommendation'
     },
     // Opinia instytucji / Institutional Opinion
     {
       regex: /(?:Opinia|OPINIA).*?(?:\(UE\)|UE)?\s*(?:Nr\.?|nr\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Opinia nr',
-      english: 'Opinion No'
+      polish: 'Opinia',
+      english: 'Opinion'
     },
     {
       regex: /(?:Opinion|OPINION).*?(?:\(EU\)|EU)?\s*(?:No\.?)?\s*(\d+\/\d+)/i,
-      polish: 'Opinia nr',
-      english: 'Opinion No'
+      polish: 'Opinia',
+      english: 'Opinion'
     }
   ]
 
@@ -135,10 +135,10 @@ function formatCelexTitle(celexOrUrl: string, language: 'pl' | 'en' = 'en'): str
     const number = celexMatch[3]
 
     const typeMap: { [key: string]: { pl: string, en: string } } = {
-      'R': { pl: 'Rozporządzenie nr', en: 'Regulation No' },
-      'L': { pl: 'Dyrektywa nr', en: 'Directive No' },
-      'D': { pl: 'Decyzja nr', en: 'Decision No' },
-      'H': { pl: 'Zalecenie nr', en: 'Recommendation No' }
+      'R': { pl: 'Rozporządzenie', en: 'Regulation' },
+      'L': { pl: 'Dyrektywa', en: 'Directive' },
+      'D': { pl: 'Decyzja', en: 'Decision' },
+      'H': { pl: 'Zalecenie', en: 'Recommendation' }
     }
 
     const typeLabel = typeMap[type]
