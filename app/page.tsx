@@ -11,6 +11,7 @@ import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
 import DocumentManager from '@/components/DocumentManager'
 import { Project, Glossary, GlossaryVersion, projectStorage, SourceDocument } from '@/utils/projectStorage'
+import { normalizeTermForComparison, areTermVariants } from '@/utils/termNormalization'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 // Kontekst terminu w pojedynczym dokumencie
@@ -1224,10 +1225,29 @@ export default function Home() {
     }
 
     // Merge logic - zachowanie kontekstów z różnych dokumentów
+    // Używamy normalizacji do łączenia terminów w liczbie pojedynczej/mnogiej
     const termsMap = new Map<string, Term>()
+    const normalizedKeyMap = new Map<string, string>() // normalizedKey -> originalTermKey
+
+    // Funkcja do znajdowania istniejącego terminu (z normalizacją)
+    const findExistingTerm = (termName: string): Term | null => {
+      // Sprawdź dokładne dopasowanie
+      if (termsMap.has(termName)) {
+        return termsMap.get(termName)!
+      }
+      // Sprawdź po normalizacji
+      const normalizedKey = normalizeTermForComparison(termName)
+      if (normalizedKeyMap.has(normalizedKey)) {
+        const existingKey = normalizedKeyMap.get(normalizedKey)!
+        return termsMap.get(existingKey) || null
+      }
+      return null
+    }
 
     // Dodaj istniejące terminy
     terms.forEach(term => {
+      const normalizedKey = normalizeTermForComparison(term.term)
+
       if (!termsMap.has(term.term)) {
         // Jeśli termin ma contexts[], użyj ich
         if (term.contexts && term.contexts.length > 0) {
@@ -1246,16 +1266,33 @@ export default function Home() {
             contexts: [termContext]
           })
         }
+        normalizedKeyMap.set(normalizedKey, term.term)
       }
     })
 
     let addedCount = 0
     let mergedCount = 0
+    let variantsMergedCount = 0
 
     importedTerms.forEach(importedTerm => {
-      const existingTerm = termsMap.get(importedTerm.term)
+      // Użyj normalizacji do znalezienia istniejącego terminu
+      const existingTerm = findExistingTerm(importedTerm.term)
 
       if (existingTerm) {
+        // Sprawdź czy to wariant (singular/plural)
+        const isVariant = existingTerm.term.toLowerCase() !== importedTerm.term.toLowerCase()
+        if (isVariant) {
+          // Dodaj do listy wariantów
+          if (!existingTerm.variants) {
+            existingTerm.variants = [existingTerm.term]
+          }
+          if (!existingTerm.variants.includes(importedTerm.term)) {
+            existingTerm.variants.push(importedTerm.term)
+            console.log(`🔄 Połączono wariant: "${importedTerm.term}" z "${existingTerm.term}"`)
+            variantsMergedCount++
+          }
+        }
+
         // Termin już istnieje - dodaj nowe konteksty
         if (importedTerm.contexts && importedTerm.contexts.length > 0) {
           // Importowany termin ma już tablicę contexts - dodaj wszystkie
@@ -1294,8 +1331,13 @@ export default function Home() {
             mergedCount++
           }
         }
+
+        // Zsumuj wystąpienia
+        existingTerm.occurrences = (existingTerm.occurrences || 0) + (importedTerm.occurrences || 0)
       } else {
         // Nowy termin
+        const normalizedKey = normalizeTermForComparison(importedTerm.term)
+
         if (importedTerm.contexts && importedTerm.contexts.length > 0) {
           // Termin ma już tablicę contexts - zachowaj ją
           termsMap.set(importedTerm.term, {
@@ -1317,17 +1359,25 @@ export default function Home() {
             contexts: [termContext]
           })
         }
+        normalizedKeyMap.set(normalizedKey, importedTerm.term)
         addedCount++
       }
     })
+
+    if (variantsMergedCount > 0) {
+      console.log(`🔄 Połączono ${variantsMergedCount} wariantów terminów (singular/plural)`)
+    }
 
     // Konwertuj mapę z powrotem na tablicę
     const mergedTerms = Array.from(termsMap.values())
 
     // Zapisz jako nową wersję
+    const variantInfo = variantsMergedCount > 0
+      ? (language === 'pl' ? `, ${variantsMergedCount} wariantów połączonych` : `, ${variantsMergedCount} variants merged`)
+      : ''
     const description = language === 'pl'
-      ? `Import z ${source}: +${addedCount} nowych terminów, ${mergedCount} kontekstów dodanych`
-      : `Import from ${source}: +${addedCount} new terms, ${mergedCount} contexts added`
+      ? `Import z ${source}: +${addedCount} nowych terminów, ${mergedCount} kontekstów dodanych${variantInfo}`
+      : `Import from ${source}: +${addedCount} new terms, ${mergedCount} contexts added${variantInfo}`
 
     projectStorage.addVersion(
       currentProject.id,
@@ -1346,12 +1396,18 @@ export default function Home() {
     refreshGlossary()
 
     // Pokaż stylizowany dialog informacyjny
+    const variantMessage = variantsMergedCount > 0
+      ? (language === 'pl'
+        ? `\nPołączono warianty: ${variantsMergedCount} (singular/plural)`
+        : `\nMerged variants: ${variantsMergedCount} (singular/plural)`)
+      : ''
+
     setInfoDialog({
       type: 'success',
       title: language === 'pl' ? 'Import zakończony!' : 'Import completed!',
       message: language === 'pl'
-        ? `Dodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów`
-        : `Added: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents`,
+        ? `Dodano: ${addedCount} nowych terminów\nPołączono: ${mergedCount} kontekstów z różnych dokumentów${variantMessage}`
+        : `Added: ${addedCount} new terms\nMerged: ${mergedCount} contexts from different documents${variantMessage}`,
       details: language === 'pl'
         ? `Łącznie terminów: ${mergedTerms.length}`
         : `Total terms: ${mergedTerms.length}`
