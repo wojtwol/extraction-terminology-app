@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Term } from '@/app/page'
+import ConfirmDialog from './ConfirmDialog'
 
 interface TerminologyListProps {
   terms: Term[]
@@ -14,6 +15,7 @@ export default function TerminologyList({ terms, onUpdate, documentText }: Termi
   const [sortBy, setSortBy] = useState<'alphabetical' | 'occurrences'>('alphabetical')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<{id: string, termName: string} | null>(null)
 
   const filteredTerms = terms.filter(term =>
     term.term.toLowerCase().includes(searchQuery.toLowerCase())
@@ -26,9 +28,14 @@ export default function TerminologyList({ terms, onUpdate, documentText }: Termi
     return b.occurrences - a.occurrences
   })
 
-  const handleDelete = (id: string) => {
-    if (confirm('Czy na pewno chcesz usunąć ten termin?')) {
-      onUpdate(terms.filter(t => t.id !== id))
+  const handleDelete = (id: string, termName: string) => {
+    setDeleteConfirm({ id, termName })
+  }
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      onUpdate(terms.filter(t => t.id !== deleteConfirm.id))
+      setDeleteConfirm(null)
     }
   }
 
@@ -177,7 +184,7 @@ export default function TerminologyList({ terms, onUpdate, documentText }: Termi
                   ✎
                 </button>
                 <button
-                  onClick={() => handleDelete(term.id)}
+                  onClick={() => handleDelete(term.id, term.term)}
                   className="p-1 text-gray-600 hover:text-red-600"
                   title="Usuń"
                 >
@@ -192,6 +199,18 @@ export default function TerminologyList({ terms, onUpdate, documentText }: Termi
           </div>
         ))}
       </div>
+
+      {/* Dialog potwierdzenia usunięcia */}
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Usuń termin"
+        message={`Czy na pewno chcesz usunąć termin "${deleteConfirm?.termName}"?`}
+        confirmText="Usuń"
+        cancelText="Anuluj"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+        variant="danger"
+      />
     </div>
   )
 }

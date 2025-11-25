@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Glossary, GlossaryVersion, projectStorage } from '@/utils/projectStorage'
 import { useLanguage } from '@/contexts/LanguageContext'
+import ConfirmDialog from './ConfirmDialog'
 
 interface GlossaryManagerProps {
   projectId: string
@@ -27,6 +28,11 @@ export default function GlossaryManager({
   const [showVersions, setShowVersions] = useState(false)
   const [editingGlossaryId, setEditingGlossaryId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+
+  // Stany dla dialogów potwierdzenia
+  const [deleteGlossaryConfirm, setDeleteGlossaryConfirm] = useState<{id: string, name: string} | null>(null)
+  const [restoreVersionConfirm, setRestoreVersionConfirm] = useState<string | null>(null)
+  const [deleteVersionConfirm, setDeleteVersionConfirm] = useState<string | null>(null)
 
   const currentGlossary = glossaries.find(g => g.id === currentGlossaryId)
   const currentVersion = currentGlossary?.versions.find(v => v.id === currentGlossary.currentVersionId)
@@ -54,15 +60,14 @@ export default function GlossaryManager({
   const handleDeleteGlossary = (glossaryId: string) => {
     const glossary = glossaries.find(g => g.id === glossaryId)
     if (!glossary) return
+    setDeleteGlossaryConfirm({ id: glossaryId, name: glossary.name })
+  }
 
-    const confirmMessage = `${t.deleteGlossaryConfirm} "${glossary.name}"? ${language === 'pl' ? 'Ta operacja jest nieodwracalna.' : 'This operation is irreversible.'}`
-    if (!confirm(confirmMessage)) {
-      return
-    }
-
-    if (projectStorage.deleteGlossary(projectId, glossaryId)) {
+  const confirmDeleteGlossary = () => {
+    if (deleteGlossaryConfirm && projectStorage.deleteGlossary(projectId, deleteGlossaryConfirm.id)) {
       onRefresh()
     }
+    setDeleteGlossaryConfirm(null)
   }
 
   const handleRenameGlossary = (glossaryId: string) => {
@@ -80,29 +85,33 @@ export default function GlossaryManager({
 
   const handleRestoreVersion = (versionId: string) => {
     if (!currentGlossaryId) return
+    setRestoreVersionConfirm(versionId)
+  }
 
-    if (!confirm(t.restoreVersionConfirm)) {
-      return
+  const confirmRestoreVersion = () => {
+    if (restoreVersionConfirm && currentGlossaryId) {
+      if (projectStorage.restoreVersion(projectId, currentGlossaryId, restoreVersionConfirm)) {
+        onRefresh()
+        alert(t.versionRestored)
+      }
     }
-
-    if (projectStorage.restoreVersion(projectId, currentGlossaryId, versionId)) {
-      onRefresh()
-      alert(t.versionRestored)
-    }
+    setRestoreVersionConfirm(null)
   }
 
   const handleDeleteVersion = (versionId: string) => {
     if (!currentGlossaryId) return
+    setDeleteVersionConfirm(versionId)
+  }
 
-    if (!confirm(t.deleteVersionConfirm)) {
-      return
+  const confirmDeleteVersion = () => {
+    if (deleteVersionConfirm && currentGlossaryId) {
+      if (projectStorage.deleteVersion(projectId, currentGlossaryId, deleteVersionConfirm)) {
+        onRefresh()
+      } else {
+        alert(t.cannotDeleteVersion)
+      }
     }
-
-    if (projectStorage.deleteVersion(projectId, currentGlossaryId, versionId)) {
-      onRefresh()
-    } else {
-      alert(t.cannotDeleteVersion)
-    }
+    setDeleteVersionConfirm(null)
   }
 
   const formatDate = (dateString: string) => {
@@ -333,6 +342,48 @@ export default function GlossaryManager({
           </div>
         </div>
       )}
+
+      {/* Dialog potwierdzenia usunięcia glosariusza */}
+      <ConfirmDialog
+        isOpen={deleteGlossaryConfirm !== null}
+        title={language === 'pl' ? 'Usuń glosariusz' : 'Delete glossary'}
+        message={language === 'pl'
+          ? `Czy na pewno chcesz usunąć glosariusz "${deleteGlossaryConfirm?.name}"? Ta operacja jest nieodwracalna.`
+          : `Are you sure you want to delete the glossary "${deleteGlossaryConfirm?.name}"? This operation is irreversible.`}
+        confirmText={language === 'pl' ? 'Usuń' : 'Delete'}
+        cancelText={language === 'pl' ? 'Anuluj' : 'Cancel'}
+        onConfirm={confirmDeleteGlossary}
+        onCancel={() => setDeleteGlossaryConfirm(null)}
+        variant="danger"
+      />
+
+      {/* Dialog potwierdzenia przywrócenia wersji */}
+      <ConfirmDialog
+        isOpen={restoreVersionConfirm !== null}
+        title={language === 'pl' ? 'Przywróć wersję' : 'Restore version'}
+        message={language === 'pl'
+          ? 'Czy na pewno chcesz przywrócić tę wersję glosariusza?'
+          : 'Are you sure you want to restore this version of the glossary?'}
+        confirmText={language === 'pl' ? 'Przywróć' : 'Restore'}
+        cancelText={language === 'pl' ? 'Anuluj' : 'Cancel'}
+        onConfirm={confirmRestoreVersion}
+        onCancel={() => setRestoreVersionConfirm(null)}
+        variant="warning"
+      />
+
+      {/* Dialog potwierdzenia usunięcia wersji */}
+      <ConfirmDialog
+        isOpen={deleteVersionConfirm !== null}
+        title={language === 'pl' ? 'Usuń wersję' : 'Delete version'}
+        message={language === 'pl'
+          ? 'Czy na pewno chcesz usunąć tę wersję? Ta operacja jest nieodwracalna.'
+          : 'Are you sure you want to delete this version? This operation is irreversible.'}
+        confirmText={language === 'pl' ? 'Usuń' : 'Delete'}
+        cancelText={language === 'pl' ? 'Anuluj' : 'Cancel'}
+        onConfirm={confirmDeleteVersion}
+        onCancel={() => setDeleteVersionConfirm(null)}
+        variant="danger"
+      />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Term, TermContext } from '@/app/page'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { SourceDocument, getColorClasses } from '@/utils/projectStorage'
+import ConfirmDialog from './ConfirmDialog'
 
 interface TerminologyTableProps {
   terms: Term[]
@@ -61,6 +62,7 @@ export default function TerminologyTable({
   const [editingTargetTerm, setEditingTargetTerm] = useState<{id: string, value: string} | null>(null)
   const [editingSourceTerm, setEditingSourceTerm] = useState<{id: string, value: string} | null>(null)
   const [editingDocumentName, setEditingDocumentName] = useState<{oldName: string, newName: string} | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{id: string, termName: string} | null>(null)
 
   // Funkcja pomocnicza do znalezienia dokumentu dla terminu
   const getDocumentForTerm = (term: Term): SourceDocument | null => {
@@ -172,12 +174,14 @@ export default function TerminologyTable({
     return parts.length > 0 ? <>{parts}</> : context
   }
 
-  const handleDelete = (id: string) => {
-    const confirmMessage = language === 'pl'
-      ? 'Czy na pewno chcesz usunąć ten termin?'
-      : 'Are you sure you want to delete this term?'
-    if (confirm(confirmMessage)) {
-      onUpdate(terms.filter(t => t.id !== id))
+  const handleDelete = (id: string, termName: string) => {
+    setDeleteConfirm({ id, termName })
+  }
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      onUpdate(terms.filter(t => t.id !== deleteConfirm.id))
+      setDeleteConfirm(null)
     }
   }
 
@@ -646,7 +650,7 @@ export default function TerminologyTable({
                   <td className="px-2 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button
-                        onClick={() => handleDelete(term.id)}
+                        onClick={() => handleDelete(term.id, term.term)}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors text-sm"
                         title={t.delete}
                       >
@@ -911,7 +915,7 @@ export default function TerminologyTable({
                       ✎
                     </button>
                     <button
-                      onClick={() => handleDelete(term.id)}
+                      onClick={() => handleDelete(term.id, term.term)}
                       className="p-1 text-gray-600 hover:text-red-600"
                       title="Usuń"
                     >
@@ -1059,6 +1063,20 @@ export default function TerminologyTable({
           </div>
         </div>
       )}
+
+      {/* Dialog potwierdzenia usunięcia */}
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title={language === 'pl' ? 'Usuń termin' : 'Delete term'}
+        message={language === 'pl'
+          ? `Czy na pewno chcesz usunąć termin "${deleteConfirm?.termName}"?`
+          : `Are you sure you want to delete the term "${deleteConfirm?.termName}"?`}
+        confirmText={language === 'pl' ? 'Usuń' : 'Delete'}
+        cancelText={language === 'pl' ? 'Anuluj' : 'Cancel'}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+        variant="danger"
+      />
     </div>
   )
 }
