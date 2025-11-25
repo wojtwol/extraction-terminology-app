@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Term, TermContext } from '@/app/page'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { SourceDocument, getColorClasses } from '@/utils/projectStorage'
+import { normalizeSourceDocumentName } from '@/utils/termNormalization'
 import ConfirmDialog from './ConfirmDialog'
 
 interface TerminologyTableProps {
@@ -689,7 +690,7 @@ export default function TerminologyTable({
               // Dla wiersza z kontekstem używamy danych z ctx, inaczej z term
               const displayOccurrences = ctx ? ctx.occurrences : term.occurrences
               const displayContext = ctx ? ctx.context : term.context
-              const displayDocumentName = ctx ? ctx.documentName : (term.sourceDocument || fileName || '-')
+              const displayDocumentName = normalizeSourceDocumentName(ctx ? ctx.documentName : (term.sourceDocument || fileName || '-'))
 
               // Oblicz numer terminu (liczy tylko pierwsze wiersze terminów, nie wszystkie wiersze)
               const termNumber = isFirstContext
