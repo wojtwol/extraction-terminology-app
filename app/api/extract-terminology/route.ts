@@ -457,6 +457,37 @@ TEXT:`
     console.log(`✂️  Po walidacji: ${validatedTerms.length} terminów`)
     console.log(`   Odrzucono ${allTerms.length - validatedTerms.length} terminów (nie znaleziono w dokumencie)`)
 
+    // KROK 7.5: WERYFIKACJA I NAPRAWA KONTEKSTÓW
+    // Upewnij się, że każdy kontekst zawiera termin - jeśli nie, wygeneruj nowy
+    let fixedContextCount = 0
+    validatedTerms.forEach((term: Term) => {
+      const termLower = term.term.toLowerCase()
+      const contextLower = (term.context || '').toLowerCase()
+
+      // Sprawdź czy kontekst zawiera termin (lub jego warianty)
+      const termVariants = term.variants || [term.term]
+      const contextContainsTerm = termVariants.some(variant =>
+        contextLower.includes(variant.toLowerCase())
+      )
+
+      if (!contextContainsTerm && term.positions.length > 0) {
+        // Wygeneruj nowy kontekst z dokumentu
+        const firstPosition = term.positions[0]
+        const contextStart = Math.max(0, firstPosition - 80)
+        const contextEnd = Math.min(text.length, firstPosition + term.term.length + 120)
+        const newContext = text.slice(contextStart, contextEnd).trim()
+
+        // Dodaj elipsy jeśli kontekst jest ucięty
+        term.context = (contextStart > 0 ? '...' : '') + newContext + (contextEnd < text.length ? '...' : '')
+        fixedContextCount++
+        console.log(`   🔧 Naprawiono kontekst dla "${term.term}"`)
+      }
+    })
+
+    if (fixedContextCount > 0) {
+      console.log(`🔧 Naprawiono ${fixedContextCount} kontekstów`)
+    }
+
     // KROK 8: Jeśli mamy więcej terminów niż maxTerms, wybierz top terminy (według liczby wystąpień)
     let finalTerms = validatedTerms
     if (validatedTerms.length > maxTerms) {
