@@ -11,7 +11,7 @@ import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
 import DocumentManager from '@/components/DocumentManager'
 import { Project, Glossary, GlossaryVersion, projectStorage, SourceDocument } from '@/utils/projectStorage'
-import { normalizeTermForComparison, areTermVariants } from '@/utils/termNormalization'
+import { normalizeTermForComparison, areTermVariants, getPreferredTermForm, convertToSingular } from '@/utils/termNormalization'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 // Kontekst terminu w pojedynczym dokumencie
@@ -1288,9 +1288,19 @@ export default function Home() {
           }
           if (!existingTerm.variants.includes(importedTerm.term)) {
             existingTerm.variants.push(importedTerm.term)
-            console.log(`🔄 Połączono wariant: "${importedTerm.term}" z "${existingTerm.term}"`)
-            variantsMergedCount++
           }
+
+          // Preferuj formę pojedynczą jako główny termin
+          const preferredForm = getPreferredTermForm(existingTerm.term, importedTerm.term)
+          if (preferredForm !== existingTerm.term) {
+            const oldTerm = existingTerm.term
+            // Zamień główny termin na formę pojedynczą
+            existingTerm.term = preferredForm
+            console.log(`🔄 Połączono wariant: "${importedTerm.term}" z "${oldTerm}" → główny termin: "${preferredForm}" (singular)`)
+          } else {
+            console.log(`🔄 Połączono wariant: "${importedTerm.term}" z "${existingTerm.term}"`)
+          }
+          variantsMergedCount++
         }
 
         // Termin już istnieje - dodaj nowe konteksty

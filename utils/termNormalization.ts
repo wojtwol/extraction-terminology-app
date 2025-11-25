@@ -280,6 +280,63 @@ export function generateTermVariants(term: string): string[] {
   return variants
 }
 
+// Sprawdź czy termin jest w formie pojedynczej (wszystkie słowa)
+export function isTermSingular(term: string): boolean {
+  const words = term.split(/\s+/)
+  const skipWords = ['and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'in', 'on', 'at', 'by', 'with']
+
+  for (const word of words) {
+    if (skipWords.includes(word.toLowerCase())) continue
+    if (word.length <= 2) continue
+
+    const singular = singularize(word)
+    // Jeśli singularize zmienia słowo, to słowo jest w liczbie mnogiej
+    if (singular !== word.toLowerCase()) {
+      return false
+    }
+  }
+  return true
+}
+
+// Wybierz preferowaną formę terminu (singular > plural)
+// Zwraca termin w formie pojedynczej jeśli to możliwe
+export function getPreferredTermForm(term1: string, term2: string): string {
+  const term1IsSingular = isTermSingular(term1)
+  const term2IsSingular = isTermSingular(term2)
+
+  // Preferuj formę pojedynczą
+  if (term1IsSingular && !term2IsSingular) {
+    return term1
+  }
+  if (term2IsSingular && !term1IsSingular) {
+    return term2
+  }
+
+  // Obie formy są takie same (obie singular lub obie plural)
+  // Preferuj krótszy termin (zwykle singular)
+  return term1.length <= term2.length ? term1 : term2
+}
+
+// Konwertuj termin do formy pojedynczej (zachowując wielkość liter)
+export function convertToSingular(term: string): string {
+  const words = term.split(/\s+/)
+  const skipWords = ['and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'in', 'on', 'at', 'by', 'with']
+
+  const singularWords = words.map(word => {
+    if (skipWords.includes(word.toLowerCase())) return word
+    if (word.length <= 2) return word
+
+    const singular = singularize(word)
+    // Zachowaj oryginalną wielkość liter
+    if (word[0] === word[0].toUpperCase()) {
+      return singular.charAt(0).toUpperCase() + singular.slice(1)
+    }
+    return singular
+  })
+
+  return singularWords.join(' ')
+}
+
 // Znajdź istniejący termin w mapie używając normalizacji
 export function findExistingTermByNormalization(
   termsMap: Map<string, any>,

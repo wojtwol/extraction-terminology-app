@@ -417,7 +417,14 @@ TEXT:`
           existing.context = term.context
         }
 
-        console.log(`   ➕ Łączę "${term.term}" z "${existing.term}" - warianty: ${allVariants.join(', ')} (${existing.occurrences}x)`)
+        // Preferuj formę pojedynczą jako główny termin
+        const preferredForm = getPreferredTermForm(existing.term, term.term)
+        if (preferredForm !== existing.term) {
+          console.log(`   ➕ Łączę "${term.term}" z "${existing.term}" → główny termin: "${preferredForm}" (singular) - warianty: ${allVariants.join(', ')} (${existing.occurrences}x)`)
+          existing.term = preferredForm
+        } else {
+          console.log(`   ➕ Łączę "${term.term}" z "${existing.term}" - warianty: ${allVariants.join(', ')} (${existing.occurrences}x)`)
+        }
       } else if (!uniqueTermsMap.has(termLower)) {
         // Nowy termin - dodaj do mapy z wariantami
         uniqueTermsMap.set(termLower, {
@@ -789,4 +796,39 @@ function pluralize(word: string): string {
 
   // Standardowe - dodaj -s
   return lower + 's'
+}
+
+// Sprawdź czy termin jest w formie pojedynczej (wszystkie słowa)
+function isTermSingular(term: string): boolean {
+  const words = term.split(/\s+/)
+  const skipWords = ['and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'in', 'on', 'at', 'by', 'with']
+
+  for (const word of words) {
+    if (skipWords.includes(word.toLowerCase())) continue
+    if (word.length <= 2) continue
+
+    const singular = singularize(word)
+    // Jeśli singularize zmienia słowo, to słowo jest w liczbie mnogiej
+    if (singular !== word.toLowerCase()) {
+      return false
+    }
+  }
+  return true
+}
+
+// Wybierz preferowaną formę terminu (singular > plural)
+function getPreferredTermForm(term1: string, term2: string): string {
+  const term1IsSingular = isTermSingular(term1)
+  const term2IsSingular = isTermSingular(term2)
+
+  // Preferuj formę pojedynczą
+  if (term1IsSingular && !term2IsSingular) {
+    return term1
+  }
+  if (term2IsSingular && !term1IsSingular) {
+    return term2
+  }
+
+  // Obie formy są takie same - preferuj krótszy termin
+  return term1.length <= term2.length ? term1 : term2
 }
