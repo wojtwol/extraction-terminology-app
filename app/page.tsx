@@ -547,7 +547,12 @@ export default function Home() {
         if (existingTermsMap.has(newTerm.term)) {
           skippedCount++
         } else {
-          existingTermsMap.set(newTerm.term, { ...newTerm, isNew: true, addedAt: new Date().toISOString() })
+          existingTermsMap.set(newTerm.term, {
+            ...newTerm,
+            isNew: true,
+            addedAt: new Date().toISOString(),
+            sourceDocument: newTerm.sourceDocument || fileName
+          })
           addedCount++
         }
       })
@@ -1017,10 +1022,16 @@ export default function Home() {
       const extractionParams = { minTerms, maxTerms, minLength, minOccurrences }
       const description = `Ekstrakcja: ${minTerms}-${maxTerms} terminów`
 
+      // Dodaj sourceDocument do każdego terminu
+      const termsWithSource = data.terms.map((term: Term) => ({
+        ...term,
+        sourceDocument: term.sourceDocument || loadedFileName
+      }))
+
       projectStorage.addVersion(
         currentProject.id,
         currentGlossary.id,
-        data.terms,
+        termsWithSource,
         description,
         extractionParams,
         false // nie jest snapshotem
@@ -1034,7 +1045,7 @@ export default function Home() {
       refreshGlossary()
 
       setProgress(100)
-      console.log(`✅ Wyekstrahowano ${data.terms.length} terminów`)
+      console.log(`✅ Wyekstrahowano ${termsWithSource.length} terminów`)
 
       // Zapisz sugestię jeśli istnieje
       if (data.suggestion) {
@@ -1045,9 +1056,9 @@ export default function Home() {
       }
 
       // Generuj definicje jeśli opcja została zaznaczona
-      if (generateDefinitions && data.terms.length > 0) {
+      if (generateDefinitions && termsWithSource.length > 0) {
         setTimeout(() => {
-          handleBulkGenerateDefinitions(data.terms)
+          handleBulkGenerateDefinitions(termsWithSource)
         }, 500)
       } else {
         // Reset progress po 1 sekundzie
