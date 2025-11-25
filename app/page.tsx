@@ -2838,7 +2838,15 @@ export default function Home() {
                 onGlossaryChange={(glossaryId) => {
                   projectStorage.setCurrentGlossary(currentProject.id, glossaryId)
                   const updated = projectStorage.getById(currentProject.id)
-                  if (updated) setCurrentProject(updated)
+                  if (updated) {
+                    setCurrentProject(updated)
+                    // Przywróć documentText i fileName z projektu
+                    if (updated.documentText) {
+                      setDocumentText(updated.documentText)
+                      setFileName(updated.fileName)
+                      setDetectedLanguage(updated.detectedLanguage)
+                    }
+                  }
                   refreshGlossary()
                 }}
                 onRefresh={() => {
