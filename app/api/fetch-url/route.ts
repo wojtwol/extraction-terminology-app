@@ -135,17 +135,15 @@ function formatCelexTitle(celexOrUrl: string, language: 'pl' | 'en' = 'en'): str
     const number = celexMatch[3]
 
     const typeMap: { [key: string]: { pl: string, en: string } } = {
-      'R': { pl: 'Rozporządzenie', en: 'Regulation' },
-      'L': { pl: 'Dyrektywa', en: 'Directive' },
-      'D': { pl: 'Decyzja', en: 'Decision' },
-      'H': { pl: 'Zalecenie', en: 'Recommendation' }
+      'R': { pl: 'Rozporządzenie (UE)', en: 'Regulation (EU)' },
+      'L': { pl: 'Dyrektywa (UE)', en: 'Directive (EU)' },
+      'D': { pl: 'Decyzja (UE)', en: 'Decision (EU)' },
+      'H': { pl: 'Zalecenie (UE)', en: 'Recommendation (EU)' }
     }
 
     const typeLabel = typeMap[type]
     if (typeLabel) {
-      return language === 'pl'
-        ? `${typeLabel.pl} ${year}/${number}`
-        : `${typeLabel.en} ${year}/${number}`
+      return `${typeLabel[language]} ${year}/${number}`
     }
   }
 
@@ -159,39 +157,39 @@ function extractActInfoFromContent(text: string, language: 'pl' | 'en' = 'en'): 
     // Regulation (EU) 2024/1689
     {
       regex: /Regulation\s*\((?:EU|EC)\)\s*(?:No\.?\s*)?(\d{4})\/(\d+)/i,
-      type: { pl: 'Rozporządzenie', en: 'Regulation' }
+      type: { pl: 'Rozporządzenie (UE)', en: 'Regulation (EU)' }
     },
     {
       regex: /Rozporządzenie\s*\((?:UE|WE)\)\s*(?:nr\.?\s*)?(\d{4})\/(\d+)/i,
-      type: { pl: 'Rozporządzenie', en: 'Regulation' }
+      type: { pl: 'Rozporządzenie (UE)', en: 'Regulation (EU)' }
     },
     // Regulation (EU) 2024/1689 - bez nawiasów
     {
       regex: /(?:REGULATION|Regulation)\s+(?:EU|EC)\s+(\d{4})\/(\d+)/i,
-      type: { pl: 'Rozporządzenie', en: 'Regulation' }
+      type: { pl: 'Rozporządzenie (UE)', en: 'Regulation (EU)' }
     },
     // Directive (EU) 2024/1689
     {
       regex: /Directive\s*\((?:EU|EC)\)\s*(?:No\.?\s*)?(\d{4})\/(\d+)/i,
-      type: { pl: 'Dyrektywa', en: 'Directive' }
+      type: { pl: 'Dyrektywa (UE)', en: 'Directive (EU)' }
     },
     {
       regex: /Dyrektywa\s*\((?:UE|WE)\)\s*(?:nr\.?\s*)?(\d{4})\/(\d+)/i,
-      type: { pl: 'Dyrektywa', en: 'Directive' }
+      type: { pl: 'Dyrektywa (UE)', en: 'Directive (EU)' }
     },
     // Decision
     {
       regex: /Decision\s*\((?:EU|EC)\)\s*(?:No\.?\s*)?(\d{4})\/(\d+)/i,
-      type: { pl: 'Decyzja', en: 'Decision' }
+      type: { pl: 'Decyzja (UE)', en: 'Decision (EU)' }
     },
     {
       regex: /Decyzja\s*\((?:UE|WE)\)\s*(?:nr\.?\s*)?(\d{4})\/(\d+)/i,
-      type: { pl: 'Decyzja', en: 'Decision' }
+      type: { pl: 'Decyzja (UE)', en: 'Decision (EU)' }
     },
     // Recommendation
     {
       regex: /Recommendation\s*\((?:EU|EC)\)\s*(?:No\.?\s*)?(\d{4})\/(\d+)/i,
-      type: { pl: 'Zalecenie', en: 'Recommendation' }
+      type: { pl: 'Zalecenie (UE)', en: 'Recommendation (EU)' }
     },
   ]
 
