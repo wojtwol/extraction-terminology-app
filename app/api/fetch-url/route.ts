@@ -152,7 +152,62 @@ function formatCelexTitle(celexOrUrl: string, language: 'pl' | 'en' = 'en'): str
   return null
 }
 
-// Funkcja do formatowania nazw plików XML z EUR-Lex
+// Funkcja do ekstrakcji typu aktu i numeru z treści dokumentu EUR-Lex
+function extractActInfoFromContent(text: string, language: 'pl' | 'en' = 'en'): string | null {
+  // Wzorce do wykrywania typu aktu i numeru w treści
+  const patterns = [
+    // Regulation (EU) 2024/1689
+    {
+      regex: /Regulation\s*\((?:EU|EC)\)\s*(?:No\.?\s*)?(\d{4})\/(\d+)/i,
+      type: { pl: 'Rozporządzenie', en: 'Regulation' }
+    },
+    {
+      regex: /Rozporządzenie\s*\((?:UE|WE)\)\s*(?:nr\.?\s*)?(\d{4})\/(\d+)/i,
+      type: { pl: 'Rozporządzenie', en: 'Regulation' }
+    },
+    // Regulation (EU) 2024/1689 - bez nawiasów
+    {
+      regex: /(?:REGULATION|Regulation)\s+(?:EU|EC)\s+(\d{4})\/(\d+)/i,
+      type: { pl: 'Rozporządzenie', en: 'Regulation' }
+    },
+    // Directive (EU) 2024/1689
+    {
+      regex: /Directive\s*\((?:EU|EC)\)\s*(?:No\.?\s*)?(\d{4})\/(\d+)/i,
+      type: { pl: 'Dyrektywa', en: 'Directive' }
+    },
+    {
+      regex: /Dyrektywa\s*\((?:UE|WE)\)\s*(?:nr\.?\s*)?(\d{4})\/(\d+)/i,
+      type: { pl: 'Dyrektywa', en: 'Directive' }
+    },
+    // Decision
+    {
+      regex: /Decision\s*\((?:EU|EC)\)\s*(?:No\.?\s*)?(\d{4})\/(\d+)/i,
+      type: { pl: 'Decyzja', en: 'Decision' }
+    },
+    {
+      regex: /Decyzja\s*\((?:UE|WE)\)\s*(?:nr\.?\s*)?(\d{4})\/(\d+)/i,
+      type: { pl: 'Decyzja', en: 'Decision' }
+    },
+    // Recommendation
+    {
+      regex: /Recommendation\s*\((?:EU|EC)\)\s*(?:No\.?\s*)?(\d{4})\/(\d+)/i,
+      type: { pl: 'Zalecenie', en: 'Recommendation' }
+    },
+  ]
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern.regex)
+    if (match && match[1] && match[2]) {
+      const year = match[1]
+      const number = match[2]
+      return `${pattern.type[language]} ${year}/${number}`
+    }
+  }
+
+  return null
+}
+
+// Funkcja do formatowania nazw plików XML z EUR-Lex (fallback)
 function formatEurLexXmlFilename(filename: string, language: 'pl' | 'en' = 'en'): string | null {
   // Format: L_202401689EN.000101.fmx.xml lub L_2017283EN.01000101.xml
   // L = Dziennik Urzędowy seria L, C = seria C
@@ -164,8 +219,7 @@ function formatEurLexXmlFilename(filename: string, language: 'pl' | 'en' = 'en')
     const year = xmlMatch[2]
     const ojNumber = xmlMatch[3]
 
-    // Nie możemy określić dokładnego numeru aktu z nazwy pliku XML,
-    // więc zwracamy ogólną nazwę z numerem OJ
+    // Fallback - zwróć Official Journal jeśli nie udało się znaleźć typu aktu
     return language === 'pl'
       ? `Dziennik Urzędowy ${series} ${year}/${ojNumber}`
       : `Official Journal ${series} ${year}/${ojNumber}`
@@ -359,7 +413,17 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Jeśli nadal nie znaleziono, spróbuj sparsować z formatu OJ w URL
+      // Jeśli nadal nie znaleziono CELEX, szukaj typu aktu w treści (np. "Regulation (EU) 2024/1689")
+      if (documentTitle === validUrl.hostname) {
+        console.log(`🔍 Szukam typu aktu w treści dokumentu...`)
+        const actInfo = extractActInfoFromContent(text, detectedLanguage)
+        if (actInfo) {
+          documentTitle = actInfo
+          console.log(`✨ Wyekstrahowano typ aktu z treści: "${documentTitle}"`)
+        }
+      }
+
+      // Jeśli nadal nie znaleziono, spróbuj sparsować z formatu OJ w URL (fallback)
       if (documentTitle === validUrl.hostname) {
         const ojInUrl = urlWithoutFragment.match(/OJ[=:]([LC])_(\d{4})(\d+)/i)
         if (ojInUrl) {
@@ -369,18 +433,18 @@ export async function POST(request: NextRequest) {
           documentTitle = detectedLanguage === 'pl'
             ? `Dziennik Urzędowy ${series} ${year}/${ojNumber}`
             : `Official Journal ${series} ${year}/${ojNumber}`
-          console.log(`✨ Sformatowano OJ z URL: "${documentTitle}"`)
+          console.log(`⚠️ Fallback do OJ z URL: "${documentTitle}"`)
         }
       }
 
-      // Jeśli nadal nie znaleziono, spróbuj sparsować nazwę pliku XML
+      // Jeśli nadal nie znaleziono, spróbuj sparsować nazwę pliku XML (ostatni fallback)
       if (documentTitle === validUrl.hostname) {
         const xmlFilename = validUrl.pathname.split('/').pop()
         if (xmlFilename && (xmlFilename.endsWith('.xml') || xmlFilename.endsWith('.fmx.xml'))) {
           const xmlFormatted = formatEurLexXmlFilename(xmlFilename, detectedLanguage)
           if (xmlFormatted) {
             documentTitle = xmlFormatted
-            console.log(`✨ Sformatowano nazwę pliku XML: "${documentTitle}"`)
+            console.log(`⚠️ Fallback do nazwy pliku XML: "${documentTitle}"`)
           }
         }
       }
