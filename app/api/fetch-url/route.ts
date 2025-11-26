@@ -316,31 +316,67 @@ export async function POST(request: NextRequest) {
 
       // Jeśli nie znaleziono CELEX w URL, spróbuj wyekstrahować z treści dokumentu
       if (documentTitle === validUrl.hostname) {
+        console.log(`🔍 Szukam CELEX w treści dokumentu...`)
+
         // Szukaj CELEX w różnych formatach w treści XML/HTML
+        // Format CELEX: 3RRRRXNNNN gdzie 3=legislacja, RRRR=rok, X=typ(R/L/D), NNNN=numer
         const celexPatterns = [
           /<CELEX>(\d+[A-Z]\d+)<\/CELEX>/i,
           /celex[=:]["']?(\d+[A-Z]\d+)["']?/i,
           /CELEX[:\s]+(\d+[A-Z]\d+)/i,
-          /cellar[^"]*\/(\d+[A-Z]\d+)/i
+          /cellar[^"]*\/(\d+[A-Z]\d+)/i,
+          // Dodatkowe patterny dla różnych formatów EUR-Lex
+          /eli\/reg\/\d+\/(\d+)/i,  // ELI format
+          /32(\d{3})([RLDHQ])(\d+)/,  // Bezpośredni CELEX w tekście
+          /["']3(\d{4})([RLDHQ])(\d+)["']/,  // CELEX w cudzysłowach
         ]
 
         for (const pattern of celexPatterns) {
           const celexInContent = text.match(pattern)
-          if (celexInContent && celexInContent[1]) {
-            const celexFormatted = formatCelexTitle(celexInContent[1], detectedLanguage)
-            if (celexFormatted) {
-              documentTitle = celexFormatted
-              console.log(`✨ Sformatowano CELEX z treści dokumentu: "${documentTitle}"`)
-              break
+          if (celexInContent) {
+            console.log(`🔍 Znaleziono pattern: ${pattern}, match: ${celexInContent[0]}`)
+
+            // Dla pełnego CELEX (32024R1689)
+            if (celexInContent[1] && /^\d+[A-Z]\d+$/i.test(celexInContent[1])) {
+              const celexFormatted = formatCelexTitle(celexInContent[1], detectedLanguage)
+              if (celexFormatted) {
+                documentTitle = celexFormatted
+                console.log(`✨ Sformatowano CELEX z treści dokumentu: "${documentTitle}"`)
+                break
+              }
+            }
+            // Dla rozbitego CELEX (rok, typ, numer osobno)
+            else if (celexInContent[1] && celexInContent[2] && celexInContent[3]) {
+              const fullCelex = `3${celexInContent[1]}${celexInContent[2]}${celexInContent[3]}`
+              const celexFormatted = formatCelexTitle(fullCelex, detectedLanguage)
+              if (celexFormatted) {
+                documentTitle = celexFormatted
+                console.log(`✨ Sformatowano CELEX (rozbity) z treści: "${documentTitle}"`)
+                break
+              }
             }
           }
+        }
+      }
+
+      // Jeśli nadal nie znaleziono, spróbuj sparsować z formatu OJ w URL
+      if (documentTitle === validUrl.hostname) {
+        const ojInUrl = urlWithoutFragment.match(/OJ[=:]([LC])_(\d{4})(\d+)/i)
+        if (ojInUrl) {
+          const series = ojInUrl[1].toUpperCase()
+          const year = ojInUrl[2]
+          const ojNumber = ojInUrl[3]
+          documentTitle = detectedLanguage === 'pl'
+            ? `Dziennik Urzędowy ${series} ${year}/${ojNumber}`
+            : `Official Journal ${series} ${year}/${ojNumber}`
+          console.log(`✨ Sformatowano OJ z URL: "${documentTitle}"`)
         }
       }
 
       // Jeśli nadal nie znaleziono, spróbuj sparsować nazwę pliku XML
       if (documentTitle === validUrl.hostname) {
         const xmlFilename = validUrl.pathname.split('/').pop()
-        if (xmlFilename && xmlFilename.endsWith('.xml')) {
+        if (xmlFilename && (xmlFilename.endsWith('.xml') || xmlFilename.endsWith('.fmx.xml'))) {
           const xmlFormatted = formatEurLexXmlFilename(xmlFilename, detectedLanguage)
           if (xmlFormatted) {
             documentTitle = xmlFormatted
