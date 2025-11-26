@@ -432,8 +432,19 @@ TEXT:`
         parsedResponse = JSON.parse(jsonMatch[0])
       } catch (parseError: any) {
         console.error(`   ❌ Błąd parsowania JSON dla części ${chunkNumber}:`, parseError.message)
-        console.error(`   Pomijam tę część i kontynuuję...`)
-        continue
+        console.log(`   🔧 Próbuję naprawić JSON...`)
+
+        // Próba naprawy JSON - typowe problemy z odpowiedziami Claude
+        const repairedJson = repairJSON(jsonMatch[0])
+
+        try {
+          parsedResponse = JSON.parse(repairedJson)
+          console.log(`   ✅ JSON naprawiony pomyślnie`)
+        } catch (repairError: any) {
+          console.error(`   ❌ Nie udało się naprawić JSON:`, repairError.message)
+          console.error(`   Pomijam tę część i kontynuuję...`)
+          continue
+        }
       }
 
       if (!parsedResponse.terms || !Array.isArray(parsedResponse.terms)) {
@@ -1145,4 +1156,105 @@ function extractFoundFormFromContext(term: string, context: string, fullText: st
   // Nie znaleziono - NIE szukamy w pełnym dokumencie stem-matchingiem
   // (zbyt duże ryzyko fałszywych dopasowań jak uprawnieni/uprawnienia)
   return null
+}
+
+// Funkcja do naprawy niepoprawnego JSON z odpowiedzi Claude
+// Typowe problemy: niezeskejpowane cudzysłowy w stringach, znaki kontrolne, trailing commas
+function repairJSON(jsonString: string): string {
+  let repaired = jsonString
+
+  // 1. Usuń znaki kontrolne (oprócz \n, \r, \t które zostaną później obsłużone)
+  repaired = repaired.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+
+  // 2. Napraw niezeskejpowane znaki nowej linii w stringach
+  // To jest bardziej skomplikowane - musimy znaleźć stringi i naprawić je
+  repaired = repairStringsInJSON(repaired)
+
+  // 3. Usuń trailing commas przed ] lub }
+  repaired = repaired.replace(/,(\s*[\]}])/g, '$1')
+
+  // 4. Napraw podwójne cudzysłowy wewnątrz stringów (częsty błąd)
+  // To jest obsługiwane w repairStringsInJSON
+
+  return repaired
+}
+
+// Napraw stringi w JSON - escape'uj problematyczne znaki
+function repairStringsInJSON(json: string): string {
+  const result: string[] = []
+  let i = 0
+  let inString = false
+  let stringStart = -1
+
+  while (i < json.length) {
+    const char = json[i]
+
+    if (!inString) {
+      if (char === '"') {
+        inString = true
+        stringStart = i
+        result.push(char)
+      } else {
+        result.push(char)
+      }
+      i++
+    } else {
+      // Jesteśmy wewnątrz stringa
+      if (char === '\\') {
+        // Escape sequence - sprawdź co jest dalej
+        const nextChar = json[i + 1]
+        if (nextChar === '"' || nextChar === '\\' || nextChar === '/' ||
+            nextChar === 'b' || nextChar === 'f' || nextChar === 'n' ||
+            nextChar === 'r' || nextChar === 't' || nextChar === 'u') {
+          // Poprawna sekwencja escape
+          result.push(char, nextChar)
+          if (nextChar === 'u') {
+            // \uXXXX - dodaj 4 znaki hex
+            result.push(json.substring(i + 2, i + 6))
+            i += 6
+          } else {
+            i += 2
+          }
+        } else {
+          // Niepoprawna sekwencja escape - escape'uj backslash
+          result.push('\\\\')
+          i++
+        }
+      } else if (char === '"') {
+        // Potencjalny koniec stringa lub niezeskejpowany cudzysłów wewnątrz
+        // Sprawdź czy to wygląda na koniec stringa (po nim powinna być przecinka, :, }, ] lub whitespace)
+        const afterQuote = json.substring(i + 1).trimStart()
+        if (afterQuote.length === 0 ||
+            afterQuote[0] === ',' ||
+            afterQuote[0] === ':' ||
+            afterQuote[0] === '}' ||
+            afterQuote[0] === ']') {
+          // To jest prawdopodobnie koniec stringa
+          inString = false
+          result.push(char)
+        } else {
+          // To jest prawdopodobnie cudzysłów wewnątrz stringa - escape'uj go
+          result.push('\\"')
+        }
+        i++
+      } else if (char === '\n') {
+        // Niezeskejpowany newline w stringu - zamień na \n
+        result.push('\\n')
+        i++
+      } else if (char === '\r') {
+        // Carriage return - zamień na \r
+        result.push('\\r')
+        i++
+      } else if (char === '\t') {
+        // Tab - zamień na \t
+        result.push('\\t')
+        i++
+      } else {
+        result.push(char)
+        i++
+      }
+    }
+  }
+
+  return result.join('')
 }
