@@ -520,12 +520,7 @@ export default function Home() {
       // Przygotuj listę istniejących terminów do pominięcia
       const existingTermsList = terms.map(t => t.term)
 
-      // Dla bardzo długich dokumentów, ogranicz do 400k znaków przy rozbudowie
-      const textForExpansion = documentText.length > 400000
-        ? documentText.substring(0, 400000)
-        : documentText
-
-      console.log(`📊 Tekst do rozbudowy: ${textForExpansion.length.toLocaleString()} znaków (oryginał: ${documentText.length.toLocaleString()})`)
+      console.log(`📊 Tekst do rozbudowy: ${documentText.length.toLocaleString()} znaków, istniejące terminy: ${existingTermsList.length}`)
 
       const response = await fetch('/api/extract-terminology', {
         method: 'POST',
@@ -533,7 +528,7 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: textForExpansion,
+          text: documentText,
           apiKey,
           minTerms: terms.length + 5, // Minimum to co już mamy + 5
           maxTerms: newMaxTerms,
