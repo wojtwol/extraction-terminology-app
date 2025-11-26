@@ -276,48 +276,63 @@ Or if not found: {"found": false}`
           const foundForm = aiResponse.foundForm || aiResponse.term || ''
           let lemmaForm = aiResponse.lemma || foundForm  // Użyj lemmy jeśli dostępna, inaczej foundForm
 
+          // Funkcja pomocnicza do lemmatyzacji
+          const performLemmatization = async (textToLemmatize: string): Promise<string> => {
+            try {
+              console.log(`   🔄 Performing lemmatization for: "${textToLemmatize}"`)
+              const lemmaResponse = await client.messages.create({
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 100,
+                temperature: 0,
+                messages: [{
+                  role: 'user',
+                  content: `Zamień polskie wyrażenie na formę podstawową (mianownik dla rzeczowników, bezokolicznik dla czasowników).
+
+ABSOLUTNIE KRYTYCZNE - NIE ZMIENIAJ SŁÓW NA INNE! Tylko zmień formę gramatyczną tego samego słowa!
+
+PRZYKŁADY POPRAWNE:
+- "decyzją stwierdzającą" → "decyzja stwierdzająca" (narzędnik→mianownik)
+- "właściwymi organami" → "właściwy organ" (narzędnik l.mn.→mianownik l.poj.)
+- "uprawnienia" → "uprawnienie" (dopełniacz→mianownik, TO SAMO SŁOWO!)
+- "zautomatyzowanego systemu" → "zautomatyzowany system" (dopełniacz→mianownik)
+- "postępowania karnego" → "postępowanie karne" (dopełniacz→mianownik)
+
+PRZYKŁADY BŁĘDNE (NIGDY TAK NIE RÓB!):
+- "uprawnienia" → "uprawniony" ✗ (to INNE słowo!)
+- "postanowieniu" → "postanawiać" ✗ (to INNE słowo!)
+
+Wyrażenie do lemmatyzacji: "${textToLemmatize}"
+
+Odpowiedz TYLKO formą podstawową (mianownik), bez żadnych wyjaśnień ani cudzysłowów.`
+                }]
+              })
+
+              const lemmaText = lemmaResponse.content[0].type === 'text'
+                ? lemmaResponse.content[0].text.trim().replace(/^["']|["']$/g, '') // Usuń cudzysłowy
+                : textToLemmatize
+
+              // Weryfikuj że to nie jest całkowicie inne słowo (podobna długość)
+              if (lemmaText && lemmaText.length > 0 && lemmaText.length < textToLemmatize.length * 2) {
+                console.log(`   ✅ Lemmatization result: "${textToLemmatize}" → "${lemmaText}"`)
+                return lemmaText
+              }
+              return textToLemmatize
+            } catch (lemmaError) {
+              console.log(`   ❌ Lemmatization failed:`, lemmaError)
+              return textToLemmatize
+            }
+          }
+
           // Log dla debugowania lemmatyzacji
           if (needsLemmatization) {
-            if (!aiResponse.lemma) {
-              console.log(`   ⚠️  WARNING: AI did not return lemma field for "${foundForm}"`)
-              // Spróbuj wymusić lemmatyzację osobnym zapytaniem
-              try {
-                console.log(`   🔄 Attempting separate lemmatization request...`)
-                const lemmaResponse = await client.messages.create({
-                  model: 'claude-3-5-sonnet-20241022',
-                  max_tokens: 100,
-                  temperature: 0,
-                  messages: [{
-                    role: 'user',
-                    content: `Zamień polskie wyrażenie na formę podstawową (mianownik dla rzeczowników, bezokolicznik dla czasowników).
+            const needsForcedLemmatization = !aiResponse.lemma || aiResponse.lemma === foundForm
 
-WAŻNE: NIE ZMIENIAJ SŁÓW NA INNE! Tylko zmień formę gramatyczną.
-- "decyzją stwierdzającą" → "decyzja stwierdzająca" ✓
-- "właściwymi organami" → "właściwy organ" ✓
-- "uprawnienia" → "uprawnienie" ✓ (NIE "uprawniony"!)
-
-Wyrażenie do lemmatyzacji: "${foundForm}"
-
-Odpowiedz TYLKO formą podstawową, bez żadnych wyjaśnień.`
-                  }]
-                })
-
-                const lemmaText = lemmaResponse.content[0].type === 'text'
-                  ? lemmaResponse.content[0].text.trim()
-                  : foundForm
-
-                // Weryfikuj że to nie jest całkowicie inne słowo
-                if (lemmaText && lemmaText.length > 0 && lemmaText.length < foundForm.length * 2) {
-                  lemmaForm = lemmaText
-                  console.log(`   ✅ Separate lemmatization: "${foundForm}" → "${lemmaForm}"`)
-                }
-              } catch (lemmaError) {
-                console.log(`   ❌ Separate lemmatization failed:`, lemmaError)
-              }
-            } else if (aiResponse.lemma === foundForm) {
-              console.log(`   ⚠️  WARNING: lemma equals foundForm - may not be lemmatized: "${foundForm}"`)
+            if (needsForcedLemmatization) {
+              console.log(`   ⚠️  WARNING: AI returned ${!aiResponse.lemma ? 'no lemma' : 'lemma=foundForm'} for "${foundForm}"`)
+              // Zawsze uruchom osobną lemmatyzację dla języków słowiańskich gdy brak lub błędna lemma
+              lemmaForm = await performLemmatization(foundForm)
             } else {
-              console.log(`   ✅ Lemmatization OK: "${foundForm}" → "${aiResponse.lemma}"`)
+              console.log(`   ✅ Lemmatization from AI: "${foundForm}" → "${aiResponse.lemma}"`)
             }
           }
 
