@@ -129,6 +129,8 @@ export async function POST(request: NextRequest) {
     if (languageDetectionResult.language === 'Angielski' || languageDetectionResult.languageCode === 'eng') {
       promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the English text below.
 
+TARGET: Aim to extract AS CLOSE TO ${maxTerms} TERMS AS POSSIBLE. The minimum is ${minTerms}, but you should ALWAYS strive to reach the maximum (${maxTerms}) if the document contains enough specialized terminology. More terms = better glossary coverage.
+
 CRITICAL RULES - READ CAREFULLY:
 1. ANALYZE THE ENTIRE DOCUMENT from beginning to end - do NOT focus only on the initial sections
 2. Extract terms distributed throughout the FULL text, not just from the start
@@ -183,6 +185,8 @@ IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracti
 TEXT TO ANALYZE:`
     } else if (languageDetectionResult.language === 'Polski' || languageDetectionResult.languageCode === 'pol') {
       promptInstructions = `Jesteś ekspertem w ekstrakcji terminologii. Wyekstrahuj ${minTerms}-${maxTerms} najważniejszych SPECJALISTYCZNYCH terminów z poniższego polskiego tekstu.
+
+CEL: Staraj się wyekstrahować JAK NAJBLIŻEJ ${maxTerms} TERMINÓW. Minimum to ${minTerms}, ale ZAWSZE dąż do osiągnięcia maksimum (${maxTerms}), jeśli dokument zawiera wystarczającą ilość specjalistycznej terminologii. Więcej terminów = lepsze pokrycie glosariusza.
 
 KRYTYCZNE ZASADY - PRZECZYTAJ UWAŻNIE:
 1. PRZEANALIZUJ CAŁY DOKUMENT od początku do końca - NIE skupiaj się tylko na początkowych sekcjach
@@ -249,6 +253,8 @@ TEKST DO ANALIZY:`
       const langName = languageDetectionResult.language
       promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the text in ${langName}.
 
+TARGET: Aim to extract AS CLOSE TO ${maxTerms} TERMS AS POSSIBLE. The minimum is ${minTerms}, but you should ALWAYS strive to reach the maximum (${maxTerms}) if the document contains enough specialized terminology. More terms = better glossary coverage.
+
 CRITICAL RULES:
 1. ANALYZE THE ENTIRE DOCUMENT from beginning to end - do NOT focus only on the initial sections
 2. Extract terms distributed throughout the FULL text, not just from the start
@@ -313,6 +319,8 @@ TEXT:`
       // Fallback dla innych języków UE (bez lemmatyzacji)
       const langName = languageDetectionResult.language
       promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the text in ${langName}.
+
+TARGET: Aim to extract AS CLOSE TO ${maxTerms} TERMS AS POSSIBLE. The minimum is ${minTerms}, but you should ALWAYS strive to reach the maximum (${maxTerms}) if the document contains enough specialized terminology. More terms = better glossary coverage.
 
 CRITICAL RULES:
 1. ANALYZE THE ENTIRE DOCUMENT from beginning to end - do NOT focus only on the initial sections
