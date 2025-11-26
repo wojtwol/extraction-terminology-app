@@ -314,7 +314,30 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Jeśli nie znaleziono CELEX, spróbuj sparsować nazwę pliku XML
+      // Jeśli nie znaleziono CELEX w URL, spróbuj wyekstrahować z treści dokumentu
+      if (documentTitle === validUrl.hostname) {
+        // Szukaj CELEX w różnych formatach w treści XML/HTML
+        const celexPatterns = [
+          /<CELEX>(\d+[A-Z]\d+)<\/CELEX>/i,
+          /celex[=:]["']?(\d+[A-Z]\d+)["']?/i,
+          /CELEX[:\s]+(\d+[A-Z]\d+)/i,
+          /cellar[^"]*\/(\d+[A-Z]\d+)/i
+        ]
+
+        for (const pattern of celexPatterns) {
+          const celexInContent = text.match(pattern)
+          if (celexInContent && celexInContent[1]) {
+            const celexFormatted = formatCelexTitle(celexInContent[1], detectedLanguage)
+            if (celexFormatted) {
+              documentTitle = celexFormatted
+              console.log(`✨ Sformatowano CELEX z treści dokumentu: "${documentTitle}"`)
+              break
+            }
+          }
+        }
+      }
+
+      // Jeśli nadal nie znaleziono, spróbuj sparsować nazwę pliku XML
       if (documentTitle === validUrl.hostname) {
         const xmlFilename = validUrl.pathname.split('/').pop()
         if (xmlFilename && xmlFilename.endsWith('.xml')) {
