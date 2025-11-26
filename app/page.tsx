@@ -517,20 +517,31 @@ export default function Home() {
         })
       }, 500)
 
+      // Przygotuj listę istniejących terminów do pominięcia
+      const existingTermsList = terms.map(t => t.term)
+
+      // Dla bardzo długich dokumentów, ogranicz do 400k znaków przy rozbudowie
+      const textForExpansion = documentText.length > 400000
+        ? documentText.substring(0, 400000)
+        : documentText
+
+      console.log(`📊 Tekst do rozbudowy: ${textForExpansion.length.toLocaleString()} znaków (oryginał: ${documentText.length.toLocaleString()})`)
+
       const response = await fetch('/api/extract-terminology', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: documentText,
+          text: textForExpansion,
           apiKey,
           minTerms: terms.length + 5, // Minimum to co już mamy + 5
           maxTerms: newMaxTerms,
           minLength,
           minOccurrences,
           detectedLanguage,
-          caseSensitive: false
+          caseSensitive: false,
+          existingTerms: existingTermsList // Lista terminów do pominięcia
         }),
       })
 
@@ -543,6 +554,14 @@ export default function Home() {
       if (!contentType || !contentType.includes('application/json')) {
         const textResponse = await response.text()
         console.error('❌ Odpowiedź nie jest JSON:', textResponse.substring(0, 500))
+
+        // Sprawdź czy to timeout
+        if (response.status === 504 || textResponse.includes('FUNCTION_INVOCATION_TIMEOUT') || textResponse.includes('timed out')) {
+          throw new Error(language === 'pl'
+            ? 'Przekroczono limit czasu przetwarzania. Dokument jest zbyt długi dla rozbudowy glosariusza.\n\nSpróbuj:\n• Zmniejszyć docelową liczbę terminów\n• Użyć krótszego dokumentu'
+            : 'Processing timeout exceeded. Document is too long for glossary expansion.\n\nTry:\n• Reducing target number of terms\n• Using a shorter document')
+        }
+
         throw new Error(`Serwer zwrócił błąd (status ${response.status}). Sprawdź logi Vercel lub konsolę.`)
       }
 

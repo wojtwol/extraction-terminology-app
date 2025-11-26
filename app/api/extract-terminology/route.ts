@@ -30,7 +30,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    const { text, apiKey, minTerms = 10, maxTerms = 100, minLength = 3, minOccurrences = 1, detectedLanguage = 'nieznany' } = body
+    const { text, apiKey, minTerms = 10, maxTerms = 100, minLength = 3, minOccurrences = 1, detectedLanguage = 'nieznany', existingTerms = [] } = body
+
+    // Jeśli są istniejące terminy, przygotuj instrukcję do ich pominięcia
+    const existingTermsInstruction = existingTerms && existingTerms.length > 0
+      ? `\n\nIMPORTANT: Skip these already extracted terms (do NOT include them in your output):\n${existingTerms.slice(0, 200).join(', ')}\n`
+      : ''
 
     // Walidacja
     if (!text) {
@@ -173,7 +178,7 @@ CONTEXT REQUIREMENTS:
 - Include text BEFORE and AFTER the term for better understanding
 - Should be a complete, readable sentence or phrase
 
-IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.
+IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.${existingTermsInstruction}
 
 TEXT TO ANALYZE:`
     } else if (languageDetectionResult.language === 'Polski' || languageDetectionResult.languageCode === 'pol') {
@@ -236,7 +241,7 @@ Zwróć TYLKO poprawny JSON (bez markdown, bez wyjaśnień):
 
 WYMAGANIA DOTYCZĄCE KONTEKSTU:
 - Kontekst powinien mieć 150-200 znaków
-- Uwzględnij tekst PRZED i PO terminie dla lepszego zrozumienia
+- Uwzględnij tekst PRZED i PO terminie dla lepszego zrozumienia${existingTermsInstruction}
 
 TEKST DO ANALIZY:`
     } else if (isSlavicLanguage) {
@@ -301,7 +306,7 @@ CONTEXT REQUIREMENTS:
 - Include text BEFORE and AFTER the term for better understanding
 - Should be a complete, readable sentence or phrase
 
-IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.
+IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.${existingTermsInstruction}
 
 TEXT:`
     } else {
@@ -348,7 +353,7 @@ CONTEXT REQUIREMENTS:
 - Include text BEFORE and AFTER the term for better understanding
 - Should be a complete, readable sentence or phrase
 
-IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.
+IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.${existingTermsInstruction}
 
 TEXT:`
     }
