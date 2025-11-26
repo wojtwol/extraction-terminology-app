@@ -67,7 +67,7 @@ function findTermOccurrences(text: string, term: string): number[] {
 /**
  * Wyciąga kontekst wokół pierwszego wystąpienia terminu i zaznacza go
  */
-function extractContext(text: string, term: string, contextSize: number = 400): string {
+function extractContext(text: string, term: string, contextSize: number = 700): string {
   const lowerText = text.toLowerCase()
   const lowerTerm = term.toLowerCase()
   const index = lowerText.indexOf(lowerTerm)
@@ -188,16 +188,24 @@ INSTRUCTIONS:
 4. If you cannot find an equivalent, respond with: {"found": false}
 ${needsLemmatization ? `5. MANDATORY LEMMATIZATION for ${targetLanguage}:
    You MUST ALWAYS provide BOTH fields - this is not optional:
-   - "foundForm": copy-paste the EXACT form from the document
+   - "foundForm": copy-paste the EXACT form from the document (VERBATIM, character by character)
    - "lemma": convert to DICTIONARY/BASE form (NOMINATIVE case for nouns, INFINITIVE for verbs)
 
+   !!! ABSOLUTNIE ZAKAZANE - NIE ZMIENIAJ SŁÓW NA INNE !!!
+   Lemmatyzacja to TYLKO zmiana formy gramatycznej, NIE zmiana słowa na inne!
+   - "uprawnienia" (rzeczownik) → "uprawnienie" ✓
+   - "uprawnienia" → "uprawniony" ✗ BŁĄD! To INNE słowo!
+   - "właściwymi" → "właściwy" ✓
+   - "właściwymi" → "właściwość" ✗ BŁĄD! To INNE słowo!
+
    CRITICAL: The "lemma" field MUST be DIFFERENT from "foundForm" if the word is inflected!
+   CRITICAL: NEVER change words to different words - only change grammatical form!
 
    LEMMATIZATION RULES:
-   - Nouns: convert to NOMINATIVE SINGULAR (mianownik)
-   - Adjectives: convert to NOMINATIVE SINGULAR MASCULINE
-   - Verbs: convert to INFINITIVE (bezokolicznik)
-   - For multi-word terms: lemmatize EACH word separately
+   - Nouns: convert to NOMINATIVE SINGULAR (mianownik) - SAME WORD, different case
+   - Adjectives: convert to NOMINATIVE SINGULAR MASCULINE - SAME WORD, different case
+   - Verbs: convert to INFINITIVE (bezokolicznik) - SAME VERB
+   - For multi-word terms: lemmatize EACH word separately (keeping the SAME words)
 
    EXAMPLES (foundForm → lemma):
    - "decyzją stwierdzającą" → "decyzja stwierdzająca" (instrumental→nominative)
@@ -206,6 +214,8 @@ ${needsLemmatization ? `5. MANDATORY LEMMATIZATION for ${targetLanguage}:
    - "postępowania karnego" → "postępowanie karne" (genitive→nominative)
    - "decyzji Rady" → "decyzja Rady" (genitive→nominative)
    - "dyrektora administracyjnego" → "dyrektor administracyjny" (genitive→nominative)
+   - "uprawnień" → "uprawnienie" (NOT "uprawniony"!)
+   - "postanowieniu" → "postanowienie" (NOT "postanawiać"!)
 
    If foundForm is already in nominative, lemma should be the same as foundForm.` : ''}
 
@@ -280,7 +290,7 @@ Or if not found: {"found": false}`
 
           if (positions.length > 0) {
             // Znaleziono w oknie - potwierdzone
-            const rawContext = extractContext(targetWindow.text, foundForm, 400)
+            const rawContext = extractContext(targetWindow.text, foundForm, 700)
             // Zaznacz znalezioną formę w kontekście
             const highlightedContext = highlightTermInContext(rawContext, foundForm)
 
