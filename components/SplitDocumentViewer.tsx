@@ -49,7 +49,7 @@ export default function SplitDocumentViewer({
         })
       })
 
-      return html.replace(/\n/g, '<br>')
+      return html
     }
 
     // Przygotuj HTML dla dokumentu docelowego
@@ -57,17 +57,20 @@ export default function SplitDocumentViewer({
       let html = targetDocumentText
 
       // Zaznacz wszystkie terminy docelowe na czerwono
+      // Używaj targetFoundForm (forma fleksyjna z dokumentu) zamiast targetTerm (lemma)
       terms.forEach(term => {
-        if (!term.targetTerm) return
+        // Użyj targetFoundForm jeśli dostępne, inaczej targetTerm
+        const termToHighlight = term.targetFoundForm || term.targetTerm
+        if (!termToHighlight) return
 
-        const regex = new RegExp(`(${escapeRegex(term.targetTerm)})`, 'gi')
+        const regex = new RegExp(`(${escapeRegex(termToHighlight)})`, 'gi')
         html = html.replace(regex, (match) => {
           const isSelected = selectedTerm?.id === term.id
           return `<mark class="${isSelected ? 'bg-red-600 text-white font-bold' : 'bg-red-200 text-red-900'}">${match}</mark>`
         })
       })
 
-      return html.replace(/\n/g, '<br>')
+      return html
     }
 
     setSourceHtml(prepareSourceHtml())
@@ -205,7 +208,7 @@ export default function SplitDocumentViewer({
           </div>
           <div
             ref={sourceRef}
-            className="p-4 bg-gray-50 overflow-y-auto max-h-[600px] text-sm leading-relaxed"
+            className="p-4 bg-gray-50 overflow-y-auto max-h-[600px] text-sm leading-relaxed whitespace-pre-wrap"
             dangerouslySetInnerHTML={{ __html: sourceHtml }}
             onScroll={handleScroll('source')}
           />
@@ -224,7 +227,7 @@ export default function SplitDocumentViewer({
           </div>
           <div
             ref={targetRef}
-            className="p-4 bg-gray-50 overflow-y-auto max-h-[600px] text-sm leading-relaxed"
+            className="p-4 bg-gray-50 overflow-y-auto max-h-[600px] text-sm leading-relaxed whitespace-pre-wrap"
             dangerouslySetInnerHTML={{ __html: targetHtml }}
             onScroll={handleScroll('target')}
           />
