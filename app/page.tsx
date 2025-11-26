@@ -639,7 +639,20 @@ export default function Home() {
     } catch (error) {
       console.error('❌ Błąd rozbudowy:', error)
       const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
-      alert(`❌ Błąd rozbudowy:\n\n${errorMessage}`)
+
+      // Obsługa błędów sieciowych
+      let userMessage = errorMessage
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION')) {
+        userMessage = language === 'pl'
+          ? 'Połączenie z serwerem zostało przerwane. Dokument może być zbyt długi dla jednorazowego przetwarzania.\n\nSpróbuj:\n• Zmniejszyć docelową liczbę terminów (np. do 150)\n• Podzielić dokument na mniejsze części'
+          : 'Connection to server was interrupted. Document may be too long for single processing.\n\nTry:\n• Reducing target number of terms (e.g. to 150)\n• Splitting document into smaller parts'
+      }
+
+      setNotification({
+        type: 'error',
+        message: language === 'pl' ? 'Błąd rozbudowy glosariusza' : 'Glossary expansion error',
+        details: userMessage
+      })
       setProgress(0)
     } finally {
       setIsLoading(false)
