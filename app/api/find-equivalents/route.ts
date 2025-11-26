@@ -186,14 +186,24 @@ INSTRUCTIONS:
 2. The equivalent should be in the same semantic position (similar context)
 3. The term must exist verbatim in the target fragment
 4. If you cannot find an equivalent, respond with: {"found": false}
-${needsLemmatization ? `5. IMPORTANT: For ${targetLanguage}, provide both:
-   - "foundForm": the exact form as it appears in the document (e.g., "właściwymi organami")
-   - "lemma": the dictionary/base form of the term (e.g., "właściwy organ" for nouns in nominative singular/plural, adjectives in nominative)
-   For multi-word terms, lemmatize each word to its base form.` : ''}
+${needsLemmatization ? `5. CRITICAL - LEMMATIZATION for ${targetLanguage}:
+   You MUST provide BOTH fields:
+   - "foundForm": the EXACT form as it appears in the document (copy-paste from text)
+   - "lemma": the DICTIONARY/BASE form (nouns in NOMINATIVE, verbs in INFINITIVE, adjectives in NOMINATIVE SINGULAR MASCULINE)
+
+   LEMMATIZATION EXAMPLES:
+   - "właściwymi organami" → lemma: "właściwy organ" (nominative singular)
+   - "dyrektora administracyjnego" → lemma: "dyrektor administracyjny" (nominative)
+   - "postępowania karnego" → lemma: "postępowanie karne" (nominative)
+   - "decyzją stwierdzającą odpowiedni poziom" → lemma: "decyzja stwierdzająca odpowiedni poziom" (nominative)
+   - "zautomatyzowanego systemu zarządzania sprawami" → lemma: "zautomatyzowany system zarządzania sprawami" (nominative)
+
+   For multi-word terms, convert EACH word to its base/dictionary form.
+   The lemma field is REQUIRED - do not skip it!` : ''}
 
 Respond with JSON only:
 ${needsLemmatization
-  ? '{"found": true, "foundForm": "exact form from text", "lemma": "dictionary base form"}'
+  ? '{"found": true, "foundForm": "exact form from text", "lemma": "dictionary base form in nominative"}'
   : '{"found": true, "term": "exact term from text"}'
 }
 Or if not found: {"found": false}`

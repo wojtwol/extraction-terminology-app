@@ -175,6 +175,48 @@ export default function TerminologyTable({
     return parts.length > 0 ? <>{parts}</> : context
   }
 
+  // Funkcja do renderowania kontekstu z markdown **bold** jako wyróżniony tekst
+  // Używana dla kontekstów z serwera które już zawierają **term** markers
+  const renderContextWithMarkdownHighlight = (context: string) => {
+    if (!context) return null
+
+    const parts: JSX.Element[] = []
+    const regex = /\*\*([^*]+)\*\*/g
+    let lastIndex = 0
+    let match
+
+    while ((match = regex.exec(context)) !== null) {
+      // Dodaj tekst przed wyróżnieniem
+      if (match.index > lastIndex) {
+        parts.push(
+          <span key={`text-${lastIndex}`}>
+            {context.substring(lastIndex, match.index)}
+          </span>
+        )
+      }
+
+      // Dodaj wyróżniony tekst (bez **)
+      parts.push(
+        <span key={`bold-${match.index}`} className="text-red-600 font-semibold">
+          {match[1]}
+        </span>
+      )
+
+      lastIndex = match.index + match[0].length
+    }
+
+    // Dodaj pozostały tekst
+    if (lastIndex < context.length) {
+      parts.push(
+        <span key={`text-${lastIndex}`}>
+          {context.substring(lastIndex)}
+        </span>
+      )
+    }
+
+    return parts.length > 0 ? <>{parts}</> : context
+  }
+
   const handleDelete = (id: string, termName: string) => {
     setDeleteConfirm({ id, termName })
   }
@@ -638,12 +680,8 @@ export default function TerminologyTable({
                     <td className="px-3 py-3 text-sm text-gray-600">
                       {term.targetContext ? (
                         <div className="line-clamp-2" title={term.targetContext.replace(/\*\*/g, '')}>
-                          {/* Użyj targetFoundForm do zaznaczania (forma fleksyjna) lub renderuj markdown **term** */}
-                          {term.targetFoundForm
-                            ? highlightTermInContext(term.targetContext.replace(/\*\*/g, ''), term.targetFoundForm)
-                            : term.targetTerm
-                              ? highlightTermInContext(term.targetContext.replace(/\*\*/g, ''), term.targetTerm)
-                              : term.targetContext.replace(/\*\*/g, '')}
+                          {/* Renderuj markdown **term** jako wyróżniony tekst - serwer już zaznaczył terminy */}
+                          {renderContextWithMarkdownHighlight(term.targetContext)}
                         </div>
                       ) : (
                         <span className="text-gray-400 italic">
