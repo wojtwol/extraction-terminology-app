@@ -285,9 +285,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (text.length > 800000) {
+    if (text.length > 1500000) {
       return NextResponse.json(
-        { error: `Pobrana zawartość jest zbyt duża (${text.length.toLocaleString()} znaków). Maksymalnie 800,000 znaków (~300 stron).` },
+        { error: `Pobrana zawartość jest zbyt duża (${text.length.toLocaleString()} znaków). Maksymalnie 1,500,000 znaków (~500 stron).` },
         { status: 400 }
       )
     }

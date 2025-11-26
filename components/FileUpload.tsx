@@ -82,10 +82,10 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
         return
       }
 
-      if (text.length > 800000) {
+      if (text.length > 1500000) {
         alert(language === 'pl'
-          ? `Dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 800,000 znaków (ok. 300 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
-          : `Document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 800,000 characters (~300 pages).\n\nSplit the document into smaller parts and process them separately.`)
+          ? `Dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 1,500,000 znaków (ok. 500 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
+          : `Document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 1,500,000 characters (~500 pages).\n\nSplit the document into smaller parts and process them separately.`)
         return
       }
 
@@ -138,10 +138,10 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
       return
     }
 
-    if (pastedText.length > 800000) {
+    if (pastedText.length > 1500000) {
       alert(language === 'pl'
-        ? `Tekst jest zbyt długi (${pastedText.length.toLocaleString()} znaków).\n\nMaksymalna długość: 800,000 znaków (ok. 300 stron).\n\nPodziel tekst na mniejsze fragmenty i przetwarzaj je osobno.`
-        : `Text is too long (${pastedText.length.toLocaleString()} characters).\n\nMaximum length: 800,000 characters (~300 pages).\n\nSplit the text into smaller parts and process them separately.`)
+        ? `Tekst jest zbyt długi (${pastedText.length.toLocaleString()} znaków).\n\nMaksymalna długość: 1,500,000 znaków (ok. 500 stron).\n\nPodziel tekst na mniejsze fragmenty i przetwarzaj je osobno.`
+        : `Text is too long (${pastedText.length.toLocaleString()} characters).\n\nMaximum length: 1,500,000 characters (~500 pages).\n\nSplit the text into smaller parts and process them separately.`)
       return
     }
 
@@ -195,10 +195,10 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
         return
       }
 
-      if (text.length > 800000) {
+      if (text.length > 1500000) {
         alert(language === 'pl'
-          ? `Pobrany dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 800,000 znaków (ok. 300 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
-          : `Fetched document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 800,000 characters (~300 pages).\n\nSplit the document into smaller parts and process them separately.`)
+          ? `Pobrany dokument jest zbyt długi (${text.length.toLocaleString()} znaków).\n\nMaksymalna długość: 1,500,000 znaków (ok. 500 stron).\n\nPodziel dokument na mniejsze fragmenty i przetwarzaj je osobno.`
+          : `Fetched document is too long (${text.length.toLocaleString()} characters).\n\nMaximum length: 1,500,000 characters (~500 pages).\n\nSplit the document into smaller parts and process them separately.`)
         return
       }
 
@@ -419,10 +419,10 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
               {pastedText.length > 0 && pastedText.length < 50 && (
                 <span className="text-orange-600 ml-2">({t.minCharacters})</span>
               )}
-              {pastedText.length > 800000 && (
+              {pastedText.length > 1500000 && (
                 <span className="text-red-600 ml-2 font-semibold">({t.limitExceeded})</span>
               )}
-              {pastedText.length > 400000 && pastedText.length <= 800000 && (
+              {pastedText.length > 400000 && pastedText.length <= 1500000 && (
                 <span className="text-orange-600 ml-2">({t.largeDocumentWarning})</span>
               )}
             </span>
@@ -433,7 +433,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
 
           <button
             onClick={handleTextSubmit}
-            disabled={isLoading || !pastedText.trim() || pastedText.length < 50 || pastedText.length > 800000}
+            disabled={isLoading || !pastedText.trim() || pastedText.length < 50 || pastedText.length > 1500000}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {isLoading ? t.analyzing : t.analyzeText}
