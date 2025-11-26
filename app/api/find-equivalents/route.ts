@@ -67,7 +67,7 @@ function findTermOccurrences(text: string, term: string): number[] {
 /**
  * Wyciąga kontekst wokół pierwszego wystąpienia terminu i zaznacza go
  */
-function extractContext(text: string, term: string, contextSize: number = 700): string {
+function extractContext(text: string, term: string, contextSize: number = 900): string {
   const lowerText = text.toLowerCase()
   const lowerTerm = term.toLowerCase()
   const index = lowerText.indexOf(lowerTerm)
@@ -274,14 +274,50 @@ Or if not found: {"found": false}`
         } else {
           // Znaleziono ekwiwalent
           const foundForm = aiResponse.foundForm || aiResponse.term || ''
-          const lemmaForm = aiResponse.lemma || foundForm  // Użyj lemmy jeśli dostępna, inaczej foundForm
+          let lemmaForm = aiResponse.lemma || foundForm  // Użyj lemmy jeśli dostępna, inaczej foundForm
 
           // Log dla debugowania lemmatyzacji
           if (needsLemmatization) {
             if (!aiResponse.lemma) {
               console.log(`   ⚠️  WARNING: AI did not return lemma field for "${foundForm}"`)
+              // Spróbuj wymusić lemmatyzację osobnym zapytaniem
+              try {
+                console.log(`   🔄 Attempting separate lemmatization request...`)
+                const lemmaResponse = await client.messages.create({
+                  model: 'claude-3-5-sonnet-20241022',
+                  max_tokens: 100,
+                  temperature: 0,
+                  messages: [{
+                    role: 'user',
+                    content: `Zamień polskie wyrażenie na formę podstawową (mianownik dla rzeczowników, bezokolicznik dla czasowników).
+
+WAŻNE: NIE ZMIENIAJ SŁÓW NA INNE! Tylko zmień formę gramatyczną.
+- "decyzją stwierdzającą" → "decyzja stwierdzająca" ✓
+- "właściwymi organami" → "właściwy organ" ✓
+- "uprawnienia" → "uprawnienie" ✓ (NIE "uprawniony"!)
+
+Wyrażenie do lemmatyzacji: "${foundForm}"
+
+Odpowiedz TYLKO formą podstawową, bez żadnych wyjaśnień.`
+                  }]
+                })
+
+                const lemmaText = lemmaResponse.content[0].type === 'text'
+                  ? lemmaResponse.content[0].text.trim()
+                  : foundForm
+
+                // Weryfikuj że to nie jest całkowicie inne słowo
+                if (lemmaText && lemmaText.length > 0 && lemmaText.length < foundForm.length * 2) {
+                  lemmaForm = lemmaText
+                  console.log(`   ✅ Separate lemmatization: "${foundForm}" → "${lemmaForm}"`)
+                }
+              } catch (lemmaError) {
+                console.log(`   ❌ Separate lemmatization failed:`, lemmaError)
+              }
             } else if (aiResponse.lemma === foundForm) {
               console.log(`   ⚠️  WARNING: lemma equals foundForm - may not be lemmatized: "${foundForm}"`)
+            } else {
+              console.log(`   ✅ Lemmatization OK: "${foundForm}" → "${aiResponse.lemma}"`)
             }
           }
 
@@ -290,7 +326,7 @@ Or if not found: {"found": false}`
 
           if (positions.length > 0) {
             // Znaleziono w oknie - potwierdzone
-            const rawContext = extractContext(targetWindow.text, foundForm, 700)
+            const rawContext = extractContext(targetWindow.text, foundForm, 900)
             // Zaznacz znalezioną formę w kontekście
             const highlightedContext = highlightTermInContext(rawContext, foundForm)
 
