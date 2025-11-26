@@ -1001,70 +1001,68 @@ function extractFoundFormFromContext(term: string, context: string, fullText: st
   // Rozdziel termin na słowa
   const termWords = term.toLowerCase().split(/\s+/)
 
-  // Dla terminów wielowyrazowych, szukamy sekwencji słów w dokumencie
-  // które mają podobne rdzenie do słów w terminie
-
-  // Pobierz rdzeń każdego słowa (pierwsze 4-6 znaków, w zależności od długości)
+  // Pobierz rdzeń każdego słowa (pierwsze 3-5 znaków, w zależności od długości)
   const stems = termWords.map(word => {
-    if (word.length <= 4) return word
-    if (word.length <= 6) return word.substring(0, 4)
-    return word.substring(0, Math.min(5, word.length - 2))
+    if (word.length <= 3) return word
+    if (word.length <= 5) return word.substring(0, 3)
+    return word.substring(0, Math.min(4, word.length - 2))
   })
+
+  // Funkcja do ekstrakcji wszystkich słów z tekstu (Unicode-aware)
+  const extractWords = (text: string): Array<{word: string, start: number, end: number}> => {
+    const words: Array<{word: string, start: number, end: number}> = []
+    let i = 0
+    while (i < text.length) {
+      // Pomiń nie-litery
+      while (i < text.length && !isWordChar(text[i])) {
+        i++
+      }
+      if (i >= text.length) break
+
+      // Zbierz słowo
+      const start = i
+      while (i < text.length && isWordChar(text[i])) {
+        i++
+      }
+      const word = text.substring(start, i)
+      if (word.length > 0) {
+        words.push({ word, start, end: i })
+      }
+    }
+    return words
+  }
 
   // Funkcja do szukania formy w tekście
   const findFormInText = (searchText: string): string | null => {
-    const searchLower = searchText.toLowerCase()
+    const words = extractWords(searchText)
 
     // Dla jednowyrazowego terminu
     if (termWords.length === 1) {
       const stem = stems[0]
-      // Znajdź słowo zaczynające się od tego rdzenia
-      const regex = new RegExp(`\\b(${escapeRegex(stem)}[a-ząćęłńóśźżäöüßčďěňřšťůžőű]*)\\b`, 'gi')
-      const matches = searchText.match(regex)
-      if (matches && matches.length > 0) {
-        return matches[0]
+      for (const { word } of words) {
+        if (word.toLowerCase().startsWith(stem)) {
+          return word
+        }
       }
       return null
     }
 
-    // Dla wielowyrazowego terminu - szukaj sekwencji
-    // Najpierw szukaj pierwszego słowa, potem sprawdź czy kolejne słowa pasują
-    const firstStem = stems[0]
-    const regex = new RegExp(`\\b${escapeRegex(firstStem)}[a-ząćęłńóśźżäöüßčďěňřšťůžőű]*\\b`, 'gi')
+    // Dla wielowyrazowego terminu - szukaj sekwencji słów z pasującymi rdzeniami
+    for (let i = 0; i <= words.length - stems.length; i++) {
+      let allMatch = true
+      const matchedWords: string[] = []
 
-    let match
-    while ((match = regex.exec(searchText)) !== null) {
-      const startIndex = match.index
-
-      // Spróbuj wyekstrahować pełny termin zaczynając od tej pozycji
-      // Szukamy sekwencji słów które pasują do naszych rdzeni
-      let currentPos = startIndex
-      const extractedWords: string[] = []
-      let allStemsMatch = true
-
-      for (let i = 0; i < stems.length; i++) {
-        // Znajdź następne słowo zaczynając od currentPos
-        const wordMatch = searchText.substring(currentPos).match(/^\s*([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻäöüßčďěňřšťůžČĎĚŇŘŠŤŮŽőűŐŰ]+)/)
-        if (!wordMatch) {
-          allStemsMatch = false
+      for (let j = 0; j < stems.length; j++) {
+        const wordLower = words[i + j].word.toLowerCase()
+        if (!wordLower.startsWith(stems[j])) {
+          allMatch = false
           break
         }
-
-        const word = wordMatch[1]
-        const wordLower = word.toLowerCase()
-
-        // Sprawdź czy słowo zaczyna się od oczekiwanego rdzenia
-        if (!wordLower.startsWith(stems[i])) {
-          allStemsMatch = false
-          break
-        }
-
-        extractedWords.push(word)
-        currentPos += wordMatch[0].length
+        matchedWords.push(words[i + j].word)
       }
 
-      if (allStemsMatch && extractedWords.length === stems.length) {
-        return extractedWords.join(' ')
+      if (allMatch) {
+        return matchedWords.join(' ')
       }
     }
 
