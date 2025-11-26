@@ -645,20 +645,43 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-// Funkcja pomocnicza do znajdowania pozycji terminu w tekście (case insensitive)
+// Funkcja pomocnicza do sprawdzania czy znak jest literą (wspiera polskie i inne europejskie znaki)
+function isWordChar(char: string): boolean {
+  if (!char) return false
+  // Sprawdź czy znak jest literą (włącznie z polskimi i innymi europejskimi znakami) lub cyfrą
+  // Zamiast /\p{L}/u używamy explicite listy znaków dla kompatybilności
+  return /[a-zA-Z0-9àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿąćęłńóśźżĄĆĘŁŃÓŚŹŻčďěňřšťůžČĎĚŇŘŠŤŮŽőűŐŰßÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞāēīōūĀĒĪŌŪ]/i.test(char)
+}
+
 function findTermPositions(text: string, term: string): number[] {
   const positions: number[] = []
-  const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, 'gi') // case insensitive
-  const matches = Array.from(text.matchAll(regex))
+  const lowerText = text.toLowerCase()
+  const lowerTerm = term.toLowerCase()
 
-  matches.forEach(match => {
-    if (match.index !== undefined) {
-      positions.push(match.index)
+  let startIndex = 0
+  while (startIndex < lowerText.length) {
+    const index = lowerText.indexOf(lowerTerm, startIndex)
+    if (index === -1) break
+
+    // Sprawdź czy to pełne słowo (Unicode-aware word boundaries)
+    const charBefore = index > 0 ? text[index - 1] : ''
+    const charAfter = text[index + term.length] || ''
+
+    // Akceptuj jeśli przed i po terminie nie ma liter/cyfr
+    const isWordStart = !isWordChar(charBefore)
+    const isWordEnd = !isWordChar(charAfter)
+
+    if (isWordStart && isWordEnd) {
+      positions.push(index)
     }
-  })
 
-  // Ogranicz do 100 wystąpień (dla wydajności)
-  return positions.slice(0, 100)
+    startIndex = index + 1
+
+    // Ogranicz do 100 wystąpień (dla wydajności)
+    if (positions.length >= 100) break
+  }
+
+  return positions
 }
 
 // Normalizacja liczby mnogiej do pojedynczej (angielski)
