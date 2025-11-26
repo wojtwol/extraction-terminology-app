@@ -444,12 +444,15 @@ export async function POST(request: NextRequest) {
     if (cleanedText.length < 50) {
       console.error(`❌ Tekst zbyt krótki: ${cleanedText.length} znaków`)
       console.error(`Całość tekstu: "${cleanedText}"`)
+      console.error(`🔍 Surowy HTML (pierwsze 1000 znaków): ${text.substring(0, 1000)}`)
       return NextResponse.json(
         {
           error: `Po przetworzeniu HTML tekst jest zbyt krótki (${cleanedText.length} znaków). Możliwe że strona używa JavaScript do dynamicznego ładowania treści lub ma nietypową strukturę. Spróbuj:\n1. Skopiować tekst ze strony i wkleić go w zakładce "Wklej tekst"\n2. Użyć innego URL (np. wersji do druku)\n3. Zapisać stronę jako PDF i wczytać plik`,
           originalLength: text.length,
           cleanedLength: cleanedText.length,
-          sample: cleanedText.substring(0, 200)
+          sample: cleanedText.substring(0, 200),
+          rawHtmlSample: text.substring(0, 500),
+          contentType
         },
         { status: 400 }
       )
