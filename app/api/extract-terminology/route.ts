@@ -196,18 +196,28 @@ TYPY TERMINÓW DO EKSTRAKCJI:
 - Przymiotniki specjalistyczne w połączeniu z rzeczownikami
 - Zwroty prawnicze i techniczne
 
-WAŻNE - LEMMATYZACJA (FORMA PODSTAWOWA):
-- Dla każdego terminu podaj DWA pola:
+!!! KRYTYCZNE - POLE "foundForm" JEST OBOWIĄZKOWE !!!
+Dla KAŻDEGO terminu MUSISZ podać OBA pola - bez wyjątków:
   - "term": forma PODSTAWOWA (słownikowa) - rzeczowniki w MIANOWNIKU, czasowniki w BEZOKOLICZNIKU
-  - "foundForm": forma DOKŁADNIE tak jak występuje w dokumencie
-- Przykłady dla RZECZOWNIKÓW:
-  - W dokumencie: "właściwymi organami" → term: "właściwy organ", foundForm: "właściwymi organami"
-  - W dokumencie: "postępowania karnego" → term: "postępowanie karne", foundForm: "postępowania karnego"
-- Przykłady dla CZASOWNIKÓW i KOLOKACJI:
-  - W dokumencie: "wydał wyrok" → term: "wydać wyrok", foundForm: "wydał wyrok"
-  - W dokumencie: "przedstawiono zarzuty" → term: "przedstawić zarzuty", foundForm: "przedstawiono zarzuty"
-  - W dokumencie: "wszczęto postępowanie" → term: "wszcząć postępowanie", foundForm: "wszczęto postępowanie"
-  - W dokumencie: "dokonując zatrzymania" → term: "dokonać zatrzymania", foundForm: "dokonując zatrzymania"
+  - "foundForm": forma DOKŁADNIE tak jak występuje w dokumencie (SKOPIUJ TEKST Z DOKUMENTU!)
+
+JEŚLI POMINIESZ POLE "foundForm", TERMIN ZOSTANIE ODRZUCONY! To pole jest NIEZBĘDNE do działania systemu.
+
+PRZYKŁADY POPRAWNEJ EKSTRAKCJI:
+- W dokumencie widzisz: "właściwymi organami"
+  → {"term": "właściwy organ", "foundForm": "właściwymi organami", ...}
+- W dokumencie widzisz: "postępowania karnego"
+  → {"term": "postępowanie karne", "foundForm": "postępowania karnego", ...}
+- W dokumencie widzisz: "wydał wyrok"
+  → {"term": "wydać wyrok", "foundForm": "wydał wyrok", ...}
+- W dokumencie widzisz: "przedstawiono zarzuty"
+  → {"term": "przedstawić zarzuty", "foundForm": "przedstawiono zarzuty", ...}
+- W dokumencie widzisz: "wszczęto postępowanie"
+  → {"term": "wszcząć postępowanie", "foundForm": "wszczęto postępowanie", ...}
+- W dokumencie widzisz: "dokonując zatrzymania"
+  → {"term": "dokonać zatrzymania", "foundForm": "dokonując zatrzymania", ...}
+
+WAŻNE: "foundForm" MUSI być DOKŁADNIE takie jak w dokumencie - skopiuj tekst, nie twórz nowej formy!
 
 WAŻNE: Wiele terminów to frazy wielowyrazowe - ekstrahuj PEŁNY specjalistyczny termin, nie pojedyncze słowa!
 
@@ -221,7 +231,7 @@ KRYTERIA:
 Zwróć TYLKO poprawny JSON (bez markdown, bez wyjaśnień):
 {
   "terms": [
-    {"term": "forma podstawowa terminu", "foundForm": "forma z dokumentu", "context": "...otaczający tekst po polsku (150-200 znaków, uwzględnij tekst przed i po terminie)...", "occurrences": liczba}
+    {"term": "forma podstawowa", "foundForm": "forma z dokumentu", "context": "...otaczający tekst (150-200 znaków)...", "occurrences": liczba}
   ]
 }
 
@@ -256,16 +266,24 @@ TYPES OF TERMS TO EXTRACT:
 - Specialized adjective+noun combinations
 - Legal and technical phrases
 
-IMPORTANT - LEMMATIZATION (BASE FORM):
-- For each term provide TWO fields:
+!!! CRITICAL - "foundForm" FIELD IS MANDATORY !!!
+For EVERY term you MUST provide BOTH fields - no exceptions:
   - "term": the BASE/DICTIONARY form - nouns in NOMINATIVE case, verbs in INFINITIVE
-  - "foundForm": the EXACT form as it appears in the document
-- Examples for NOUNS (Czech):
-  - In document: "trestního řízení" → term: "trestní řízení", foundForm: "trestního řízení"
-  - In document: "příslušných orgánů" → term: "příslušný orgán", foundForm: "příslušných orgánů"
-- Examples for VERB COLLOCATIONS:
-  - In document: "zahájil řízení" → term: "zahájit řízení", foundForm: "zahájil řízení"
-  - In document: "vydal rozsudek" → term: "vydat rozsudek", foundForm: "vydal rozsudek"
+  - "foundForm": the EXACT form as it appears in the document (COPY TEXT FROM DOCUMENT!)
+
+IF YOU OMIT "foundForm", THE TERM WILL BE REJECTED! This field is REQUIRED for the system to work.
+
+EXAMPLES OF CORRECT EXTRACTION:
+- In document you see: "trestního řízení"
+  → {"term": "trestní řízení", "foundForm": "trestního řízení", ...}
+- In document you see: "příslušných orgánů"
+  → {"term": "příslušný orgán", "foundForm": "příslušných orgánů", ...}
+- In document you see: "zahájil řízení"
+  → {"term": "zahájit řízení", "foundForm": "zahájil řízení", ...}
+- In document you see: "vydal rozsudek"
+  → {"term": "vydat rozsudek", "foundForm": "vydal rozsudek", ...}
+
+IMPORTANT: "foundForm" MUST be EXACTLY as in document - copy text, don't create a new form!
 
 IMPORTANT: Many terms are multi-word phrases - extract the FULL specialized term, not individual words!
 
@@ -423,6 +441,26 @@ TEXT:`
       }
 
       console.log(`   📊 Część ${chunkNumber}: Claude zwrócił ${parsedResponse.terms.length} terminów`)
+
+      // Debug: loguj pierwsze 3 terminy, aby zobaczyć format
+      if (parsedResponse.terms.length > 0) {
+        console.log(`   🔍 Przykładowe terminy:`)
+        parsedResponse.terms.slice(0, 3).forEach((t: any, idx: number) => {
+          console.log(`      ${idx + 1}. term="${t.term}", foundForm="${t.foundForm || 'BRAK'}", context="${(t.context || '').substring(0, 50)}..."`)
+        })
+      }
+
+      // Dla języków słowiańskich - sprawdź czy foundForm jest zwracane
+      if (isSlavicLanguage) {
+        const termsWithoutFoundForm = parsedResponse.terms.filter((t: any) => t && t.term && !t.foundForm)
+        if (termsWithoutFoundForm.length > 0) {
+          console.log(`   ⚠️  ${termsWithoutFoundForm.length} terminów BEZ foundForm - użyję term jako foundForm`)
+          // Automatycznie ustaw foundForm = term jeśli brakuje (fallback)
+          termsWithoutFoundForm.forEach((t: any) => {
+            t.foundForm = t.term
+          })
+        }
+      }
 
       // Dodaj terminy z tego chunka do kolekcji
       allChunkTerms.push(...parsedResponse.terms.filter((term: any) => term && term.term))
