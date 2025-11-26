@@ -14,6 +14,7 @@ import { Project, Glossary, GlossaryVersion, projectStorage, SourceDocument } fr
 import { normalizeTermForComparison, areTermVariants, getPreferredTermForm, convertToSingular, normalizeSourceDocumentName } from '@/utils/termNormalization'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { ToastContainer, useToast } from '@/components/Toast'
+import BaseFormModal from '@/components/BaseFormModal'
 
 // Kontekst terminu w pojedynczym dokumencie
 export interface TermContext {
@@ -124,6 +125,18 @@ async function detectLanguageAPI(text: string): Promise<string> {
 export default function Home() {
   const { t, language } = useLanguage()
   const toast = useToast()
+
+  // Stan dla modala formy podstawowej
+  const [baseFormModal, setBaseFormModal] = useState<{
+    isOpen: boolean
+    foundForm: string
+    pendingTermData: {
+      positions: number[]
+      context: string
+      occurrences: number
+    } | null
+  }>({ isOpen: false, foundForm: '', pendingTermData: null })
+
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [documentText, setDocumentText] = useState('')
@@ -2055,28 +2068,28 @@ export default function Home() {
       detectedLanguage.toLowerCase().includes(lang.toLowerCase())
     )
 
-    let baseTerm = trimmedTerm
-    let foundForm: string | undefined = undefined
-
-    // Dla języków słowiańskich - poproś użytkownika o formę podstawową
+    // Dla języków słowiańskich - otwórz modal do podania formy podstawowej
     if (needsLemmatization) {
-      const userBaseTerm = prompt(
-        language === 'pl'
-          ? `Podaj formę podstawową terminu (mianownik dla rzeczowników, bezokolicznik dla czasowników):\n\nZnaleziono w dokumencie: "${trimmedTerm}"\n\nForma podstawowa:`
-          : `Enter the base form of the term (nominative for nouns, infinitive for verbs):\n\nFound in document: "${trimmedTerm}"\n\nBase form:`,
-        trimmedTerm
-      )
-
-      if (!userBaseTerm) {
-        // Użytkownik anulował - nie dodawaj terminu
-        return
-      }
-
-      baseTerm = userBaseTerm.trim()
-      foundForm = trimmedTerm // Zaznaczony tekst = foundForm
+      setBaseFormModal({
+        isOpen: true,
+        foundForm: trimmedTerm,
+        pendingTermData: { positions, context, occurrences }
+      })
+      return
     }
 
-    // Utwórz nowy termin
+    // Dla innych języków - dodaj termin bezpośrednio
+    addTermToGlossary(trimmedTerm, undefined, positions, context, occurrences)
+  }
+
+  // Funkcja pomocnicza do dodawania terminu
+  const addTermToGlossary = (
+    baseTerm: string,
+    foundForm: string | undefined,
+    positions: number[],
+    context: string,
+    occurrences: number
+  ) => {
     const newTerm: Term = {
       id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       term: baseTerm,
@@ -2088,7 +2101,6 @@ export default function Home() {
       definitionSource: null
     }
 
-    // Dodaj do listy terminów
     const updatedTerms = [...terms, newTerm]
     handleTermUpdate(updatedTerms)
 
@@ -2100,6 +2112,20 @@ export default function Home() {
         : `"${baseTerm}"${foundForm && foundForm !== baseTerm ? `\n(form in document: "${foundForm}")` : ''}\n\nFound ${occurrences} occurrences.`,
       5000
     )
+  }
+
+  // Handler dla potwierdzenia formy podstawowej z modala
+  const handleBaseFormConfirm = (baseTerm: string) => {
+    if (baseFormModal.pendingTermData) {
+      const { positions, context, occurrences } = baseFormModal.pendingTermData
+      addTermToGlossary(baseTerm, baseFormModal.foundForm, positions, context, occurrences)
+    }
+    setBaseFormModal({ isOpen: false, foundForm: '', pendingTermData: null })
+  }
+
+  // Handler dla anulowania modala
+  const handleBaseFormCancel = () => {
+    setBaseFormModal({ isOpen: false, foundForm: '', pendingTermData: null })
   }
 
   // Prompt użytkownika do ręcznego dodania terminu
@@ -3833,6 +3859,15 @@ export default function Home() {
 
       {/* Toast notifications */}
       <ToastContainer toasts={toast.toasts} onClose={toast.closeToast} />
+
+      {/* Modal dla formy podstawowej (języki słowiańskie) */}
+      <BaseFormModal
+        isOpen={baseFormModal.isOpen}
+        foundForm={baseFormModal.foundForm}
+        language={language}
+        onConfirm={handleBaseFormConfirm}
+        onCancel={handleBaseFormCancel}
+      />
     </main>
   )
 }
