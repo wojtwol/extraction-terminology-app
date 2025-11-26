@@ -185,46 +185,40 @@ KRYTYCZNE ZASADY - PRZECZYTAJ UWAŻNIE:
 3. Skup się tylko na terminach specjalistycznych/technicznych/prawnych/domenowych
 4. Unikaj zwykłych słów jak "oraz", "który", "jest", itp.
 5. TYLKO ekstrahuj terminy POLSKIE - jeśli dokument zawiera terminy angielskie/niemieckie/francuskie, POMIŃ je całkowicie
-6. Jeśli termin występuje w wielu językach (np. "współpraca" i "cooperation"), ekstrahuj TYLKO wersję POLSKĄ
 
 TYPY TERMINÓW DO EKSTRAKCJI:
-- Rzeczowniki specjalistyczne: "postępowanie karne", "właściwy organ", "ochrona danych"
-- Czasowniki i KOLOKACJE CZASOWNIKOWE (bardzo ważne!):
-  - "wydać wyrok", "przedstawić zarzuty", "wszcząć postępowanie"
-  - "dokonać zatrzymania", "przeprowadzić dochodzenie", "orzec karę"
-  - "złożyć wniosek", "wnieść oskarżenie", "umorzyć sprawę"
+- Rzeczowniki specjalistyczne: "postępowanie karne", "właściwy organ", "ochrona danych osobowych"
+- Kolokacje czasownikowe: "wydać pisemną opinię", "wszcząć postępowanie", "złożyć wniosek"
 - Przymiotniki specjalistyczne w połączeniu z rzeczownikami
 - Zwroty prawnicze i techniczne
+
+!!! KRYTYCZNE - EKSTRAHUJ PEŁNE FRAZY !!!
+Ekstrahuj KOMPLETNĄ frazę tak jak występuje w dokumencie, włącznie ze WSZYSTKIMI przymiotnikami i modyfikatorami:
+- ŹILE: "wydać opinię" gdy w dokumencie jest "wydać pisemną opinię"
+- DOBRZE: "wydać pisemną opinię" - pełna fraza z dokumentu
+- ŹILE: "ochrona danych" gdy w dokumencie jest "ochrona danych osobowych"
+- DOBRZE: "ochrona danych osobowych" - pełna fraza
 
 !!! KRYTYCZNE - POLE "foundForm" JEST OBOWIĄZKOWE !!!
 Dla KAŻDEGO terminu MUSISZ podać OBA pola - bez wyjątków:
   - "term": forma PODSTAWOWA (słownikowa) - rzeczowniki w MIANOWNIKU, czasowniki w BEZOKOLICZNIKU
   - "foundForm": forma DOKŁADNIE tak jak występuje w dokumencie (SKOPIUJ TEKST Z DOKUMENTU!)
 
-JEŚLI POMINIESZ POLE "foundForm", TERMIN ZOSTANIE ODRZUCONY! To pole jest NIEZBĘDNE do działania systemu.
+WAŻNE: "term" i "foundForm" MUSZĄ opisywać TĘ SAMĄ frazę (tylko w innej formie gramatycznej)!
+- ŹLIE: term="uprawnieni organu" gdy w dokumencie jest "uprawnienia organu" (to RÓŻNE słowa!)
+- DOBRZE: term="uprawnienie organu", foundForm="uprawnienia organu" (to ta sama fraza)
+
+JEŚLI POMINIESZ POLE "foundForm", TERMIN ZOSTANIE ODRZUCONY!
 
 PRZYKŁADY POPRAWNEJ EKSTRAKCJI:
-- W dokumencie widzisz: "właściwymi organami"
-  → {"term": "właściwy organ", "foundForm": "właściwymi organami", ...}
-- W dokumencie widzisz: "postępowania karnego"
-  → {"term": "postępowanie karne", "foundForm": "postępowania karnego", ...}
-- W dokumencie widzisz: "wydał wyrok"
-  → {"term": "wydać wyrok", "foundForm": "wydał wyrok", ...}
-- W dokumencie widzisz: "przedstawiono zarzuty"
-  → {"term": "przedstawić zarzuty", "foundForm": "przedstawiono zarzuty", ...}
-- W dokumencie widzisz: "wszczęto postępowanie"
-  → {"term": "wszcząć postępowanie", "foundForm": "wszczęto postępowanie", ...}
-- W dokumencie widzisz: "dokonując zatrzymania"
-  → {"term": "dokonać zatrzymania", "foundForm": "dokonując zatrzymania", ...}
-
-WAŻNE: "foundForm" MUSI być DOKŁADNIE takie jak w dokumencie - skopiuj tekst, nie twórz nowej formy!
-
-WAŻNE: Wiele terminów to frazy wielowyrazowe - ekstrahuj PEŁNY specjalistyczny termin, nie pojedyncze słowa!
+- W dokumencie: "właściwymi organami" → term: "właściwy organ", foundForm: "właściwymi organami"
+- W dokumencie: "wydaje pisemną opinię" → term: "wydać pisemną opinię", foundForm: "wydaje pisemną opinię"
+- W dokumencie: "uprawnienia organu powołującego" → term: "uprawnienie organu powołującego", foundForm: "uprawnienia organu powołującego"
+- W dokumencie: "wszczęto postępowanie karne" → term: "wszcząć postępowanie karne", foundForm: "wszczęto postępowanie karne"
 
 KRYTERIA:
 - Minimum ${minLength} znaków na termin
 - Minimum ${minOccurrences} wystąpień w tekście
-- Terminy jedno i wielowyrazowe dozwolone
 - Terminy muszą być SPECJALISTYCZNE (nie zwykłe słowa)
 - Terminy muszą być TYLKO PO POLSKU
 
@@ -238,9 +232,6 @@ Zwróć TYLKO poprawny JSON (bez markdown, bez wyjaśnień):
 WYMAGANIA DOTYCZĄCE KONTEKSTU:
 - Kontekst powinien mieć 150-200 znaków
 - Uwzględnij tekst PRZED i PO terminie dla lepszego zrozumienia
-- Powinien być kompletnym, czytelnym zdaniem lub frazą
-
-WAŻNE PRZYPOMNIENIE: Przeanalizuj CAŁY dokument poniżej. Nawet jeśli ekstraktujesz tylko ${minTerms}-${maxTerms} terminów, przeczytaj wszystkie sekcje od początku do końca, aby zidentyfikować najważniejsze terminy w CAŁYM tekście.
 
 TEKST DO ANALIZY:`
     } else if (isSlavicLanguage) {
@@ -1001,11 +992,48 @@ function extractFoundFormFromContext(term: string, context: string, fullText: st
   // Rozdziel termin na słowa
   const termWords = term.toLowerCase().split(/\s+/)
 
-  // Pobierz rdzeń każdego słowa (pierwsze 3-5 znaków, w zależności od długości)
+  // KROK 1: Najpierw spróbuj znaleźć DOKŁADNY termin (lemma) w tekście
+  // Może się zdarzyć, że forma podstawowa występuje w dokumencie
+  const findExactInText = (searchText: string): string | null => {
+    const lowerText = searchText.toLowerCase()
+    const lowerTerm = term.toLowerCase()
+
+    let idx = 0
+    while ((idx = lowerText.indexOf(lowerTerm, idx)) !== -1) {
+      // Sprawdź granice słowa
+      const charBefore = idx > 0 ? searchText[idx - 1] : ''
+      const charAfter = searchText[idx + term.length] || ''
+
+      if (!isWordChar(charBefore) && !isWordChar(charAfter)) {
+        // Zwróć oryginalną formę z tekstu (z zachowaniem wielkości liter)
+        return searchText.substring(idx, idx + term.length)
+      }
+      idx++
+    }
+    return null
+  }
+
+  // Sprawdź czy dokładna forma istnieje
+  if (context) {
+    const exactInContext = findExactInText(context)
+    if (exactInContext) {
+      return exactInContext
+    }
+  }
+
+  const exactInDoc = findExactInText(fullText.substring(0, 50000))
+  if (exactInDoc) {
+    return exactInDoc
+  }
+
+  // KROK 2: Jeśli nie znaleziono dokładnego dopasowania, użyj dopasowania rdzeni
+  // ALE tylko w kontekście (nie w pełnym dokumencie) i z większą ostrożnością
+
+  // Pobierz rdzeń każdego słowa - użyj DŁUŻSZYCH rdzeni dla większej precyzji
   const stems = termWords.map(word => {
-    if (word.length <= 3) return word
-    if (word.length <= 5) return word.substring(0, 3)
-    return word.substring(0, Math.min(4, word.length - 2))
+    // Użyj minimum 5 znaków lub całe słowo jeśli krótsze
+    if (word.length <= 5) return word
+    return word.substring(0, Math.max(5, Math.floor(word.length * 0.6)))
   })
 
   // Funkcja do ekstrakcji wszystkich słów z tekstu (Unicode-aware)
@@ -1013,13 +1041,11 @@ function extractFoundFormFromContext(term: string, context: string, fullText: st
     const words: Array<{word: string, start: number, end: number}> = []
     let i = 0
     while (i < text.length) {
-      // Pomiń nie-litery
       while (i < text.length && !isWordChar(text[i])) {
         i++
       }
       if (i >= text.length) break
 
-      // Zbierz słowo
       const start = i
       while (i < text.length && isWordChar(text[i])) {
         i++
@@ -1032,15 +1058,19 @@ function extractFoundFormFromContext(term: string, context: string, fullText: st
     return words
   }
 
-  // Funkcja do szukania formy w tekście
+  // Funkcja do szukania formy w tekście z walidacją długości
   const findFormInText = (searchText: string): string | null => {
     const words = extractWords(searchText)
 
     // Dla jednowyrazowego terminu
     if (termWords.length === 1) {
       const stem = stems[0]
+      const termLen = termWords[0].length
+
       for (const { word } of words) {
-        if (word.toLowerCase().startsWith(stem)) {
+        const wordLower = word.toLowerCase()
+        // Sprawdź czy słowo zaczyna się od rdzenia I ma podobną długość (±4 znaki)
+        if (wordLower.startsWith(stem) && Math.abs(word.length - termLen) <= 4) {
           return word
         }
       }
@@ -1048,17 +1078,22 @@ function extractFoundFormFromContext(term: string, context: string, fullText: st
     }
 
     // Dla wielowyrazowego terminu - szukaj sekwencji słów z pasującymi rdzeniami
+    // Słowa muszą być KOLEJNE (bez dodatkowych słów między nimi)
     for (let i = 0; i <= words.length - stems.length; i++) {
       let allMatch = true
       const matchedWords: string[] = []
 
       for (let j = 0; j < stems.length; j++) {
-        const wordLower = words[i + j].word.toLowerCase()
-        if (!wordLower.startsWith(stems[j])) {
+        const word = words[i + j].word
+        const wordLower = word.toLowerCase()
+        const expectedLen = termWords[j].length
+
+        // Sprawdź rdzeń I podobną długość słowa
+        if (!wordLower.startsWith(stems[j]) || Math.abs(word.length - expectedLen) > 4) {
           allMatch = false
           break
         }
-        matchedWords.push(words[i + j].word)
+        matchedWords.push(word)
       }
 
       if (allMatch) {
@@ -1069,7 +1104,7 @@ function extractFoundFormFromContext(term: string, context: string, fullText: st
     return null
   }
 
-  // Najpierw szukaj w kontekście (bardziej prawdopodobne że znajdziemy właściwą formę)
+  // Szukaj TYLKO w kontekście (nie w pełnym dokumencie - zbyt ryzykowne)
   if (context) {
     const foundInContext = findFormInText(context)
     if (foundInContext) {
@@ -1077,13 +1112,7 @@ function extractFoundFormFromContext(term: string, context: string, fullText: st
     }
   }
 
-  // Jeśli nie znaleziono w kontekście, szukaj w pełnym dokumencie
-  // Ale ogranicz przeszukiwanie do pierwszych 50000 znaków dla wydajności
-  const searchSection = fullText.length > 50000 ? fullText.substring(0, 50000) : fullText
-  const foundInDoc = findFormInText(searchSection)
-  if (foundInDoc) {
-    return foundInDoc
-  }
-
+  // Nie znaleziono - NIE szukamy w pełnym dokumencie stem-matchingiem
+  // (zbyt duże ryzyko fałszywych dopasowań jak uprawnieni/uprawnienia)
   return null
 }
