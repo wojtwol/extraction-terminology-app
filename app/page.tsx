@@ -13,6 +13,7 @@ import DocumentManager from '@/components/DocumentManager'
 import { Project, Glossary, GlossaryVersion, projectStorage, SourceDocument } from '@/utils/projectStorage'
 import { normalizeTermForComparison, areTermVariants, getPreferredTermForm, convertToSingular, normalizeSourceDocumentName } from '@/utils/termNormalization'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { ToastContainer, useToast } from '@/components/Toast'
 
 // Kontekst terminu w pojedynczym dokumencie
 export interface TermContext {
@@ -122,6 +123,7 @@ async function detectLanguageAPI(text: string): Promise<string> {
 
 export default function Home() {
   const { t, language } = useLanguage()
+  const toast = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [documentText, setDocumentText] = useState('')
@@ -2051,9 +2053,13 @@ export default function Home() {
     handleTermUpdate(updatedTerms)
 
     console.log(`✅ Dodano ręcznie termin: "${trimmedTerm}" (${occurrences} wystąpień)`)
-    alert(language === 'pl'
-      ? `Termin "${trimmedTerm}" został dodany do glosariusza.\n\nZnaleziono ${occurrences} wystąpień w dokumencie.`
-      : `Term "${trimmedTerm}" has been added to the glossary.\n\nFound ${occurrences} occurrences in the document.`)
+    toast.success(
+      language === 'pl' ? 'Termin dodany' : 'Term added',
+      language === 'pl'
+        ? `„${trimmedTerm}"\n\nZnaleziono ${occurrences} wystąpień w dokumencie.`
+        : `"${trimmedTerm}"\n\nFound ${occurrences} occurrences in the document.`,
+      5000
+    )
   }
 
   // Prompt użytkownika do ręcznego dodania terminu
@@ -3784,6 +3790,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toast.toasts} onClose={toast.closeToast} />
     </main>
   )
 }
