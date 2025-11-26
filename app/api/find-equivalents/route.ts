@@ -186,24 +186,32 @@ INSTRUCTIONS:
 2. The equivalent should be in the same semantic position (similar context)
 3. The term must exist verbatim in the target fragment
 4. If you cannot find an equivalent, respond with: {"found": false}
-${needsLemmatization ? `5. CRITICAL - LEMMATIZATION for ${targetLanguage}:
-   You MUST provide BOTH fields:
-   - "foundForm": the EXACT form as it appears in the document (copy-paste from text)
-   - "lemma": the DICTIONARY/BASE form (nouns in NOMINATIVE, verbs in INFINITIVE, adjectives in NOMINATIVE SINGULAR MASCULINE)
+${needsLemmatization ? `5. MANDATORY LEMMATIZATION for ${targetLanguage}:
+   You MUST ALWAYS provide BOTH fields - this is not optional:
+   - "foundForm": copy-paste the EXACT form from the document
+   - "lemma": convert to DICTIONARY/BASE form (NOMINATIVE case for nouns, INFINITIVE for verbs)
 
-   LEMMATIZATION EXAMPLES:
-   - "właściwymi organami" → lemma: "właściwy organ" (nominative singular)
-   - "dyrektora administracyjnego" → lemma: "dyrektor administracyjny" (nominative)
-   - "postępowania karnego" → lemma: "postępowanie karne" (nominative)
-   - "decyzją stwierdzającą odpowiedni poziom" → lemma: "decyzja stwierdzająca odpowiedni poziom" (nominative)
-   - "zautomatyzowanego systemu zarządzania sprawami" → lemma: "zautomatyzowany system zarządzania sprawami" (nominative)
+   CRITICAL: The "lemma" field MUST be DIFFERENT from "foundForm" if the word is inflected!
 
-   For multi-word terms, convert EACH word to its base/dictionary form.
-   The lemma field is REQUIRED - do not skip it!` : ''}
+   LEMMATIZATION RULES:
+   - Nouns: convert to NOMINATIVE SINGULAR (mianownik)
+   - Adjectives: convert to NOMINATIVE SINGULAR MASCULINE
+   - Verbs: convert to INFINITIVE (bezokolicznik)
+   - For multi-word terms: lemmatize EACH word separately
+
+   EXAMPLES (foundForm → lemma):
+   - "decyzją stwierdzającą" → "decyzja stwierdzająca" (instrumental→nominative)
+   - "zautomatyzowanego systemu" → "zautomatyzowany system" (genitive→nominative)
+   - "właściwymi organami" → "właściwy organ" (instrumental plural→nominative singular)
+   - "postępowania karnego" → "postępowanie karne" (genitive→nominative)
+   - "decyzji Rady" → "decyzja Rady" (genitive→nominative)
+   - "dyrektora administracyjnego" → "dyrektor administracyjny" (genitive→nominative)
+
+   If foundForm is already in nominative, lemma should be the same as foundForm.` : ''}
 
 Respond with JSON only:
 ${needsLemmatization
-  ? '{"found": true, "foundForm": "exact form from text", "lemma": "dictionary base form in nominative"}'
+  ? '{"found": true, "foundForm": "inflected form from text", "lemma": "base form in nominative"}'
   : '{"found": true, "term": "exact term from text"}'
 }
 Or if not found: {"found": false}`
@@ -258,6 +266,15 @@ Or if not found: {"found": false}`
           const foundForm = aiResponse.foundForm || aiResponse.term || ''
           const lemmaForm = aiResponse.lemma || foundForm  // Użyj lemmy jeśli dostępna, inaczej foundForm
 
+          // Log dla debugowania lemmatyzacji
+          if (needsLemmatization) {
+            if (!aiResponse.lemma) {
+              console.log(`   ⚠️  WARNING: AI did not return lemma field for "${foundForm}"`)
+            } else if (aiResponse.lemma === foundForm) {
+              console.log(`   ⚠️  WARNING: lemma equals foundForm - may not be lemmatized: "${foundForm}"`)
+            }
+          }
+
           // Sprawdź czy faktycznie istnieje w oknie
           const positions = findTermOccurrences(targetWindow.text, foundForm)
 
@@ -266,6 +283,8 @@ Or if not found: {"found": false}`
             const rawContext = extractContext(targetWindow.text, foundForm, 400)
             // Zaznacz znalezioną formę w kontekście
             const highlightedContext = highlightTermInContext(rawContext, foundForm)
+
+            console.log(`   📝 Context length: ${rawContext.length} chars, highlighted: ${highlightedContext.includes('**')}`)
 
             results.push({
               sourceTerm: sourceTerm.term,
