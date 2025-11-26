@@ -581,7 +581,8 @@ export default function TerminologyTable({
                   {columnView === '4' && (
                     <td className="px-3 py-3 text-sm text-gray-600">
                       <div className="line-clamp-2" title={term.context}>
-                        {highlightTermInContext(term.context, term.term)}
+                        {/* Użyj foundForm do zaznaczania (forma fleksyjna) jeśli dostępna */}
+                        {highlightTermInContext(term.context, term.foundForm || term.term)}
                       </div>
                     </td>
                   )}
@@ -897,7 +898,8 @@ export default function TerminologyTable({
                 <td className="px-3 py-3 text-sm text-gray-600 break-words">
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
-                      {highlightTermInContext(displayContext, term.term)}
+                      {/* Użyj foundForm do zaznaczania (forma fleksyjna) jeśli dostępna */}
+                      {highlightTermInContext(displayContext, term.foundForm || term.term)}
                     </div>
                     <button
                       onClick={() => handleOpenModal(term)}

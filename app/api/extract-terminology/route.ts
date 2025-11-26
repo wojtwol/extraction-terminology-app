@@ -5,6 +5,7 @@ import { detectLanguage } from '@/utils/languageDetector'
 interface Term {
   id: string
   term: string
+  foundForm?: string // Forma znaleziona w dokumencie (dla języków słowiańskich z lemmatyzacją)
   context: string
   occurrences: number
   positions: number[]
@@ -114,6 +115,12 @@ export async function POST(request: NextRequest) {
     // KROK 3: Tworzenie prompta w języku dokumentu
     let promptInstructions = ''
 
+    // Sprawdź czy to język słowiański (wymaga lemmatyzacji)
+    const slavicLanguages = ['pol', 'ces', 'slk', 'ukr', 'rus', 'bul', 'hrv', 'srp', 'slv']
+    const slavicLanguageNames = ['Polski', 'Czeski', 'Słowacki', 'Ukraiński', 'Rosyjski', 'Bułgarski', 'Chorwacki', 'Serbski', 'Słoweński']
+    const isSlavicLanguage = slavicLanguages.includes(languageDetectionResult.languageCode) ||
+                             slavicLanguageNames.includes(languageDetectionResult.language)
+
     if (languageDetectionResult.language === 'Angielski' || languageDetectionResult.languageCode === 'eng') {
       promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the English text below.
 
@@ -170,31 +177,31 @@ TEXT TO ANALYZE:`
 KRYTYCZNE ZASADY - PRZECZYTAJ UWAŻNIE:
 1. PRZEANALIZUJ CAŁY DOKUMENT od początku do końca - NIE skupiaj się tylko na początkowych sekcjach
 2. Ekstrahuj terminy rozmieszczone w całym tekście, nie tylko z początku
-3. Wyekstrahuj terminy w ich ORYGINALNEJ POLSKIEJ formie DOKŁADNIE tak jak występują w dokumencie
-4. NIE tłumacz terminów na angielski, niemiecki ani żaden inny język
-5. Każdy termin MUSI występować dosłownie w tekście źródłowym (wielkość liter nieistotna)
-6. Skup się tylko na terminach specjalistycznych/technicznych/prawnych/domenowych
-7. Unikaj zwykłych słów jak "oraz", "który", "jest", itp.
-8. TYLKO ekstrahuj terminy POLSKIE - jeśli dokument zawiera terminy angielskie/niemieckie/francuskie, POMIŃ je całkowicie
-9. Jeśli termin występuje w wielu językach (np. "współpraca" i "cooperation"), ekstrahuj TYLKO wersję POLSKĄ
+3. Skup się tylko na terminach specjalistycznych/technicznych/prawnych/domenowych
+4. Unikaj zwykłych słów jak "oraz", "który", "jest", itp.
+5. TYLKO ekstrahuj terminy POLSKIE - jeśli dokument zawiera terminy angielskie/niemieckie/francuskie, POMIŃ je całkowicie
+6. Jeśli termin występuje w wielu językach (np. "współpraca" i "cooperation"), ekstrahuj TYLKO wersję POLSKĄ
+
+WAŻNE - LEMMATYZACJA (FORMA PODSTAWOWA):
+- Dla każdego terminu podaj DWA pola:
+  - "term": forma PODSTAWOWA (słownikowa) - rzeczowniki w MIANOWNIKU, czasowniki w BEZOKOLICZNIKU
+  - "foundForm": forma DOKŁADNIE tak jak występuje w dokumencie
+- Przykłady:
+  - W dokumencie: "właściwymi organami" → term: "właściwy organ", foundForm: "właściwymi organami"
+  - W dokumencie: "ochroną danych osobowych" → term: "ochrona danych osobowych", foundForm: "ochroną danych osobowych"
+  - W dokumencie: "postępowania karnego" → term: "postępowanie karne", foundForm: "postępowania karnego"
+  - W dokumencie: "europejskiej współpracy sądowej" → term: "europejska współpraca sądowa", foundForm: "europejskiej współpracy sądowej"
 
 PRZYKŁADY PRAWIDŁOWEJ EKSTRAKCJI:
-- Dokument: "postępowanie karne" → ekstrahuj "postępowanie karne" ✓ (pełny wielowyrazowy termin)
-- Dokument: "ramy prawne" → ekstrahuj "ramy prawne" ✓ (pełny wielowyrazowy termin)
-- Dokument: "współpraca (cooperation)" → ekstrahuj "współpraca" TYLKO (NIE "cooperation") ✓ (filtrowanie języków)
-- Dokument: "investigation (śledztwo)" → ekstrahuj "śledztwo" TYLKO (NIE "investigation") ✓ (filtrowanie języków)
-- Dokument: "ochrona danych" → ekstrahuj "ochrona danych" ✓ (NIE tylko "ochrona")
+- Dokument: "postępowanie karne" → term: "postępowanie karne", foundForm: "postępowanie karne" ✓
+- Dokument: "ram prawnych" → term: "rama prawna", foundForm: "ram prawnych" ✓
+- Dokument: "ochronę danych" → term: "ochrona danych", foundForm: "ochronę danych" ✓
 
 WAŻNE: Wiele terminów to frazy wielowyrazowe - ekstrahuj PEŁNY specjalistyczny termin, nie pojedyncze słowa!
-
-PRZYKŁADY NIEPRAWIDŁOWEJ EKSTRAKCJI (NIE RÓB TEGO):
-- Dokument po polsku zawiera "investigation" → NIE ekstrahuj "investigation" ✗
-- Dokument po polsku zawiera "legal framework" → NIE ekstrahuj "legal framework" ✗
 
 KRYTERIA:
 - Minimum ${minLength} znaków na termin
 - Minimum ${minOccurrences} wystąpień w tekście
-- Formy podstawowe (mianownik liczby pojedynczej, bezokolicznik)
 - Terminy jedno i wielowyrazowe dozwolone
 - Terminy muszą być SPECJALISTYCZNE (nie zwykłe słowa)
 - Terminy muszą być TYLKO PO POLSKU
@@ -202,7 +209,7 @@ KRYTERIA:
 Zwróć TYLKO poprawny JSON (bez markdown, bez wyjaśnień):
 {
   "terms": [
-    {"term": "dokładny termin z dokumentu po polsku", "context": "...otaczający tekst po polsku (150-200 znaków, uwzględnij tekst przed i po terminie)...", "occurrences": liczba}
+    {"term": "forma podstawowa terminu", "foundForm": "forma z dokumentu", "context": "...otaczający tekst po polsku (150-200 znaków, uwzględnij tekst przed i po terminie)...", "occurrences": liczba}
   ]
 }
 
@@ -214,8 +221,57 @@ WYMAGANIA DOTYCZĄCE KONTEKSTU:
 WAŻNE PRZYPOMNIENIE: Przeanalizuj CAŁY dokument poniżej. Nawet jeśli ekstraktujesz tylko ${minTerms}-${maxTerms} terminów, przeczytaj wszystkie sekcje od początku do końca, aby zidentyfikować najważniejsze terminy w CAŁYM tekście.
 
 TEKST DO ANALIZY:`
+    } else if (isSlavicLanguage) {
+      // Fallback dla innych języków słowiańskich (z lemmatyzacją)
+      const langName = languageDetectionResult.language
+      promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the text in ${langName}.
+
+CRITICAL RULES:
+1. ANALYZE THE ENTIRE DOCUMENT from beginning to end - do NOT focus only on the initial sections
+2. Extract terms distributed throughout the FULL text, not just from the start
+3. Extract terms in their ORIGINAL ${langName} form EXACTLY as they appear
+4. DO NOT translate to English, Polish, or any other language
+5. Each term MUST exist in the source text (case-insensitive)
+6. Focus on specialized/technical/legal/domain-specific terms only
+7. Avoid common words
+8. ONLY extract terms in ${langName} - if the document contains terms in other languages, SKIP them entirely
+9. If a term appears in multiple languages, ONLY extract the ${langName} version
+
+IMPORTANT - LEMMATIZATION (BASE FORM):
+- For each term provide TWO fields:
+  - "term": the BASE/DICTIONARY form - nouns in NOMINATIVE case, verbs in INFINITIVE
+  - "foundForm": the EXACT form as it appears in the document
+- Examples (Czech):
+  - In document: "trestního řízení" → term: "trestní řízení", foundForm: "trestního řízení"
+  - In document: "příslušných orgánů" → term: "příslušný orgán", foundForm: "příslušných orgánů"
+- Examples (Slovak):
+  - In document: "trestného činu" → term: "trestný čin", foundForm: "trestného činu"
+
+IMPORTANT: Many terms are multi-word phrases - extract the FULL specialized term, not individual words!
+
+CRITERIA:
+- Minimum ${minLength} characters
+- Minimum ${minOccurrences} occurrences
+- Terms must be SPECIALIZED
+- Terms must be in ${langName} ONLY
+
+Return ONLY valid JSON:
+{
+  "terms": [
+    {"term": "base/dictionary form", "foundForm": "exact form from document", "context": "context in ${langName} (150-200 characters)", "occurrences": number}
+  ]
+}
+
+CONTEXT REQUIREMENTS:
+- Context should be 150-200 characters long
+- Include text BEFORE and AFTER the term for better understanding
+- Should be a complete, readable sentence or phrase
+
+IMPORTANT REMINDER: Analyze the COMPLETE document below. Even if you're extracting only ${minTerms}-${maxTerms} terms, read through ALL sections from start to finish to identify the most important terms across the ENTIRE text.
+
+TEXT:`
     } else {
-      // Fallback dla innych języków UE
+      // Fallback dla innych języków UE (bez lemmatyzacji)
       const langName = languageDetectionResult.language
       promptInstructions = `You are a terminology extraction expert. Extract ${minTerms}-${maxTerms} most important SPECIALIZED terms from the text in ${langName}.
 
@@ -366,8 +422,14 @@ TEXT:`
       const termLower = term.term.toLowerCase()
       const normalizedKey = normalizeTermForComparison(term.term)
 
+      // Dla języków słowiańskich używamy foundForm do wyszukiwania pozycji
+      const searchTerm = term.foundForm || term.term
+
       // Generuj wszystkie warianty terminu (singular/plural)
-      const termVariants = generateTermVariants(term.term)
+      // Dla Slavic: generuj warianty z foundForm (jeśli jest)
+      const termVariants = term.foundForm
+        ? [term.foundForm, ...generateTermVariants(term.foundForm)]
+        : generateTermVariants(term.term)
 
       // Znajdź wystąpienia WSZYSTKICH wariantów w PEŁNYM dokumencie
       let allPositions: number[] = []
@@ -417,6 +479,11 @@ TEXT:`
           existing.context = term.context
         }
 
+        // Zachowaj foundForm jeśli istnieje
+        if (term.foundForm && !existing.foundForm) {
+          existing.foundForm = term.foundForm
+        }
+
         // Preferuj formę pojedynczą jako główny termin
         const preferredForm = getPreferredTermForm(existing.term, term.term)
         if (preferredForm !== existing.term) {
@@ -430,6 +497,7 @@ TEXT:`
         uniqueTermsMap.set(termLower, {
           id: `term-${i}-${Date.now()}`,
           term: term.term,
+          foundForm: term.foundForm || undefined,  // Forma znaleziona w dokumencie (dla języków słowiańskich)
           context: term.context || '',
           occurrences: occurrences,
           positions: positions.slice(0, 100),

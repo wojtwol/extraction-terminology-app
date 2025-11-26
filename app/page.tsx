@@ -38,6 +38,7 @@ export interface Term {
   definition?: string
   definitionSource?: 'document' | 'ai' | 'edited' | null
   sourceDocument?: string  // Nazwa dokumentu źródłowego z którego wyekstrahowano termin
+  foundForm?: string  // Forma fleksyjna znaleziona w dokumencie (dla języków słowiańskich z lemmatyzacją)
 
   // Dla incremental extraction mode
   isNew?: boolean  // Oznaczenie nowo dodanego terminu podczas rozbudowy
