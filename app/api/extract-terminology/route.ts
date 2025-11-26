@@ -371,15 +371,16 @@ TEXT:`
 
       console.log(`\n📦 Przetwarzam część ${chunkNumber}/${totalChunks}...`)
 
-      // Dla chunków: dzielimy maxTerms przez liczbę chunków, ale mnożymy x1.5 dla większego pokrycia
-      // (bo będą duplikaty między chunkami, które usuniemy później)
+      // Dla chunków: dzielimy maxTerms przez liczbę chunków
+      // Zmniejszamy mnożnik żeby uniknąć obcinania odpowiedzi przez max_tokens
       const termsForThisChunk = chunks.length > 1
-        ? Math.ceil((maxTerms / chunks.length) * 1.5)
+        ? Math.ceil(maxTerms / chunks.length)
         : maxTerms
 
       // Dynamiczny max_tokens w zależności od liczby terminów
-      const estimatedTokensPerTerm = 120 // ~120 tokenów na termin (term + context + JSON structure)
-      const baseTokens = 2000 // Bazowe tokeny na strukturę JSON i overhead
+      // Zwiększony estimatedTokensPerTerm żeby uniknąć obcinania JSON
+      const estimatedTokensPerTerm = 200 // ~200 tokenów na termin (term + context + JSON structure)
+      const baseTokens = 3000 // Bazowe tokeny na strukturę JSON i overhead
       const calculatedMaxTokens = Math.min(
         baseTokens + (termsForThisChunk * estimatedTokensPerTerm),
         16384 // Maksymalny limit dla Claude Sonnet 4 (16K output tokens)
