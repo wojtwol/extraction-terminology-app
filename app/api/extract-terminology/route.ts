@@ -484,14 +484,27 @@ TEXT:`
       const termLower = term.term.toLowerCase()
       const normalizedKey = normalizeTermForComparison(term.term)
 
-      // Dla języków słowiańskich używamy foundForm do wyszukiwania pozycji
-      const searchTerm = term.foundForm || term.term
+      // Generuj WSZYSTKIE warianty terminu do wyszukania
+      // Dla języków słowiańskich: szukaj zarówno foundForm JAK I term (lemma może wystąpić w mianowniku)
+      const termVariants: string[] = []
 
-      // Generuj wszystkie warianty terminu (singular/plural)
-      // Dla Slavic: generuj warianty z foundForm (jeśli jest)
-      const termVariants = term.foundForm
-        ? [term.foundForm, ...generateTermVariants(term.foundForm)]
-        : generateTermVariants(term.term)
+      // Dodaj foundForm (forma znaleziona w dokumencie)
+      if (term.foundForm) {
+        termVariants.push(term.foundForm)
+        // Generuj warianty z foundForm
+        generateTermVariants(term.foundForm).forEach(v => {
+          if (!termVariants.includes(v)) termVariants.push(v)
+        })
+      }
+
+      // Dodaj term (forma podstawowa/lemma) - może występować w mianowniku
+      if (!termVariants.includes(term.term)) {
+        termVariants.push(term.term)
+      }
+      // Generuj warianty z term
+      generateTermVariants(term.term).forEach(v => {
+        if (!termVariants.includes(v)) termVariants.push(v)
+      })
 
       // Znajdź wystąpienia WSZYSTKICH wariantów w PEŁNYM dokumencie
       let allPositions: number[] = []
