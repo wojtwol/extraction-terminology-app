@@ -135,18 +135,23 @@ CRITICAL RULES - READ CAREFULLY:
 8. ONLY extract ENGLISH terms - if the document contains Polish/German/French terms, SKIP them entirely
 9. If a term appears in multiple languages (e.g., "cooperation" and "współpraca"), ONLY extract the ENGLISH version
 
+TYPES OF TERMS TO EXTRACT:
+- Specialized nouns: "criminal investigation", "legal framework", "data protection"
+- VERB COLLOCATIONS (very important!):
+  - "issue a judgment", "bring charges", "initiate proceedings"
+  - "make an arrest", "conduct an investigation", "impose a penalty"
+  - "file a complaint", "lodge an appeal", "dismiss a case"
+- Specialized adjective+noun combinations
+- Legal and technical phrases
+
 EXAMPLES OF CORRECT EXTRACTION:
-- Document: "criminal investigation" → extract "criminal investigation" ✓ (full multi-word term)
-- Document: "legal framework" → extract "legal framework" ✓ (full multi-word term)
-- Document: "cooperation (współpraca)" → extract "cooperation" ONLY (NOT "współpraca") ✓ (language filtering)
-- Document: "śledztwo (investigation)" → extract "investigation" ONLY (NOT "śledztwo") ✓ (language filtering)
-- Document: "data protection" → extract "data protection" ✓ (NOT just "protection")
+- "criminal investigation" ✓ (noun phrase)
+- "issue a judgment" ✓ (verb collocation)
+- "bring charges" ✓ (verb collocation)
+- "data protection" ✓ (noun phrase)
+- "conduct an investigation" ✓ (verb collocation)
 
 IMPORTANT: Many terms are multi-word phrases - extract the FULL specialized term, not individual words!
-
-EXAMPLES OF INCORRECT EXTRACTION (DO NOT DO THIS):
-- Document in English contains "śledztwo" → DO NOT extract "śledztwo" ✗
-- Document in English contains "ramy prawne" → DO NOT extract "ramy prawne" ✗
 
 CRITERIA:
 - Minimum ${minLength} characters per term
@@ -244,15 +249,23 @@ CRITICAL RULES:
 8. ONLY extract terms in ${langName} - if the document contains terms in other languages, SKIP them entirely
 9. If a term appears in multiple languages, ONLY extract the ${langName} version
 
+TYPES OF TERMS TO EXTRACT:
+- Specialized nouns and noun phrases
+- VERB COLLOCATIONS (very important!): verb + noun combinations used in legal/technical contexts
+  Examples: "issue a judgment", "bring charges", "initiate proceedings", "conduct an investigation"
+- Specialized adjective+noun combinations
+- Legal and technical phrases
+
 IMPORTANT - LEMMATIZATION (BASE FORM):
 - For each term provide TWO fields:
   - "term": the BASE/DICTIONARY form - nouns in NOMINATIVE case, verbs in INFINITIVE
   - "foundForm": the EXACT form as it appears in the document
-- Examples (Czech):
+- Examples for NOUNS (Czech):
   - In document: "trestního řízení" → term: "trestní řízení", foundForm: "trestního řízení"
   - In document: "příslušných orgánů" → term: "příslušný orgán", foundForm: "příslušných orgánů"
-- Examples (Slovak):
-  - In document: "trestného činu" → term: "trestný čin", foundForm: "trestného činu"
+- Examples for VERB COLLOCATIONS:
+  - In document: "zahájil řízení" → term: "zahájit řízení", foundForm: "zahájil řízení"
+  - In document: "vydal rozsudek" → term: "vydat rozsudek", foundForm: "vydal rozsudek"
 
 IMPORTANT: Many terms are multi-word phrases - extract the FULL specialized term, not individual words!
 
@@ -293,15 +306,19 @@ CRITICAL RULES:
 8. ONLY extract terms in ${langName} - if the document contains terms in other languages, SKIP them entirely
 9. If a term appears in multiple languages, ONLY extract the ${langName} version
 
+TYPES OF TERMS TO EXTRACT:
+- Specialized nouns and noun phrases
+- VERB COLLOCATIONS (very important!): verb + noun combinations used in legal/technical contexts
+  Examples: "issue a judgment", "bring charges", "initiate proceedings", "conduct an investigation"
+- Specialized adjective+noun combinations
+- Legal and technical phrases
+
 IMPORTANT: Many terms are multi-word phrases - extract the FULL specialized term, not individual words!
-For example:
-- "criminal investigation" → extract "criminal investigation" ✓ (NOT just "investigation")
-- "legal framework" → extract "legal framework" ✓ (NOT just "framework")
 
 CRITERIA:
 - Minimum ${minLength} characters
 - Minimum ${minOccurrences} occurrences
-- Base forms
+- Base forms (singular for nouns, infinitive for verbs)
 - Terms must be SPECIALIZED
 - Terms must be in ${langName} ONLY
 
