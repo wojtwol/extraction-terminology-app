@@ -12,7 +12,7 @@ interface Term {
   variants?: string[] // Warianty terminu (plural/singular, and/or) - zgrupowane razem
 }
 
-export const maxDuration = 300 // Timeout 300 sekund dla Vercel Pro (wymagane dla dużych dokumentów)
+export const maxDuration = 600 // Timeout 600 sekund (10 min) dla Vercel Pro - duże dokumenty
 export const runtime = 'nodejs' // Użyj Node.js runtime (nie Edge)
 
 export async function POST(request: NextRequest) {
