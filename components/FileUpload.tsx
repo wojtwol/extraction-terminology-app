@@ -183,6 +183,8 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
       const data = await response.json()
 
       if (!response.ok) {
+        // Loguj pełną odpowiedź błędu do konsoli dla diagnostyki
+        console.error('Fetch URL error response:', data)
         throw new Error(data.error || (language === 'pl' ? 'Błąd pobierania dokumentu' : 'Error fetching document'))
       }
 
