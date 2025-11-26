@@ -603,20 +603,26 @@ TEXT:`
 
     console.log(`🔍 Po deduplikacji: ${allTerms.length} unikalnych terminów`)
 
-    // KROK 7: WALIDACJA - odrzuć terminy które nie występują w dokumencie
+    // KROK 7: WALIDACJA - odrzuć terminy które nie występują w dokumencie lub mają za mało wystąpień
     const validatedTerms = allTerms.filter((term: Term) => {
       // Sprawdź czy termin rzeczywiście występuje w tekście
       const exists = term.positions.length > 0
 
       if (!exists) {
-        console.log(`⚠️  ODRZUCAM termin "${term.term}" - nie występuje w dokumencie (prawdopodobnie tłumaczenie!)`)
+        console.log(`⚠️  ODRZUCAM termin "${term.term}" - nie występuje w dokumencie`)
+        return false
       }
 
-      return exists && term.occurrences >= minOccurrences
+      if (term.occurrences < minOccurrences) {
+        console.log(`⚠️  ODRZUCAM termin "${term.term}" - za mało wystąpień (${term.occurrences} < ${minOccurrences})`)
+        return false
+      }
+
+      return true
     })
 
     console.log(`✂️  Po walidacji: ${validatedTerms.length} terminów`)
-    console.log(`   Odrzucono ${allTerms.length - validatedTerms.length} terminów (nie znaleziono w dokumencie)`)
+    console.log(`   Odrzucono ${allTerms.length - validatedTerms.length} terminów (brak w dokumencie lub za mało wystąpień)`)
 
     // KROK 7.5: WERYFIKACJA I NAPRAWA KONTEKSTÓW
     // Upewnij się, że każdy kontekst zawiera termin - jeśli nie, wygeneruj nowy
