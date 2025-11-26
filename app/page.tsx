@@ -2055,12 +2055,32 @@ export default function Home() {
       detectedLanguage.toLowerCase().includes(lang.toLowerCase())
     )
 
+    let baseTerm = trimmedTerm
+    let foundForm: string | undefined = undefined
+
+    // Dla języków słowiańskich - poproś użytkownika o formę podstawową
+    if (needsLemmatization) {
+      const userBaseTerm = prompt(
+        language === 'pl'
+          ? `Podaj formę podstawową terminu (mianownik dla rzeczowników, bezokolicznik dla czasowników):\n\nZnaleziono w dokumencie: "${trimmedTerm}"\n\nForma podstawowa:`
+          : `Enter the base form of the term (nominative for nouns, infinitive for verbs):\n\nFound in document: "${trimmedTerm}"\n\nBase form:`,
+        trimmedTerm
+      )
+
+      if (!userBaseTerm) {
+        // Użytkownik anulował - nie dodawaj terminu
+        return
+      }
+
+      baseTerm = userBaseTerm.trim()
+      foundForm = trimmedTerm // Zaznaczony tekst = foundForm
+    }
+
     // Utwórz nowy termin
-    // Dla języków słowiańskich: zaznaczony tekst = foundForm, term = foundForm (do późniejszej lemmatyzacji przez AI)
     const newTerm: Term = {
       id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      term: trimmedTerm,
-      foundForm: needsLemmatization ? trimmedTerm : undefined,
+      term: baseTerm,
+      foundForm: foundForm,
       context,
       occurrences,
       positions,
@@ -2072,12 +2092,12 @@ export default function Home() {
     const updatedTerms = [...terms, newTerm]
     handleTermUpdate(updatedTerms)
 
-    console.log(`✅ Dodano ręcznie termin: "${trimmedTerm}" (${occurrences} wystąpień)${needsLemmatization ? ' [z foundForm]' : ''}`)
+    console.log(`✅ Dodano ręcznie termin: "${baseTerm}"${foundForm ? ` (foundForm: "${foundForm}")` : ''} (${occurrences} wystąpień)`)
     toast.success(
       language === 'pl' ? 'Termin dodany' : 'Term added',
       language === 'pl'
-        ? `„${trimmedTerm}"\n\nZnaleziono ${occurrences} wystąpień w dokumencie.`
-        : `"${trimmedTerm}"\n\nFound ${occurrences} occurrences in the document.`,
+        ? `„${baseTerm}"${foundForm && foundForm !== baseTerm ? `\n(forma w dokumencie: „${foundForm}")` : ''}\n\nZnaleziono ${occurrences} wystąpień.`
+        : `"${baseTerm}"${foundForm && foundForm !== baseTerm ? `\n(form in document: "${foundForm}")` : ''}\n\nFound ${occurrences} occurrences.`,
       5000
     )
   }
