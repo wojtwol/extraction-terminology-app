@@ -680,11 +680,11 @@ export default function TerminologyTable({
                     <td className="px-3 py-3 text-sm text-gray-600">
                       {term.targetContext ? (
                         <div className="line-clamp-2" title={term.targetContext.replace(/\*\*/g, '')}>
-                          {/* Użyj targetFoundForm do zaznaczania (forma fleksyjna) jeśli dostępna, jak dla source term */}
-                          {term.targetFoundForm
-                            ? highlightTermInContext(term.targetContext.replace(/\*\*/g, ''), term.targetFoundForm)
-                            : renderContextWithMarkdownHighlight(term.targetContext)
-                          }
+                          {/* Użyj targetFoundForm || targetTerm do zaznaczania, jak dla source term (foundForm || term) */}
+                          {highlightTermInContext(
+                            term.targetContext.replace(/\*\*/g, ''),
+                            term.targetFoundForm || term.targetTerm || ''
+                          )}
                         </div>
                       ) : (
                         <span className="text-gray-400 italic">
