@@ -65,9 +65,9 @@ function findTermOccurrences(text: string, term: string): number[] {
 }
 
 /**
- * Wyciąga kontekst wokół pierwszego wystąpienia terminu
+ * Wyciąga kontekst wokół pierwszego wystąpienia terminu i zaznacza go
  */
-function extractContext(text: string, term: string, contextSize: number = 200): string {
+function extractContext(text: string, term: string, contextSize: number = 400): string {
   const lowerText = text.toLowerCase()
   const lowerTerm = term.toLowerCase()
   const index = lowerText.indexOf(lowerTerm)
@@ -84,6 +84,17 @@ function extractContext(text: string, term: string, contextSize: number = 200): 
   if (end < text.length) context = context + '...'
 
   return context.trim()
+}
+
+/**
+ * Zaznacza termin w kontekście (case-insensitive)
+ */
+function highlightTermInContext(context: string, term: string): string {
+  if (!context || !term) return context
+  // Escape special regex characters
+  const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escapedTerm})`, 'gi')
+  return context.replace(regex, '**$1**')
 }
 
 export async function POST(request: NextRequest) {
@@ -149,6 +160,12 @@ export async function POST(request: NextRequest) {
       console.log(`   Window size: ${targetWindow.text.length} chars`)
 
       // 3. Użyj AI do znalezienia ekwiwalentu
+      // Sprawdź czy język docelowy to język słowiański (wymaga lemmatyzacji)
+      const slavicLanguages = ['pl', 'polish', 'cs', 'czech', 'sk', 'slovak', 'uk', 'ukrainian', 'ru', 'russian', 'bg', 'bulgarian', 'hr', 'croatian', 'sr', 'serbian', 'sl', 'slovenian']
+      const needsLemmatization = slavicLanguages.some(lang =>
+        targetLanguage.toLowerCase().includes(lang)
+      )
+
       try {
         const prompt = `You are a professional translator and terminology expert.
 
@@ -167,15 +184,23 @@ ${targetWindow.text}
 INSTRUCTIONS:
 1. Find the EXACT equivalent of the source term in the target document fragment
 2. The equivalent should be in the same semantic position (similar context)
-3. Return ONLY the target term, nothing else
-4. If you cannot find an equivalent, respond with "NOT_FOUND"
-5. The term must exist verbatim in the target fragment
+3. The term must exist verbatim in the target fragment
+4. If you cannot find an equivalent, respond with: {"found": false}
+${needsLemmatization ? `5. IMPORTANT: For ${targetLanguage}, provide both:
+   - "foundForm": the exact form as it appears in the document (e.g., "właściwymi organami")
+   - "lemma": the dictionary/base form of the term (e.g., "właściwy organ" for nouns in nominative singular/plural, adjectives in nominative)
+   For multi-word terms, lemmatize each word to its base form.` : ''}
 
-Respond with just the target term or "NOT_FOUND".`
+Respond with JSON only:
+${needsLemmatization
+  ? '{"found": true, "foundForm": "exact form from text", "lemma": "dictionary base form"}'
+  : '{"found": true, "term": "exact term from text"}'
+}
+Or if not found: {"found": false}`
 
         const response = await client.messages.create({
           model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 100,
+          max_tokens: 200,
           temperature: 0,
           messages: [{
             role: 'user',
@@ -183,13 +208,28 @@ Respond with just the target term or "NOT_FOUND".`
           }]
         })
 
-        const aiResponse = response.content[0].type === 'text'
+        const aiResponseText = response.content[0].type === 'text'
           ? response.content[0].text.trim()
-          : 'NOT_FOUND'
+          : '{"found": false}'
 
-        console.log(`   AI response: "${aiResponse}"`)
+        console.log(`   AI response: "${aiResponseText}"`)
 
-        if (aiResponse === 'NOT_FOUND' || aiResponse === '') {
+        // Parse JSON response
+        let aiResponse: { found: boolean; term?: string; foundForm?: string; lemma?: string }
+        try {
+          // Wyczyść odpowiedź z ewentualnych znaczników markdown
+          const cleanedResponse = aiResponseText.replace(/```json\n?|\n?```/g, '').trim()
+          aiResponse = JSON.parse(cleanedResponse)
+        } catch {
+          // Fallback - stary format (plain text)
+          if (aiResponseText === 'NOT_FOUND' || aiResponseText === '') {
+            aiResponse = { found: false }
+          } else {
+            aiResponse = { found: true, term: aiResponseText }
+          }
+        }
+
+        if (!aiResponse.found) {
           // Nie znaleziono ekwiwalentu
           results.push({
             sourceTerm: sourceTerm.term,
@@ -204,17 +244,24 @@ Respond with just the target term or "NOT_FOUND".`
             }
           })
         } else {
-          // Znaleziono ekwiwalent - sprawdź czy faktycznie istnieje w oknie
-          const positions = findTermOccurrences(targetWindow.text, aiResponse)
+          // Znaleziono ekwiwalent
+          const foundForm = aiResponse.foundForm || aiResponse.term || ''
+          const lemmaForm = aiResponse.lemma || foundForm  // Użyj lemmy jeśli dostępna, inaczej foundForm
+
+          // Sprawdź czy faktycznie istnieje w oknie
+          const positions = findTermOccurrences(targetWindow.text, foundForm)
 
           if (positions.length > 0) {
             // Znaleziono w oknie - potwierdzone
-            const context = extractContext(targetWindow.text, aiResponse, 200)
+            const rawContext = extractContext(targetWindow.text, foundForm, 400)
+            // Zaznacz znalezioną formę w kontekście
+            const highlightedContext = highlightTermInContext(rawContext, foundForm)
 
             results.push({
               sourceTerm: sourceTerm.term,
-              targetTerm: aiResponse,
-              targetContext: context,
+              targetTerm: lemmaForm,  // Używamy formy podstawowej jako główny termin
+              targetFoundForm: foundForm,  // Zachowujemy też znalezioną formę
+              targetContext: highlightedContext,
               targetOccurrences: positions.length,
               targetPositions: positions,
               targetSource: 'document' as const,
@@ -224,7 +271,7 @@ Respond with just the target term or "NOT_FOUND".`
               }
             })
 
-            console.log(`   ✅ Found: "${aiResponse}" (${positions.length} occurrences)`)
+            console.log(`   ✅ Found: "${foundForm}" → lemma: "${lemmaForm}" (${positions.length} occurrences)`)
           } else {
             // AI zwrócił coś czego nie ma w oknie - traktuj jako NOT_FOUND
             results.push({
@@ -240,7 +287,7 @@ Respond with just the target term or "NOT_FOUND".`
               }
             })
 
-            console.log(`   ❌ AI suggested "${aiResponse}" but not found in window`)
+            console.log(`   ❌ AI suggested "${foundForm}" but not found in window`)
           }
         }
 

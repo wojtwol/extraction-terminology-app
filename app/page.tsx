@@ -45,6 +45,7 @@ export interface Term {
 
   // Dla bilingual glossary mode (target language)
   targetTerm?: string
+  targetFoundForm?: string  // Forma fleksyjna znaleziona w dokumencie (do zaznaczania w kontekście)
   targetContext?: string
   targetOccurrences?: number
   targetPositions?: number[]
@@ -2230,6 +2231,7 @@ export default function Home() {
           return {
             ...term,
             targetTerm: result.targetTerm,
+            targetFoundForm: result.targetFoundForm || result.targetTerm,  // Forma fleksyjna do zaznaczania
             targetContext: result.targetContext,
             targetOccurrences: result.targetOccurrences,
             targetPositions: result.targetPositions,
@@ -2241,6 +2243,7 @@ export default function Home() {
         return {
           ...term,
           targetTerm: undefined,
+          targetFoundForm: undefined,
           targetContext: undefined,
           targetOccurrences: 0,
           targetPositions: [],

@@ -636,8 +636,13 @@ export default function TerminologyTable({
                   {columnView === '4' && (
                     <td className="px-3 py-3 text-sm text-gray-600">
                       {term.targetContext ? (
-                        <div className="line-clamp-2" title={term.targetContext}>
-                          {term.targetTerm ? highlightTermInContext(term.targetContext, term.targetTerm) : term.targetContext}
+                        <div className="line-clamp-2" title={term.targetContext.replace(/\*\*/g, '')}>
+                          {/* Użyj targetFoundForm do zaznaczania (forma fleksyjna) lub renderuj markdown **term** */}
+                          {term.targetFoundForm
+                            ? highlightTermInContext(term.targetContext.replace(/\*\*/g, ''), term.targetFoundForm)
+                            : term.targetTerm
+                              ? highlightTermInContext(term.targetContext.replace(/\*\*/g, ''), term.targetTerm)
+                              : term.targetContext.replace(/\*\*/g, '')}
                         </div>
                       ) : (
                         <span className="text-gray-400 italic">
