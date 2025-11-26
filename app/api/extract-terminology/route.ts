@@ -194,27 +194,32 @@ TYPY TERMINÓW DO EKSTRAKCJI:
 
 !!! KRYTYCZNE - EKSTRAHUJ PEŁNE FRAZY !!!
 Ekstrahuj KOMPLETNĄ frazę tak jak występuje w dokumencie, włącznie ze WSZYSTKIMI przymiotnikami i modyfikatorami:
-- ŹILE: "wydać opinię" gdy w dokumencie jest "wydać pisemną opinię"
+- ŹLE: "wydać opinię" gdy w dokumencie jest "wydać pisemną opinię"
 - DOBRZE: "wydać pisemną opinię" - pełna fraza z dokumentu
-- ŹILE: "ochrona danych" gdy w dokumencie jest "ochrona danych osobowych"
-- DOBRZE: "ochrona danych osobowych" - pełna fraza
 
 !!! KRYTYCZNE - POLE "foundForm" JEST OBOWIĄZKOWE !!!
 Dla KAŻDEGO terminu MUSISZ podać OBA pola - bez wyjątków:
-  - "term": forma PODSTAWOWA (słownikowa) - rzeczowniki w MIANOWNIKU, czasowniki w BEZOKOLICZNIKU
+  - "term": forma PODSTAWOWA (słownikowa) - rzeczowniki w MIANOWNIKU l.poj., czasowniki w BEZOKOLICZNIKU
   - "foundForm": forma DOKŁADNIE tak jak występuje w dokumencie (SKOPIUJ TEKST Z DOKUMENTU!)
 
-WAŻNE: "term" i "foundForm" MUSZĄ opisywać TĘ SAMĄ frazę (tylko w innej formie gramatycznej)!
-- ŹLIE: term="uprawnieni organu" gdy w dokumencie jest "uprawnienia organu" (to RÓŻNE słowa!)
-- DOBRZE: term="uprawnienie organu", foundForm="uprawnienia organu" (to ta sama fraza)
+!!! ABSOLUTNIE ZAKAZANE - NIE ZMIENIAJ SŁÓW NA INNE !!!
+Lemmatyzacja to TYLKO zmiana formy gramatycznej, NIE zmiana słowa na inne!
+- "uprawnienia" (rzeczownik) → "uprawnienie" ✓ (ta sama część mowy, l.poj.)
+- "uprawnienia" → "uprawniony" ✗ BŁĄD! To INNE słowo (przymiotnik)!
+- "organami" → "organ" ✓ (ten sam rzeczownik w mianowniku)
+- "powołującego" → "powołujący" ✓ (ten sam imiesłów w mianowniku)
 
-JEŚLI POMINIESZ POLE "foundForm", TERMIN ZOSTANIE ODRZUCONY!
+PRZYKŁADY BŁĘDÓW DO UNIKANIA:
+- ŹLE: foundForm="uprawnienia organu" → term="uprawniony organ" (zmiana rzeczownika na przymiotnik!)
+- DOBRZE: foundForm="uprawnienia organu" → term="uprawnienie organu" (ten sam rzeczownik w l.poj.)
+- ŹLE: foundForm="działalności operacyjnej" → term="operacyjna działalność" (zmiana szyku!)
+- DOBRZE: foundForm="działalności operacyjnej" → term="działalność operacyjna" (mianownik, ten sam szyk)
 
 PRZYKŁADY POPRAWNEJ EKSTRAKCJI:
 - W dokumencie: "właściwymi organami" → term: "właściwy organ", foundForm: "właściwymi organami"
-- W dokumencie: "wydaje pisemną opinię" → term: "wydać pisemną opinię", foundForm: "wydaje pisemną opinię"
 - W dokumencie: "uprawnienia organu powołującego" → term: "uprawnienie organu powołującego", foundForm: "uprawnienia organu powołującego"
 - W dokumencie: "wszczęto postępowanie karne" → term: "wszcząć postępowanie karne", foundForm: "wszczęto postępowanie karne"
+- W dokumencie: "wydaje pisemną opinię" → term: "wydać pisemną opinię", foundForm: "wydaje pisemną opinię"
 
 KRYTERIA:
 - Minimum ${minLength} znaków na termin
