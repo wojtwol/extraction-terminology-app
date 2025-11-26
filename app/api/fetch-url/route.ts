@@ -154,20 +154,21 @@ function formatCelexTitle(celexOrUrl: string, language: 'pl' | 'en' = 'en'): str
 
 // Funkcja do formatowania nazw plików XML z EUR-Lex
 function formatEurLexXmlFilename(filename: string, language: 'pl' | 'en' = 'en'): string | null {
-  // Format: L_2017283EN.01000101.xml -> wyekstrahuj rok i typ
+  // Format: L_202401689EN.000101.fmx.xml lub L_2017283EN.01000101.xml
   // L = Dziennik Urzędowy seria L, C = seria C
-  const xmlMatch = filename.match(/([LC])_(\d{4})(\d{3})[A-Z]{2}\./)
+  // Rozszerzony regex dla różnych formatów
+  const xmlMatch = filename.match(/([LC])_(\d{4})(\d+)[A-Z]{2}[\._]/)
 
   if (xmlMatch) {
     const series = xmlMatch[1]
     const year = xmlMatch[2]
-    const dayOfYear = xmlMatch[3]
+    const ojNumber = xmlMatch[3]
 
     // Nie możemy określić dokładnego numeru aktu z nazwy pliku XML,
-    // więc zwracamy ogólną nazwę
+    // więc zwracamy ogólną nazwę z numerem OJ
     return language === 'pl'
-      ? `Dokument z Dziennika Urzędowego ${series} ${year}/${dayOfYear}`
-      : `Official Journal ${series} ${year}/${dayOfYear}`
+      ? `Dziennik Urzędowy ${series} ${year}/${ojNumber}`
+      : `Official Journal ${series} ${year}/${ojNumber}`
   }
 
   return null
