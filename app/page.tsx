@@ -1179,6 +1179,13 @@ export default function Home() {
     // Znajdź pozycje i kontekst w dokumencie docelowym
     const targetOccurrences = findTermOccurrences(targetDoc, targetTerm)
 
+    // Sprawdź czy język docelowy wymaga lemmatyzacji (języki słowiańskie)
+    const slavicLanguages = ['Polski', 'Czeski', 'Słowacki', 'Ukraiński', 'Rosyjski', 'Bułgarski', 'Chorwacki', 'Serbski', 'Słoweński', 'Polish', 'Czech', 'Slovak', 'Ukrainian', 'Russian', 'Bulgarian', 'Croatian', 'Serbian', 'Slovenian']
+    const targetLanguage = currentGlossary.targetLanguage || ''
+    const needsTargetLemmatization = slavicLanguages.some(lang =>
+      targetLanguage.toLowerCase().includes(lang.toLowerCase())
+    )
+
     // Sprawdź czy istnieje już termin bez targetTerm który możemy zaktualizować
     const existingTermIndex = terms.findIndex(t => !t.targetTerm)
 
@@ -1191,6 +1198,7 @@ export default function Home() {
           ? {
               ...t,
               targetTerm: targetTerm,
+              targetFoundForm: needsTargetLemmatization ? targetTerm : undefined,
               targetContext: targetOccurrences.context,
               targetOccurrences: targetOccurrences.occurrences,
               targetPositions: targetOccurrences.positions,
@@ -1207,6 +1215,7 @@ export default function Home() {
         occurrences: 0,
         positions: [],
         targetTerm: targetTerm,
+        targetFoundForm: needsTargetLemmatization ? targetTerm : undefined,
         targetContext: targetOccurrences.context,
         targetOccurrences: targetOccurrences.occurrences,
         targetPositions: targetOccurrences.positions,
@@ -1220,7 +1229,7 @@ export default function Home() {
     handleTermUpdate(updatedTerms)
 
     // Pokaż komunikat sukcesu
-    console.log(`✅ Dodano termin ręcznie: "${targetTerm}"`)
+    console.log(`✅ Dodano termin ręcznie: "${targetTerm}"${needsTargetLemmatization ? ' [z targetFoundForm]' : ''}`)
   }
 
   // Handler dla importu terminów z plików JSON/XLSX
@@ -2018,8 +2027,11 @@ export default function Home() {
       return
     }
 
-    // Sprawdź czy termin już istnieje w glosariuszu
-    const existingTerm = terms.find(t => t.term.toLowerCase() === trimmedTerm.toLowerCase())
+    // Sprawdź czy termin już istnieje w glosariuszu (porównuj zarówno term jak i foundForm)
+    const existingTerm = terms.find(t =>
+      t.term.toLowerCase() === trimmedTerm.toLowerCase() ||
+      (t.foundForm && t.foundForm.toLowerCase() === trimmedTerm.toLowerCase())
+    )
     if (existingTerm) {
       alert(language === 'pl'
         ? `Termin "${trimmedTerm}" już istnieje w glosariuszu.`
@@ -2037,10 +2049,18 @@ export default function Home() {
       return
     }
 
+    // Sprawdź czy język wymaga lemmatyzacji (języki słowiańskie)
+    const slavicLanguages = ['Polski', 'Czeski', 'Słowacki', 'Ukraiński', 'Rosyjski', 'Bułgarski', 'Chorwacki', 'Serbski', 'Słoweński', 'Polish', 'Czech', 'Slovak', 'Ukrainian', 'Russian', 'Bulgarian', 'Croatian', 'Serbian', 'Slovenian']
+    const needsLemmatization = slavicLanguages.some(lang =>
+      detectedLanguage.toLowerCase().includes(lang.toLowerCase())
+    )
+
     // Utwórz nowy termin
+    // Dla języków słowiańskich: zaznaczony tekst = foundForm, term = foundForm (do późniejszej lemmatyzacji przez AI)
     const newTerm: Term = {
       id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       term: trimmedTerm,
+      foundForm: needsLemmatization ? trimmedTerm : undefined,
       context,
       occurrences,
       positions,
@@ -2052,7 +2072,7 @@ export default function Home() {
     const updatedTerms = [...terms, newTerm]
     handleTermUpdate(updatedTerms)
 
-    console.log(`✅ Dodano ręcznie termin: "${trimmedTerm}" (${occurrences} wystąpień)`)
+    console.log(`✅ Dodano ręcznie termin: "${trimmedTerm}" (${occurrences} wystąpień)${needsLemmatization ? ' [z foundForm]' : ''}`)
     toast.success(
       language === 'pl' ? 'Termin dodany' : 'Term added',
       language === 'pl'
