@@ -454,10 +454,19 @@ TEXT:`
       if (isSlavicLanguage) {
         const termsWithoutFoundForm = parsedResponse.terms.filter((t: any) => t && t.term && !t.foundForm)
         if (termsWithoutFoundForm.length > 0) {
-          console.log(`   ⚠️  ${termsWithoutFoundForm.length} terminów BEZ foundForm - użyję term jako foundForm`)
-          // Automatycznie ustaw foundForm = term jeśli brakuje (fallback)
+          console.log(`   ⚠️  ${termsWithoutFoundForm.length} terminów BEZ foundForm - próbuję wyekstrahować z kontekstu/dokumentu`)
+
           termsWithoutFoundForm.forEach((t: any) => {
-            t.foundForm = t.term
+            // Próba 1: Szukaj formy terminu w kontekście
+            const extractedForm = extractFoundFormFromContext(t.term, t.context, text)
+            if (extractedForm) {
+              t.foundForm = extractedForm
+              console.log(`      ✓ Dla "${t.term}" znaleziono formę: "${extractedForm}"`)
+            } else {
+              // Fallback: użyj term (może zadziałać jeśli to forma podstawowa)
+              t.foundForm = t.term
+              console.log(`      ⚠ Dla "${t.term}" nie znaleziono formy - użyję lemma`)
+            }
           })
         }
       }
@@ -984,4 +993,99 @@ function getPreferredTermForm(term1: string, term2: string): string {
 
   // Obie formy są takie same - preferuj krótszy termin
   return term1.length <= term2.length ? term1 : term2
+}
+
+// Funkcja do ekstrakcji foundForm z kontekstu lub dokumentu dla języków słowiańskich
+// Szuka formy odmienionej terminu bazując na rdzeniu słowa
+function extractFoundFormFromContext(term: string, context: string, fullText: string): string | null {
+  // Rozdziel termin na słowa
+  const termWords = term.toLowerCase().split(/\s+/)
+
+  // Dla terminów wielowyrazowych, szukamy sekwencji słów w dokumencie
+  // które mają podobne rdzenie do słów w terminie
+
+  // Pobierz rdzeń każdego słowa (pierwsze 4-6 znaków, w zależności od długości)
+  const stems = termWords.map(word => {
+    if (word.length <= 4) return word
+    if (word.length <= 6) return word.substring(0, 4)
+    return word.substring(0, Math.min(5, word.length - 2))
+  })
+
+  // Funkcja do szukania formy w tekście
+  const findFormInText = (searchText: string): string | null => {
+    const searchLower = searchText.toLowerCase()
+
+    // Dla jednowyrazowego terminu
+    if (termWords.length === 1) {
+      const stem = stems[0]
+      // Znajdź słowo zaczynające się od tego rdzenia
+      const regex = new RegExp(`\\b(${escapeRegex(stem)}[a-ząćęłńóśźżäöüßčďěňřšťůžőű]*)\\b`, 'gi')
+      const matches = searchText.match(regex)
+      if (matches && matches.length > 0) {
+        return matches[0]
+      }
+      return null
+    }
+
+    // Dla wielowyrazowego terminu - szukaj sekwencji
+    // Najpierw szukaj pierwszego słowa, potem sprawdź czy kolejne słowa pasują
+    const firstStem = stems[0]
+    const regex = new RegExp(`\\b${escapeRegex(firstStem)}[a-ząćęłńóśźżäöüßčďěňřšťůžőű]*\\b`, 'gi')
+
+    let match
+    while ((match = regex.exec(searchText)) !== null) {
+      const startIndex = match.index
+
+      // Spróbuj wyekstrahować pełny termin zaczynając od tej pozycji
+      // Szukamy sekwencji słów które pasują do naszych rdzeni
+      let currentPos = startIndex
+      const extractedWords: string[] = []
+      let allStemsMatch = true
+
+      for (let i = 0; i < stems.length; i++) {
+        // Znajdź następne słowo zaczynając od currentPos
+        const wordMatch = searchText.substring(currentPos).match(/^\s*([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻäöüßčďěňřšťůžČĎĚŇŘŠŤŮŽőűŐŰ]+)/)
+        if (!wordMatch) {
+          allStemsMatch = false
+          break
+        }
+
+        const word = wordMatch[1]
+        const wordLower = word.toLowerCase()
+
+        // Sprawdź czy słowo zaczyna się od oczekiwanego rdzenia
+        if (!wordLower.startsWith(stems[i])) {
+          allStemsMatch = false
+          break
+        }
+
+        extractedWords.push(word)
+        currentPos += wordMatch[0].length
+      }
+
+      if (allStemsMatch && extractedWords.length === stems.length) {
+        return extractedWords.join(' ')
+      }
+    }
+
+    return null
+  }
+
+  // Najpierw szukaj w kontekście (bardziej prawdopodobne że znajdziemy właściwą formę)
+  if (context) {
+    const foundInContext = findFormInText(context)
+    if (foundInContext) {
+      return foundInContext
+    }
+  }
+
+  // Jeśli nie znaleziono w kontekście, szukaj w pełnym dokumencie
+  // Ale ogranicz przeszukiwanie do pierwszych 50000 znaków dla wydajności
+  const searchSection = fullText.length > 50000 ? fullText.substring(0, 50000) : fullText
+  const foundInDoc = findFormInText(searchSection)
+  if (foundInDoc) {
+    return foundInDoc
+  }
+
+  return null
 }
