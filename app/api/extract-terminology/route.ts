@@ -182,20 +182,27 @@ KRYTYCZNE ZASADY - PRZECZYTAJ UWAŻNIE:
 5. TYLKO ekstrahuj terminy POLSKIE - jeśli dokument zawiera terminy angielskie/niemieckie/francuskie, POMIŃ je całkowicie
 6. Jeśli termin występuje w wielu językach (np. "współpraca" i "cooperation"), ekstrahuj TYLKO wersję POLSKĄ
 
+TYPY TERMINÓW DO EKSTRAKCJI:
+- Rzeczowniki specjalistyczne: "postępowanie karne", "właściwy organ", "ochrona danych"
+- Czasowniki i KOLOKACJE CZASOWNIKOWE (bardzo ważne!):
+  - "wydać wyrok", "przedstawić zarzuty", "wszcząć postępowanie"
+  - "dokonać zatrzymania", "przeprowadzić dochodzenie", "orzec karę"
+  - "złożyć wniosek", "wnieść oskarżenie", "umorzyć sprawę"
+- Przymiotniki specjalistyczne w połączeniu z rzeczownikami
+- Zwroty prawnicze i techniczne
+
 WAŻNE - LEMMATYZACJA (FORMA PODSTAWOWA):
 - Dla każdego terminu podaj DWA pola:
   - "term": forma PODSTAWOWA (słownikowa) - rzeczowniki w MIANOWNIKU, czasowniki w BEZOKOLICZNIKU
   - "foundForm": forma DOKŁADNIE tak jak występuje w dokumencie
-- Przykłady:
+- Przykłady dla RZECZOWNIKÓW:
   - W dokumencie: "właściwymi organami" → term: "właściwy organ", foundForm: "właściwymi organami"
-  - W dokumencie: "ochroną danych osobowych" → term: "ochrona danych osobowych", foundForm: "ochroną danych osobowych"
   - W dokumencie: "postępowania karnego" → term: "postępowanie karne", foundForm: "postępowania karnego"
-  - W dokumencie: "europejskiej współpracy sądowej" → term: "europejska współpraca sądowa", foundForm: "europejskiej współpracy sądowej"
-
-PRZYKŁADY PRAWIDŁOWEJ EKSTRAKCJI:
-- Dokument: "postępowanie karne" → term: "postępowanie karne", foundForm: "postępowanie karne" ✓
-- Dokument: "ram prawnych" → term: "rama prawna", foundForm: "ram prawnych" ✓
-- Dokument: "ochronę danych" → term: "ochrona danych", foundForm: "ochronę danych" ✓
+- Przykłady dla CZASOWNIKÓW i KOLOKACJI:
+  - W dokumencie: "wydał wyrok" → term: "wydać wyrok", foundForm: "wydał wyrok"
+  - W dokumencie: "przedstawiono zarzuty" → term: "przedstawić zarzuty", foundForm: "przedstawiono zarzuty"
+  - W dokumencie: "wszczęto postępowanie" → term: "wszcząć postępowanie", foundForm: "wszczęto postępowanie"
+  - W dokumencie: "dokonując zatrzymania" → term: "dokonać zatrzymania", foundForm: "dokonując zatrzymania"
 
 WAŻNE: Wiele terminów to frazy wielowyrazowe - ekstrahuj PEŁNY specjalistyczny termin, nie pojedyncze słowa!
 
