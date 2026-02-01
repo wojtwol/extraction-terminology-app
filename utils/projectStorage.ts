@@ -52,10 +52,6 @@ export interface Project {
   isMultiDocument?: boolean
   documents?: SourceDocument[]
 
-  // Dla bilingual mode
-  mode?: 'monolingual' | 'bilingual'
-  stage?: 1 | 2  // Workflow stage dla bilingual (1 = base glossary, 2 = finding equivalents)
-
   glossaries: Glossary[]
   currentGlossaryId: string | null
 }

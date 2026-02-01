@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { text } = body
+    const { text, fileName } = body
 
     if (!text || typeof text !== 'string') {
       return NextResponse.json(
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = detectLanguage(text)
+    const result = detectLanguage(text, fileName)
 
     return NextResponse.json({
       language: result.language,

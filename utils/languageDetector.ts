@@ -1,9 +1,40 @@
-import { franc } from 'franc-min'
+import { eld } from 'eld'
+
+// Mapowanie ISO 639-1 (eld) → ISO 639-3 (używane w aplikacji)
+const ISO_639_1_TO_639_3: Record<string, string> = {
+  'ar': 'arb', // Arabski
+  'bg': 'bul', // Bułgarski
+  'hr': 'hrv', // Chorwacki
+  'cs': 'ces', // Czeski
+  'da': 'dan', // Duński
+  'nl': 'nld', // Niderlandzki
+  'en': 'eng', // Angielski
+  'et': 'est', // Estoński
+  'fi': 'fin', // Fiński
+  'fr': 'fra', // Francuski
+  'de': 'deu', // Niemiecki
+  'el': 'ell', // Grecki
+  'hu': 'hun', // Węgierski
+  'it': 'ita', // Włoski
+  'lv': 'lav', // Łotewski
+  'lt': 'lit', // Litewski
+  'pl': 'pol', // Polski
+  'pt': 'por', // Portugalski
+  'ro': 'ron', // Rumuński
+  'sk': 'slk', // Słowacki
+  'sl': 'slv', // Słoweński
+  'es': 'spa', // Hiszpański
+  'sv': 'swe', // Szwedzki
+  'ru': 'rus', // Rosyjski
+  'uk': 'ukr', // Ukraiński
+  'sr': 'srp', // Serbski
+  'tr': 'tur', // Turecki
+  'sq': 'sqi', // Albański
+}
 
 // Mapowanie kodów ISO 639-3 na pełne nazwy języków
-// Obejmuje: 24 języki urzędowe UE + dodatkowe (RU, UKR, serbski, turecki)
 const SUPPORTED_LANGUAGES: Record<string, string> = {
-  // Języki UE (24)
+  // Języki UE (24) - 22 obsługiwane przez ELD
   'bul': 'Bułgarski',
   'hrv': 'Chorwacki',
   'ces': 'Czeski',
@@ -16,11 +47,11 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
   'deu': 'Niemiecki',
   'ell': 'Grecki',
   'hun': 'Węgierski',
-  'gle': 'Irlandzki',
+  'gle': 'Irlandzki', // NIE obsługiwany przez ELD
   'ita': 'Włoski',
   'lav': 'Łotewski',
   'lit': 'Litewski',
-  'mlt': 'Maltański',
+  'mlt': 'Maltański', // NIE obsługiwany przez ELD
   'pol': 'Polski',
   'por': 'Portugalski',
   'ron': 'Rumuński',
@@ -28,16 +59,26 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
   'slv': 'Słoweński',
   'spa': 'Hiszpański',
   'swe': 'Szwedzki',
-  // Dodatkowe języki
+  // Dodatkowe języki (6) - wszystkie obsługiwane
   'rus': 'Rosyjski',
   'ukr': 'Ukraiński',
   'srp': 'Serbski',
-  'tur': 'Turecki'
+  'tur': 'Turecki',
+  'arb': 'Arabski',
+  'sqi': 'Albański'
+}
+
+// Konfiguruj ELD na subset obsługiwanych języków (28 z 30 - brak ga i mt)
+const SUPPORTED_ISO_639_1_CODES = Object.keys(ISO_639_1_TO_639_3)
+try {
+  eld.dynamicLangSubset(SUPPORTED_ISO_639_1_CODES)
+  console.log('✅ ELD skonfigurowany dla 28 języków')
+} catch (error) {
+  console.warn('⚠️ Nie udało się skonfigurować ELD subset:', error)
 }
 
 // Mapowanie nazw na kody ISO dla Claude
 const LANGUAGE_TO_ISO: Record<string, string> = {
-  // Języki UE
   'Bułgarski': 'bul',
   'Chorwacki': 'hrv',
   'Czeski': 'ces',
@@ -62,11 +103,12 @@ const LANGUAGE_TO_ISO: Record<string, string> = {
   'Słoweński': 'slv',
   'Hiszpański': 'spa',
   'Szwedzki': 'swe',
-  // Dodatkowe języki
   'Rosyjski': 'rus',
   'Ukraiński': 'ukr',
   'Serbski': 'srp',
-  'Turecki': 'tur'
+  'Turecki': 'tur',
+  'Arabski': 'arb',
+  'Albański': 'sqi'
 }
 
 export interface LanguageDetectionResult {
@@ -77,50 +119,91 @@ export interface LanguageDetectionResult {
 }
 
 /**
- * Wykrywa język dokumentu używając franc-min (bazuje na n-gramach)
- * Obsługuje 28 języków: 24 języki UE + RU, UKR, serbski, turecki
+ * Wykrywa język dokumentu używając ELD (Efficient Language Detector)
+ * Obsługuje 28 języków (z 30 planowanych - brakuje irlandzki i maltański)
  */
-export function detectLanguage(text: string): LanguageDetectionResult {
-  // Użyj większej próbki dla lepszej dokładności
-  const sampleSize = Math.min(10000, text.length)
-  const sample = text.slice(0, sampleSize)
+export function detectLanguage(text: string, fileName?: string): LanguageDetectionResult {
+  console.log(`🔍 Wykrywanie języka ELD (długość: ${text.length} znaków)...`)
+  if (fileName) console.log(`   Plik: ${fileName}`)
 
-  console.log(`🔍 Wykrywanie języka (próbka: ${sampleSize} znaków)...`)
-
-  // franc zwraca kod ISO 639-3
-  const detectedCode = franc(sample, { minLength: 10 })
-
-  console.log(`   Wykryty kod: ${detectedCode}`)
-
-  // Sprawdź czy to język obsługiwany
-  if (detectedCode === 'und') {
-    console.log('❌ Nie można wykryć języka')
+  // Sprawdź minimalną długość tekstu
+  if (text.length < 50) {
+    console.log('❌ Tekst zbyt krótki do analizy')
     return {
       language: 'Nieznany',
       languageCode: 'und',
       confidence: 'low',
-      detectionMethod: 'franc-min (failed)'
+      detectionMethod: 'insufficient-data'
     }
   }
 
-  const languageName = SUPPORTED_LANGUAGES[detectedCode]
+  try {
+    // Użyj ELD do wykrycia języka
+    const result = eld.detect(text)
+    const iso639_1Code = result.language // np. 'en', 'pl', 'pt'
 
-  if (languageName) {
-    console.log(`✅ Wykryto: ${languageName} (${detectedCode})`)
+    console.log(`   ELD wykrył: ${iso639_1Code}`)
+    console.log(`   isReliable: ${result.isReliable()}`)
+
+    // Jeśli nie wykryto języka
+    if (!iso639_1Code || iso639_1Code === '') {
+      console.log('❌ ELD nie wykrył języka')
+      return {
+        language: 'Nieznany',
+        languageCode: 'und',
+        confidence: 'low',
+        detectionMethod: 'eld-no-detection'
+      }
+    }
+
+    // Konwertuj ISO 639-1 na ISO 639-3
+    const iso639_3Code = ISO_639_1_TO_639_3[iso639_1Code]
+
+    if (!iso639_3Code) {
+      console.log(`⚠️ Wykryto nieobsługiwany język: ${iso639_1Code}`)
+      return {
+        language: 'Nieznany',
+        languageCode: 'und',
+        confidence: 'low',
+        detectionMethod: 'eld-unsupported-language'
+      }
+    }
+
+    const languageName = SUPPORTED_LANGUAGES[iso639_3Code]
+
+    // Określ confidence na podstawie ELD isReliable() + sprawdź scores
+    const scores = result.getScores()
+    const scoreValues = Object.values(scores).sort((a, b) => (b as number) - (a as number))
+    const topScore = scoreValues[0] as number
+    const secondScore = scoreValues[1] as number || 0
+    const gap = topScore - secondScore
+
+    let confidence: 'high' | 'medium' | 'low'
+    if (result.isReliable() && gap > 0.3) {
+      confidence = 'high'
+    } else if (result.isReliable() || gap > 0.2) {
+      confidence = 'medium'
+    } else {
+      confidence = 'low'
+    }
+
+    console.log(`✅ Wykryto: ${languageName} (${iso639_3Code})`)
+    console.log(`   Top score: ${(topScore * 100).toFixed(1)}%, gap: ${(gap * 100).toFixed(1)}%`)
+    console.log(`   Confidence: ${confidence}`)
+
     return {
       language: languageName,
-      languageCode: detectedCode,
-      confidence: sampleSize >= 1000 ? 'high' : 'medium',
-      detectionMethod: 'franc-min (n-gram analysis)'
+      languageCode: iso639_3Code,
+      confidence,
+      detectionMethod: 'eld'
     }
-  } else {
-    console.log(`⚠️  Wykryto język spoza listy obsługiwanych: ${detectedCode}`)
-    // Zwróć oryginalny kod jeśli nie jest obsługiwanym językiem
+  } catch (error) {
+    console.error('❌ Błąd ELD:', error)
     return {
-      language: `Inny (${detectedCode})`,
-      languageCode: detectedCode,
-      confidence: 'medium',
-      detectionMethod: 'franc-min (unsupported language)'
+      language: 'Nieznany',
+      languageCode: 'und',
+      confidence: 'low',
+      detectionMethod: 'eld-error'
     }
   }
 }

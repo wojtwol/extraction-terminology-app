@@ -2,12 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import FileUpload from '@/components/FileUpload'
-import BilingualFileUpload from '@/components/BilingualFileUpload'
-import ModeSelector from '@/components/ModeSelector'
 import TerminologyTable from '@/components/TerminologyTable'
 import ExportButtons from '@/components/ExportButtons'
 import DocumentViewer from '@/components/DocumentViewer'
-import DocumentSplitView from '@/components/DocumentSplitView'
 import GlossaryManager from '@/components/GlossaryManager'
 import SnapshotButton from '@/components/SnapshotButton'
 import LanguageSwitch from '@/components/LanguageSwitch'
@@ -38,13 +35,7 @@ export interface Term {
 
   definition?: string
   definitionSource?: 'document' | 'ai' | 'edited' | null
-
-  // Dla bilingual glossary mode (target language)
-  targetTerm?: string
-  targetContext?: string
-  targetOccurrences?: number
-  targetPositions?: number[]
-  targetSource?: 'document' | 'ai' | 'manual' | 'missing'
+  sourceDocument?: string  // Nazwa dokumentu źródłowego z którego wyekstrahowano termin
 }
 
 // Funkcja pomocnicza do znajdowania wszystkich wystąpień terminu w tekście (case sensitive)
@@ -120,16 +111,6 @@ export default function Home() {
   const [detectedLanguage, setDetectedLanguage] = useState('')
   const [apiKey, setApiKey] = useState('')
 
-  // Bilingual mode state
-  const [glossaryMode, setGlossaryMode] = useState<'monolingual' | 'bilingual' | null>(null)
-  const [bilingualStage, setBilingualStage] = useState<1 | 2>(1)
-  const [sourceDocumentText, setSourceDocumentText] = useState('')
-  const [targetDocumentText, setTargetDocumentText] = useState('')
-  const [sourceLanguage, setSourceLanguage] = useState('')
-  const [targetLanguage, setTargetLanguage] = useState('')
-  const [sourceFileName, setSourceFileName] = useState('')
-  const [targetFileName, setTargetFileName] = useState('')
-
   // Nowy state - załadowany tekst przed ekstrakcją
   const [loadedText, setLoadedText] = useState('')
   const [loadedFileName, setLoadedFileName] = useState('')
@@ -146,6 +127,7 @@ export default function Home() {
   const [maxTerms, setMaxTerms] = useState(30)
   const [minLength, setMinLength] = useState(3)
   const [minOccurrences, setMinOccurrences] = useState(1)
+  const [generateDefinitions, setGenerateDefinitions] = useState(false)
 
   // Wybrany termin do podświetlenia w dokumencie
   const [selectedTerm, setSelectedTerm] = useState<Term | null>(null)
@@ -291,6 +273,12 @@ export default function Home() {
         return
       }
 
+      // Dodaj sourceDocument do każdego terminu
+      const termsWithSource = data.terms.map((term: Term) => ({
+        ...term,
+        sourceDocument: loadedFileName || fileName || 'unknown'
+      }))
+
       // Zapisz wyniki jako nową wersję glosariusza
       const extractionParams = { minTerms, maxTerms, minLength, minOccurrences }
       const description = `Ekstrakcja: ${minTerms}-${maxTerms} terminów`
@@ -298,7 +286,7 @@ export default function Home() {
       projectStorage.addVersion(
         currentProject.id,
         currentGlossary.id,
-        data.terms,
+        termsWithSource,
         description,
         extractionParams,
         false // nie jest snapshotem
@@ -311,8 +299,79 @@ export default function Home() {
       }
       refreshGlossary()
 
+      // Jeśli włączono automatyczne generowanie definicji
+      if (generateDefinitions && termsWithSource.length > 0) {
+        console.log(`🔮 Rozpoczynam automatyczne generowanie definicji dla ${termsWithSource.length} terminów...`)
+
+        const termsWithDefinitions = [...termsWithSource]
+        let successCount = 0
+        let errorCount = 0
+
+        for (let i = 0; i < termsWithDefinitions.length; i++) {
+          const term = termsWithDefinitions[i]
+          const progressPercent = Math.round((i / termsWithDefinitions.length) * 100)
+          setProgress(progressPercent)
+
+          try {
+            const defResponse = await fetch('/api/generate-definition', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                apiKey,
+                term: term.term,
+                context: term.context,
+                documentText: loadedText,
+                language: detectedLanguage || 'pl'
+              })
+            })
+
+            if (defResponse.ok) {
+              const defData = await defResponse.json()
+              termsWithDefinitions[i] = {
+                ...term,
+                definition: defData.definition,
+                definitionSource: 'ai' as const
+              }
+              successCount++
+              console.log(`✅ [${i + 1}/${termsWithDefinitions.length}] Wygenerowano definicję dla "${term.term}"`)
+            } else {
+              errorCount++
+              console.warn(`⚠️ [${i + 1}/${termsWithDefinitions.length}] Błąd generowania definicji dla "${term.term}"`)
+            }
+          } catch (error) {
+            errorCount++
+            console.error(`❌ [${i + 1}/${termsWithDefinitions.length}] Wyjątek podczas generowania definicji dla "${term.term}":`, error)
+          }
+        }
+
+        // Zapisz terminy z definicjami jako nową wersję
+        projectStorage.addVersion(
+          currentProject.id,
+          currentGlossary.id,
+          termsWithDefinitions,
+          `Ekstrakcja: ${minTerms}-${maxTerms} terminów (z definicjami: ${successCount}/${termsWithDefinitions.length})`,
+          extractionParams,
+          false
+        )
+
+        // Odśwież ponownie aby pokazać definicje
+        const projectWithDefinitions = projectStorage.getById(currentProject.id)
+        if (projectWithDefinitions) {
+          setCurrentProject(projectWithDefinitions)
+        }
+        refreshGlossary()
+
+        console.log(`✅ Wygenerowano ${successCount} definicji, ${errorCount} błędów`)
+
+        if (errorCount > 0) {
+          alert(language === 'pl'
+            ? `Wygenerowano definicje: ${successCount}/${termsWithDefinitions.length}\nBłędy: ${errorCount}`
+            : `Generated definitions: ${successCount}/${termsWithDefinitions.length}\nErrors: ${errorCount}`)
+        }
+      }
+
       setProgress(100)
-      console.log(`✅ Wyekstrahowano ${data.terms.length} terminów`)
+      console.log(`✅ Wyekstrahowano ${termsWithSource.length} terminów`)
 
       // Zapisz sugestię jeśli istnieje
       if (data.suggestion) {
@@ -475,7 +534,344 @@ export default function Home() {
     setDetectedLanguage(project.detectedLanguage)
     setLoadedText('')
     setLoadedFileName('')
+
     refreshGlossary()
+  }
+
+  // Export projektu do JSON
+  const handleExportProject = () => {
+    if (!currentProject) return
+
+    const projectData = JSON.stringify(currentProject, null, 2)
+    const blob = new Blob([projectData], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${currentProject.name.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    alert(language === 'pl'
+      ? `Projekt "${currentProject.name}" został wyeksportowany!`
+      : `Project "${currentProject.name}" has been exported!`)
+  }
+
+  // Import projektu z JSON
+  const handleImportProject = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const text = await file.text()
+        const importedProject = JSON.parse(text)
+
+        // Walidacja podstawowa
+        if (!importedProject.id || !importedProject.name || !importedProject.glossaries) {
+          throw new Error(language === 'pl'
+            ? 'Nieprawidłowy format pliku projektu'
+            : 'Invalid project file format')
+        }
+
+        // Zapisz projekt (z nowym ID aby uniknąć konfliktów)
+        const newProject: Project = {
+          ...importedProject,
+          id: `project-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+
+        projectStorage.save(newProject)
+
+        alert(language === 'pl'
+          ? `Projekt "${newProject.name}" został zaimportowany!`
+          : `Project "${newProject.name}" has been imported!`)
+
+        // Załaduj zaimportowany projekt
+        handleLoadProject(newProject)
+      } catch (error) {
+        console.error('Import error:', error)
+        alert(language === 'pl'
+          ? `Błąd importu: ${(error as Error).message}`
+          : `Import error: ${(error as Error).message}`)
+      }
+    }
+    input.click()
+  }
+
+  // Export pojedynczego glosariusza do JSON
+  const handleExportGlossary = () => {
+    if (terms.length === 0) {
+      alert(language === 'pl'
+        ? 'Brak terminów do eksportu'
+        : 'No terms to export')
+      return
+    }
+
+    const glossaryData = {
+      exportedAt: new Date().toISOString(),
+      fileName: fileName || 'unknown',
+      language: detectedLanguage || 'unknown',
+      termsCount: terms.length,
+      terms: terms.map(term => ({
+        term: term.term,
+        context: term.context,
+        occurrences: term.occurrences,
+        positions: term.positions,
+        definition: term.definition,
+        definitionSource: term.definitionSource,
+        sourceDocument: term.sourceDocument
+      }))
+    }
+
+    const jsonContent = JSON.stringify(glossaryData, null, 2)
+    const blob = new Blob([jsonContent], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    const safeName = (fileName || 'glossary').replace(/[^a-z0-9]/gi, '_')
+    link.download = `${safeName}_glossary_${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    console.log(`✅ Wyeksportowano glosariusz: ${terms.length} terminów`)
+  }
+
+  // Import glosariusza z JSON
+  const handleImportGlossaryJSON = async () => {
+    if (!currentProject || !currentGlossary) {
+      alert(language === 'pl'
+        ? 'Nie można zaimportować - brak aktywnego projektu lub glosariusza'
+        : 'Cannot import - no active project or glossary')
+      return
+    }
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const text = await file.text()
+        const glossaryData = JSON.parse(text)
+
+        // Walidacja
+        if (!glossaryData.terms || !Array.isArray(glossaryData.terms)) {
+          throw new Error(language === 'pl'
+            ? 'Nieprawidłowy format pliku glosariusza. Plik musi zawierać pole "terms" z tablicą terminów.'
+            : 'Invalid glossary file format. File must contain "terms" array.')
+        }
+
+        // Parsuj terminy z JSON
+        const importedTerms: Term[] = glossaryData.terms.map((t: any, index: number) => {
+          // Znajdź pozycje terminu w dokumencie (jeśli dokument jest dostępny)
+          const { positions, context, occurrences } = documentText && t.term
+            ? findTermOccurrences(documentText, t.term)
+            : { positions: t.positions || [], context: t.context || '', occurrences: t.occurrences || 1 }
+
+          return {
+            id: `imported-json-${Date.now()}-${index}`,
+            term: t.term,
+            context: context || t.context || '',
+            occurrences,
+            positions,
+            definition: t.definition,
+            definitionSource: t.definitionSource,
+            sourceDocument: t.sourceDocument || glossaryData.fileName || 'imported'
+          }
+        })
+
+        if (importedTerms.length === 0) {
+          throw new Error(language === 'pl'
+            ? 'Nie znaleziono żadnych prawidłowych terminów w pliku'
+            : 'No valid terms found in file')
+        }
+
+        // Zapytaj użytkownika czy zastąpić czy dodać do istniejących
+        const action = confirm(language === 'pl'
+          ? `Znaleziono ${importedTerms.length} terminów.\n\nOK = Dodaj do istniejących terminów\nAnuluj = Zastąp wszystkie terminy`
+          : `Found ${importedTerms.length} terms.\n\nOK = Add to existing terms\nCancel = Replace all terms`)
+
+        let finalTerms: Term[]
+        if (action) {
+          // Dodaj do istniejących (sprawdź duplikaty)
+          const existingTermTexts = new Set(terms.map(t => t.term.toLowerCase()))
+          const newTerms = importedTerms.filter(t => !existingTermTexts.has(t.term.toLowerCase()))
+          finalTerms = [...terms, ...newTerms]
+
+          alert(language === 'pl'
+            ? `Dodano ${newTerms.length} nowych terminów (${importedTerms.length - newTerms.length} duplikatów pominięto)`
+            : `Added ${newTerms.length} new terms (${importedTerms.length - newTerms.length} duplicates skipped)`)
+        } else {
+          // Zastąp wszystkie
+          finalTerms = importedTerms
+          alert(language === 'pl'
+            ? `Zastąpiono wszystkie terminy. Nowa liczba: ${finalTerms.length}`
+            : `Replaced all terms. New count: ${finalTerms.length}`)
+        }
+
+        // Zapisz jako nową wersję
+        projectStorage.addVersion(
+          currentProject.id,
+          currentGlossary.id,
+          finalTerms,
+          `Import z JSON: ${file.name}`,
+          undefined,
+          false
+        )
+
+        // Odśwież projekt
+        const updatedProject = projectStorage.getById(currentProject.id)
+        if (updatedProject) {
+          setCurrentProject(updatedProject)
+        }
+        refreshGlossary()
+
+        console.log(`✅ Zaimportowano ${finalTerms.length} terminów z JSON`)
+
+      } catch (error) {
+        console.error('Import glossary JSON error:', error)
+        alert(language === 'pl'
+          ? `Błąd importu glosariusza: ${(error as Error).message}`
+          : `Import glossary error: ${(error as Error).message}`)
+      }
+    }
+    input.click()
+  }
+
+  // Import glosariusza z XLSX
+  const handleImportGlossaryXLSX = async () => {
+    if (!currentProject || !currentGlossary) {
+      alert(language === 'pl'
+        ? 'Nie można zaimportować - brak aktywnego projektu lub glosariusza'
+        : 'Cannot import - no active project or glossary')
+      return
+    }
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.xlsx,.xls'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        // Dynamiczny import XLSX tylko gdy potrzebny
+        const XLSX = await import('xlsx')
+
+        const arrayBuffer = await file.arrayBuffer()
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+
+        if (workbook.SheetNames.length === 0) {
+          throw new Error(language === 'pl' ? 'Plik XLSX jest pusty' : 'XLSX file is empty')
+        }
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const data: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+
+        if (data.length < 2) {
+          throw new Error(language === 'pl'
+            ? 'Plik musi zawierać nagłówki i co najmniej jeden wiersz danych'
+            : 'File must contain headers and at least one data row')
+        }
+
+        // Znajdź kolumny (obsługa różnych wariantów nagłówków)
+        const headers = data[0].map((h: string) => h?.toLowerCase() || '')
+        const termCol = headers.findIndex((h: string) => h.includes('term') || h.includes('termin'))
+        const contextCol = headers.findIndex((h: string) => h.includes('context') || h.includes('kontekst'))
+
+        if (termCol === -1) {
+          throw new Error(language === 'pl'
+            ? 'Nie znaleziono kolumny z terminami. Plik musi zawierać kolumnę "Termin" lub "Term"'
+            : 'Term column not found. File must contain "Termin" or "Term" column')
+        }
+
+        // Parsuj terminy
+        const importedTerms: Term[] = []
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i]
+          const termText = row[termCol]?.toString().trim()
+
+          if (!termText || termText.length < 2) continue
+
+          // Znajdź pozycje terminu w dokumencie (jeśli dokument jest dostępny)
+          const { positions, context, occurrences } = documentText
+            ? findTermOccurrences(documentText, termText)
+            : { positions: [], context: row[contextCol]?.toString() || '', occurrences: 1 }
+
+          importedTerms.push({
+            id: `imported-${Date.now()}-${i}`,
+            term: termText,
+            context: context || row[contextCol]?.toString() || '',
+            occurrences,
+            positions,
+            sourceDocument: file.name || 'imported-xlsx'
+          })
+        }
+
+        if (importedTerms.length === 0) {
+          throw new Error(language === 'pl'
+            ? 'Nie znaleziono żadnych prawidłowych terminów w pliku'
+            : 'No valid terms found in file')
+        }
+
+        // Zapytaj użytkownika czy zastąpić czy dodać do istniejących
+        const action = confirm(language === 'pl'
+          ? `Znaleziono ${importedTerms.length} terminów.\n\nOK = Dodaj do istniejących terminów\nAnuluj = Zastąp wszystkie terminy`
+          : `Found ${importedTerms.length} terms.\n\nOK = Add to existing terms\nCancel = Replace all terms`)
+
+        let finalTerms: Term[]
+        if (action) {
+          // Dodaj do istniejących (sprawdź duplikaty)
+          const existingTermTexts = new Set(terms.map(t => t.term.toLowerCase()))
+          const newTerms = importedTerms.filter(t => !existingTermTexts.has(t.term.toLowerCase()))
+          finalTerms = [...terms, ...newTerms]
+
+          alert(language === 'pl'
+            ? `Dodano ${newTerms.length} nowych terminów (${importedTerms.length - newTerms.length} duplikatów pominięto)`
+            : `Added ${newTerms.length} new terms (${importedTerms.length - newTerms.length} duplicates skipped)`)
+        } else {
+          // Zastąp wszystkie
+          finalTerms = importedTerms
+          alert(language === 'pl'
+            ? `Zastąpiono wszystkie terminy. Nowa liczba: ${finalTerms.length}`
+            : `Replaced all terms. New count: ${finalTerms.length}`)
+        }
+
+        // Zapisz jako nową wersję
+        projectStorage.addVersion(
+          currentProject.id,
+          currentGlossary.id,
+          finalTerms,
+          `Import z XLSX: ${file.name}`,
+          undefined,
+          false
+        )
+
+        // Odśwież projekt
+        const updatedProject = projectStorage.getById(currentProject.id)
+        if (updatedProject) {
+          setCurrentProject(updatedProject)
+        }
+        refreshGlossary()
+
+      } catch (error) {
+        console.error('Import glossary error:', error)
+        alert(language === 'pl'
+          ? `Błąd importu glosariusza: ${(error as Error).message}`
+          : `Import glossary error: ${(error as Error).message}`)
+      }
+    }
+    input.click()
   }
 
   // Nowy projekt
@@ -489,205 +885,6 @@ export default function Home() {
     setDetectedLanguage('')
     setLoadedText('')
     setLoadedFileName('')
-    setGlossaryMode(null)
-    setBilingualStage(1)
-    setSourceDocumentText('')
-    setTargetDocumentText('')
-    setSourceLanguage('')
-    setTargetLanguage('')
-    setSourceFileName('')
-    setTargetFileName('')
-  }
-
-  // Handler dla bilingual extraction
-  const handleBilingualExtract = async (
-    sourceText: string,
-    targetText: string,
-    sourceLang: string,
-    targetLang: string,
-    sourceFile: string,
-    targetFile: string
-  ) => {
-    // Zapisz oba dokumenty w state
-    setSourceDocumentText(sourceText)
-    setTargetDocumentText(targetText)
-    setSourceLanguage(sourceLang)
-    setTargetLanguage(targetLang)
-    setSourceFileName(sourceFile)
-    setTargetFileName(targetFile)
-
-    // Załaduj source document do main state (dla Stage 1 - bazowy glosariusz)
-    setLoadedText(sourceText)
-    setLoadedFileName(sourceFile)
-    setDetectedLanguage(sourceLang)
-
-    console.log(`📄 Załadowano dokumenty bilingual:`)
-    console.log(`   Source: ${sourceFile} (${sourceLang}), ${sourceText.length} znaków`)
-    console.log(`   Target: ${targetFile} (${targetLang}), ${targetText.length} znaków`)
-  }
-
-  // Handler dla znajdowania ekwiwalentów (Stage 2)
-  const handleFindAllEquivalents = async () => {
-    if (!currentProject || !currentVersion || !apiKey) {
-      alert(language === 'pl' ? 'Brak projektu lub klucza API' : 'No project or API key')
-      return
-    }
-
-    if (!sourceDocumentText || !targetDocumentText) {
-      alert(language === 'pl'
-        ? 'Brak dokumentów źródłowych. Załaduj oba dokumenty ponownie.'
-        : 'Source documents missing. Please reload both documents.')
-      return
-    }
-
-    setIsLoading(true)
-    setProgress(10)
-
-    try {
-      console.log(`🔍 Rozpoczynam wyszukiwanie ekwiwalentów dla ${terms.length} terminów...`)
-
-      // Przygotuj dane source terms
-      const sourceTerms = terms.map(term => ({
-        term: term.term,
-        context: term.context || '',
-        position: term.positions?.[0] || 0,
-        occurrences: term.occurrences
-      }))
-
-      setProgress(20)
-
-      const response = await fetch('/api/find-equivalents', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          apiKey,
-          sourceTerms,
-          sourceDocument: sourceDocumentText,
-          targetDocument: targetDocumentText,
-          sourceLanguage,
-          targetLanguage,
-          mode: 'batch'
-        }),
-      })
-
-      setProgress(90)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to find equivalents')
-      }
-
-      const data = await response.json()
-
-      console.log(`✅ Znaleziono ${data.stats.found}/${data.stats.total} ekwiwalentów`)
-
-      // Aktualizuj terminy z ekwiwalentami
-      const updatedTerms = terms.map((term, index) => {
-        const result = data.results[index]
-
-        if (result && result.targetTerm) {
-          return {
-            ...term,
-            targetTerm: result.targetTerm,
-            targetContext: result.targetContext,
-            targetOccurrences: result.targetOccurrences,
-            targetPositions: result.targetPositions,
-            targetSource: result.targetSource
-          }
-        }
-
-        // Jeśli nie znaleziono, oznacz jako missing
-        return {
-          ...term,
-          targetTerm: undefined,
-          targetContext: undefined,
-          targetOccurrences: 0,
-          targetPositions: [],
-          targetSource: 'missing' as const
-        }
-      })
-
-      // Zapisz zaktualizowane terminy jako nową wersję
-      if (currentGlossary) {
-        const description = language === 'pl'
-          ? `Znaleziono ekwiwalenty: ${data.stats.found}/${data.stats.total}`
-          : `Found equivalents: ${data.stats.found}/${data.stats.total}`
-
-        projectStorage.addVersion(
-          currentProject.id,
-          currentGlossary.id,
-          updatedTerms,
-          description,
-          currentVersion?.extractionParams,
-          false  // Nie jest to snapshot
-        )
-
-        const updated = projectStorage.getById(currentProject.id)
-        if (updated) {
-          setCurrentProject(updated)
-          refreshGlossary()
-        }
-      }
-
-      setProgress(100)
-
-      alert(language === 'pl'
-        ? `Znaleziono ${data.stats.found} z ${data.stats.total} ekwiwalentów.\n\nBrak ekwiwalentów: ${data.stats.missing}`
-        : `Found ${data.stats.found} out of ${data.stats.total} equivalents.\n\nMissing: ${data.stats.missing}`)
-
-    } catch (error: any) {
-      console.error('❌ Błąd wyszukiwania ekwiwalentów:', error)
-      alert(language === 'pl'
-        ? `Błąd: ${error.message}`
-        : `Error: ${error.message}`)
-    } finally {
-      setIsLoading(false)
-      setProgress(0)
-    }
-  }
-
-  // Handler dla Quick Add - dodawanie target term przez zaznaczenie tekstu
-  const handleQuickAddTarget = (termId: string, targetTerm: string) => {
-    if (!currentProject || !currentGlossary) return
-
-    const updatedTerms = terms.map(t =>
-      t.id === termId
-        ? {
-            ...t,
-            targetTerm,
-            targetSource: 'manual' as const,
-            targetContext: undefined,
-            targetOccurrences: 0,
-            targetPositions: []
-          }
-        : t
-    )
-
-    // Zapisz jako nową wersję
-    if (currentVersion) {
-      const description = language === 'pl'
-        ? `Dodano ręcznie: "${targetTerm}" dla "${terms.find(t => t.id === termId)?.term}"`
-        : `Manually added: "${targetTerm}" for "${terms.find(t => t.id === termId)?.term}"`
-
-      projectStorage.addVersion(
-        currentProject.id,
-        currentGlossary.id,
-        updatedTerms,
-        description,
-        currentVersion.extractionParams,
-        false
-      )
-
-      const updated = projectStorage.getById(currentProject.id)
-      if (updated) {
-        setCurrentProject(updated)
-        refreshGlossary()
-      }
-    }
-
-    console.log(`✅ Quick Add: "${targetTerm}" jako target dla terminu ID ${termId}`)
   }
 
   // Ekran wyboru projektu - pokazuj jeśli nie ma wybranego projektu
@@ -695,23 +892,6 @@ export default function Home() {
     const allProjects = projectStorage.getAll().sort((a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
-
-    // Najpierw pokaż ModeSelector jeśli tryb nie został wybrany
-    if (glossaryMode === null) {
-      return (
-        <>
-          <LanguageSwitch />
-          <ModeSelector
-            onSelectMode={(mode) => {
-              setGlossaryMode(mode)
-              if (mode === 'bilingual') {
-                setBilingualStage(1)
-              }
-            }}
-          />
-        </>
-      )
-    }
 
     return (
       <main className="min-h-screen p-6 bg-gradient-to-b from-gray-100 to-white">
@@ -725,21 +905,9 @@ export default function Home() {
               <p className="text-gray-600 text-lg">
                 {t.subtitle}
               </p>
-              <p className="text-sm text-gray-500 mt-2">
-                {language === 'pl' ? 'Tryb:' : 'Mode:'} {glossaryMode === 'monolingual' ? (language === 'pl' ? 'Jednojęzyczny' : 'Monolingual') : (language === 'pl' ? 'Dwujęzyczny' : 'Bilingual')}
-              </p>
             </div>
-            <div className="ml-4 flex flex-col gap-2">
+            <div className="ml-4">
               <LanguageSwitch />
-              <button
-                onClick={() => {
-                  setGlossaryMode(null)
-                  setBilingualStage(1)
-                }}
-                className="text-sm px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-              >
-                {language === 'pl' ? 'Zmień tryb' : 'Change mode'}
-              </button>
             </div>
           </div>
 
@@ -898,25 +1066,6 @@ export default function Home() {
             <p className="text-gray-600 text-sm font-medium">
               {t.subtitle}
             </p>
-            {glossaryMode === 'bilingual' && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 text-xs font-semibold rounded-full">
-                  {language === 'pl' ? 'Tryb dwujęzyczny' : 'Bilingual Mode'}
-                </span>
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  bilingualStage === 1
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-purple-100 text-purple-800'
-                }`}>
-                  {bilingualStage === 1
-                    ? (language === 'pl' ? 'Etap 1: Glosariusz bazowy' : 'Stage 1: Base Glossary')
-                    : (language === 'pl' ? 'Etap 2: Wyszukiwanie ekwiwalentów' : 'Stage 2: Finding Equivalents')}
-                </span>
-                <span className="text-xs text-gray-600">
-                  {sourceLanguage} → {targetLanguage}
-                </span>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -938,145 +1087,123 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Left side - Upload & Projects */}
           <div className="lg:col-span-2 space-y-4">
-            {glossaryMode === 'bilingual' ? (
-              <BilingualFileUpload
-                onExtract={handleBilingualExtract}
-                isLoading={isLoading}
-                savedApiKey={apiKey}
-              />
-            ) : (
-              <FileUpload
-                onExtract={handleFileLoaded}
-                isLoading={isLoading}
-                savedApiKey={apiKey}
-              />
-            )}
+            <FileUpload
+              onExtract={handleFileLoaded}
+              isLoading={isLoading}
+              savedApiKey={apiKey}
+            />
 
-            {/* Akcje i Eksport pod FileUpload */}
-            {terms.length > 0 && (
+            {/* Akcje i Eksport pod FileUpload - jako rozwijane listy */}
+            {currentProject && currentGlossary && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Akcje' : 'Actions'}
-                  </h3>
+                {/* Akcje dropdown */}
+                <details className="bg-white rounded-lg shadow-lg">
+                  <summary className="px-4 py-3 cursor-pointer hover:bg-gray-50 rounded-lg font-semibold text-gray-800 flex items-center justify-between">
+                    <span>{language === 'pl' ? 'Akcje' : 'Actions'}</span>
+                    <span className="text-sm text-gray-500">▼</span>
+                  </summary>
+                  <div className="px-4 pb-4 pt-2 space-y-2">
+                    {/* Snapshot Button */}
+                    {currentProject && currentGlossary && (
+                      <div className="mb-2">
+                        <SnapshotButton
+                          projectId={currentProject.id}
+                          glossaryId={currentGlossary.id}
+                          onSnapshotCreated={() => {
+                            const updated = projectStorage.getById(currentProject.id)
+                            if (updated) setCurrentProject(updated)
+                            refreshGlossary()
+                          }}
+                        />
+                      </div>
+                    )}
 
-                  {/* Snapshot Button */}
-                  {currentProject && currentGlossary && (
-                    <div className="mb-2">
-                      <SnapshotButton
-                        projectId={currentProject.id}
-                        glossaryId={currentGlossary.id}
-                        onSnapshotCreated={() => {
-                          const updated = projectStorage.getById(currentProject.id)
-                          if (updated) setCurrentProject(updated)
-                          refreshGlossary()
-                        }}
-                      />
-                    </div>
-                  )}
+                    {/* Manual Add Term Button */}
+                    {documentText && (
+                      <button
+                        onClick={promptManualAddTerm}
+                        className="w-full mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
+                        title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
+                      >
+                        <span>➕</span>
+                        <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
+                      </button>
+                    )}
 
-                  {/* Manual Add Term Button */}
-                  {documentText && (
                     <button
-                      onClick={promptManualAddTerm}
-                      className="w-[180px] mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
-                      title={language === 'pl' ? 'Dodaj termin ręcznie' : 'Add term manually'}
+                      onClick={handleSaveProject}
+                      disabled={terms.length === 0}
+                      className="w-full mb-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
                     >
-                      <span>➕</span>
-                      <span>{language === 'pl' ? 'Dodaj termin' : 'Add Term'}</span>
+                      {language === 'pl'
+                        ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
+                        : (currentProject ? 'Save changes' : 'Save as project')}
                     </button>
-                  )}
 
-                  <button
-                    onClick={handleSaveProject}
-                    disabled={terms.length === 0}
-                    className="w-[180px] px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
-                  >
-                    {language === 'pl'
-                      ? (currentProject ? 'Zapisz zmiany' : 'Zapisz jako projekt')
-                      : (currentProject ? 'Save changes' : 'Save as project')}
-                  </button>
+                    {/* Export/Import projektu */}
+                    <button
+                      onClick={handleExportProject}
+                      className="w-full mb-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Eksportuj projekt do pliku JSON' : 'Export project to JSON file'}
+                    >
+                      <span>💾</span>
+                      <span>{language === 'pl' ? 'Eksportuj projekt' : 'Export Project'}</span>
+                    </button>
 
-                  {/* Bilingual Workflow Buttons - Stage 1 */}
-                  {glossaryMode === 'bilingual' && bilingualStage === 1 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-3">
-                        {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 1' : 'Bilingual Glossary - Stage 1'}
-                      </p>
-                      <button
-                        onClick={() => {
-                          const confirmMsg = language === 'pl'
-                            ? 'Zatwierdzić glosariusz bazowy i przejść do wyszukiwania ekwiwalentów?'
-                            : 'Approve base glossary and proceed to finding equivalents?'
-                          if (confirm(confirmMsg)) {
-                            setBilingualStage(2)
-                            console.log('✅ Glosariusz bazowy zatwierdzony, przejście do Stage 2')
-                          }
-                        }}
-                        disabled={terms.length === 0}
-                        className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
-                      >
-                        ✓ {language === 'pl' ? 'Zatwierdź glosariusz bazowy' : 'Approve Base Glossary'}
-                      </button>
-                      <p className="text-xs text-gray-500 italic">
-                        {language === 'pl'
-                          ? 'Po zatwierdzeniu będziesz mógł wyszukiwać ekwiwalenty w dokumencie docelowym'
-                          : 'After approval you can find equivalents in target document'}
-                      </p>
-                    </div>
-                  )}
+                    <button
+                      onClick={handleImportProject}
+                      className="w-full mb-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Importuj projekt z pliku JSON' : 'Import project from JSON file'}
+                    >
+                      <span>📂</span>
+                      <span>{language === 'pl' ? 'Importuj projekt' : 'Import Project'}</span>
+                    </button>
 
-                  {/* Bilingual Workflow Buttons - Stage 2 */}
-                  {glossaryMode === 'bilingual' && bilingualStage === 2 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-3">
-                        {language === 'pl' ? 'Glosariusz dwujęzyczny - Etap 2' : 'Bilingual Glossary - Stage 2'}
-                      </p>
-                      <button
-                        onClick={handleFindAllEquivalents}
-                        disabled={isLoading || terms.length === 0}
-                        className="w-full mb-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-semibold disabled:from-gray-400 disabled:to-gray-400 shadow-md"
-                      >
-                        {isLoading ? (
-                          <>⏳ {language === 'pl' ? 'Wyszukiwanie...' : 'Finding...'}</>
-                        ) : (
-                          <>🔍 {language === 'pl' ? 'Znajdź wszystkie ekwiwalenty' : 'Find All Equivalents'}</>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          const confirmMsg = language === 'pl'
-                            ? 'Wrócić do edycji glosariusza bazowego?'
-                            : 'Return to editing base glossary?'
-                          if (confirm(confirmMsg)) {
-                            setBilingualStage(1)
-                          }
-                        }}
-                        className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-                      >
-                        ← {language === 'pl' ? 'Powrót do Etapu 1' : 'Back to Stage 1'}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    <button
+                      onClick={handleImportGlossaryJSON}
+                      className="w-full mb-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Importuj lub połącz z glosariuszem z JSON (zachowuje wszystkie metadane: pozycje, definicje)' : 'Import or merge with glossary from JSON (preserves all metadata: positions, definitions)'}
+                    >
+                      <span>📋</span>
+                      <span>{language === 'pl' ? 'Łącz JSON' : 'Merge JSON'}</span>
+                    </button>
 
-                <div className="bg-white rounded-lg shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                    {language === 'pl' ? 'Eksport' : 'Export'}
-                  </h3>
-                  <div className="space-y-2">
+                    <button
+                      onClick={handleImportGlossaryXLSX}
+                      className="w-full px-4 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors font-medium flex items-center gap-2"
+                      title={language === 'pl' ? 'Importuj lub połącz z glosariuszem z XLSX (tylko terminy i konteksty)' : 'Import or merge with glossary from XLSX (only terms and contexts)'}
+                    >
+                      <span>📊</span>
+                      <span>{language === 'pl' ? 'Łącz XLSX' : 'Merge XLSX'}</span>
+                    </button>
+                  </div>
+                </details>
+
+                {/* Eksport dropdown */}
+                <details className="bg-white rounded-lg shadow-lg">
+                  <summary className="px-4 py-3 cursor-pointer hover:bg-gray-50 rounded-lg font-semibold text-gray-800 flex items-center justify-between">
+                    <span>{language === 'pl' ? 'Eksport' : 'Export'}</span>
+                    <span className="text-sm text-gray-500">▼</span>
+                  </summary>
+                  <div className="px-4 pb-4 pt-2 space-y-2">
+                    {/* Export glosariusza do JSON - zachowuje wszystkie metadane */}
+                    <button
+                      onClick={handleExportGlossary}
+                      disabled={terms.length === 0}
+                      className="w-full mb-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:bg-gray-400 flex items-center gap-2"
+                      title={language === 'pl' ? 'Eksportuj glosariusz do JSON (zachowuje wszystkie metadane: pozycje, definicje, konteksty)' : 'Export glossary to JSON (preserves all metadata: positions, definitions, contexts)'}
+                    >
+                      <span>📋</span>
+                      <span>JSON</span>
+                    </button>
+
                     <ExportButtons
                       terms={terms}
                       fileName={fileName}
                       documentText={documentText}
-                      glossaryMode={glossaryMode}
-                      sourceLanguage={sourceLanguage}
-                      targetLanguage={targetLanguage}
-                      sourceFileName={sourceFileName}
-                      targetFileName={targetFileName}
                     />
                   </div>
-                </div>
+                </details>
               </div>
             )}
 
@@ -1192,6 +1319,28 @@ export default function Home() {
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
+                  </div>
+
+                  {/* Checkbox dla automatycznego generowania definicji */}
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={generateDefinitions}
+                        onChange={(e) => setGenerateDefinitions(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700 font-medium">
+                        {language === 'pl'
+                          ? 'Generuj definicje automatycznie'
+                          : 'Generate definitions automatically'}
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      {language === 'pl'
+                        ? 'Po ekstrakcji terminów automatycznie wygeneruj dla nich definicje (zwiększa czas przetwarzania)'
+                        : 'After extracting terms, automatically generate definitions for them (increases processing time)'}
+                    </p>
                   </div>
 
                   {(minTerms === 0 || maxTerms === 0) && (
@@ -1327,27 +1476,10 @@ export default function Home() {
               apiKey={apiKey}
               onTermSelect={setSelectedTerm}
               selectedTermId={selectedTerm?.id}
-              glossaryMode={glossaryMode}
-              bilingualStage={bilingualStage}
-              sourceDocument={sourceDocumentText}
-              targetDocument={targetDocumentText}
-              sourceLanguage={sourceLanguage}
-              targetLanguage={targetLanguage}
             />
 
-            {/* Document viewers - bilingual vs monolingual */}
-            {glossaryMode === 'bilingual' && bilingualStage === 2 && sourceDocumentText && targetDocumentText ? (
-              <DocumentSplitView
-                sourceDocument={sourceDocumentText}
-                targetDocument={targetDocumentText}
-                sourceLanguage={sourceLanguage}
-                targetLanguage={targetLanguage}
-                terms={terms}
-                selectedTerm={selectedTerm}
-                onQuickAddTarget={handleQuickAddTarget}
-                onTermSelect={setSelectedTerm}
-              />
-            ) : documentText ? (
+            {/* Document viewer */}
+            {documentText && (
               <DocumentViewer
                 documentText={documentText}
                 selectedTerm={selectedTerm}
@@ -1355,7 +1487,7 @@ export default function Home() {
                 terms={terms}
                 onAddTermFromSelection={handleManualAddTerm}
               />
-            ) : null}
+            )}
           </div>
         )}
 
