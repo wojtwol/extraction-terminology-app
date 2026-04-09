@@ -1522,12 +1522,22 @@ export default function Home() {
 
     // Pobierz świeży projekt z localStorage (state może być niezsynchronizowany)
     const freshProject = projectStorage.getById(currentProject.id)
-    const fullDocumentText = freshProject?.documentText || currentProject.documentText || documentText || ''
+
+    // Użyj najdłuższego dostępnego documentText
+    const candidates = [
+      documentText || '',
+      freshProject?.documentText || '',
+      currentProject.documentText || ''
+    ]
+    const fullDocumentText = candidates.reduce((a, b) => a.length >= b.length ? a : b, '')
 
     // Dla multi-document: zbierz teksty ze wszystkich dokumentów
     const allDocuments = freshProject?.documents || currentProject.documents || []
 
-    console.log(`📦 Eksport projektu: documentText state=${documentText.length}, project=${currentProject.documentText?.length || 0}, fresh=${fullDocumentText.length}, docs=${allDocuments.length}`)
+    // Zbierz też bilingual document texts z glosariusza
+    const freshGlossary = freshProject ? projectStorage.getCurrentGlossary(freshProject.id) : null
+
+    console.log(`📦 Eksport projektu: documentText state=${documentText.length}, project=${currentProject.documentText?.length || 0}, fresh=${freshProject?.documentText?.length || 0}, best=${fullDocumentText.length}, docs=${allDocuments.length}`)
 
     const projectData = {
       type: 'iuridico-project',
@@ -1544,8 +1554,8 @@ export default function Home() {
         isBilingual: currentGlossary?.isBilingual || false,
         sourceLanguage: sourceLanguage || detectedLanguage,
         targetLanguage: targetLanguage || '',
-        sourceDocumentText: currentGlossary?.sourceDocumentText || '',
-        targetDocumentText: currentGlossary?.targetDocumentText || ''
+        sourceDocumentText: freshGlossary?.sourceDocumentText || currentGlossary?.sourceDocumentText || '',
+        targetDocumentText: freshGlossary?.targetDocumentText || currentGlossary?.targetDocumentText || ''
       },
       exportedAt: new Date().toISOString()
     }
@@ -1563,10 +1573,38 @@ export default function Home() {
 
     const docSize = fullDocumentText.length
     const docsCount = allDocuments.length
-    console.log(`✅ Wyeksportowano projekt: ${terms.length} terminów, dokument: ${docSize} znaków, docs: ${docsCount}`)
-    alert(language === 'pl'
-      ? `${t.projectExported}: ${terms.length} terminów${docSize > 0 ? ` + dokument źródłowy (${docSize.toLocaleString()} znaków)` : ''}${docsCount > 0 ? ` + ${docsCount} dokument(ów)` : ''}`
-      : `${t.projectExported}: ${terms.length} terms${docSize > 0 ? ` + source document (${docSize.toLocaleString()} chars)` : ''}${docsCount > 0 ? ` + ${docsCount} document(s)` : ''}`)
+
+    // Sprawdź ile unikalnych źródeł mają terminy vs ile dokumentów jest w eksporcie
+    const termSources = new Set<string>()
+    terms.forEach(term => {
+      if (term.sourceDocument) termSources.add(term.sourceDocument)
+      term.contexts?.forEach(c => { if (c.documentName) termSources.add(c.documentName) })
+    })
+
+    console.log(`✅ Wyeksportowano projekt: ${terms.length} terminów, dokument: ${docSize} znaków, docs: ${docsCount}, term sources: ${termSources.size}`)
+
+    let msg = language === 'pl'
+      ? `${t.projectExported}: ${terms.length} terminów`
+      : `${t.projectExported}: ${terms.length} terms`
+
+    if (docSize > 0) {
+      msg += language === 'pl'
+        ? `\n+ dokument źródłowy (${docSize.toLocaleString()} znaków)`
+        : `\n+ source document (${docSize.toLocaleString()} chars)`
+    }
+    if (docsCount > 0) {
+      msg += language === 'pl' ? `\n+ ${docsCount} dokument(ów) wielodokumentowych` : `\n+ ${docsCount} multi-doc document(s)`
+    }
+
+    // Ostrzeż jeśli terminy pochodzą z więcej źródeł niż jest dokumentów
+    const attachedDocs = (docSize > 0 ? 1 : 0) + docsCount
+    if (termSources.size > attachedDocs && attachedDocs > 0) {
+      msg += language === 'pl'
+        ? `\n\n⚠️ Terminy pochodzą z ${termSources.size} źródeł, ale eksport zawiera ${attachedDocs} dokument(ów). Po imporcie użyj "Dołącz dokument" aby dodać brakujące pliki.`
+        : `\n\n⚠️ Terms come from ${termSources.size} sources, but export contains ${attachedDocs} document(s). After import use "Attach document" to add missing files.`
+    }
+
+    alert(msg)
   }
 
   // Import pełnego projektu (.gtextt)
