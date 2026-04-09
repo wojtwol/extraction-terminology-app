@@ -809,14 +809,7 @@ export default function TerminologyTable({
                   ) : null}
                     </td>
 
-                    {/* Wystąpienia */}
-                    <td className="px-2 py-3 text-sm text-gray-600 text-center">
-                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                        {displayOccurrences}
-                      </span>
-                    </td>
-
-                    {/* Tłumaczenie (monolingual mode) */}
+                    {/* Tłumaczenie (monolingual mode) - PRZED wystąpieniami */}
                     {hasTranslations && isFirstContext && (
                       <td className="px-3 py-3 text-sm break-words" rowSpan={term.contexts && term.contexts.length > 1 ? term.contexts.length : 1}>
                         {editingTargetTerm?.id === term.id ? (
@@ -875,6 +868,13 @@ export default function TerminologyTable({
                       </td>
                     )}
                     {hasTranslations && !isFirstContext && null}
+
+                    {/* Wystąpienia */}
+                    <td className="px-2 py-3 text-sm text-gray-600 text-center">
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        {displayOccurrences}
+                      </span>
+                    </td>
 
                     {/* Dokument źródłowy */}
                     <td className="px-2 py-3 text-sm text-gray-600">
