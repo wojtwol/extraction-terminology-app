@@ -1742,18 +1742,75 @@ export default function Home() {
           if (updated) setCurrentProject(updated)
         }
 
-        // Policz ile terminów znaleziono w dokumencie
+        // Przelicz pozycje i konteksty terminów w nowym dokumencie
         let foundCount = 0
-        terms.forEach(term => {
-          if (text.toLowerCase().includes(term.term.toLowerCase())) {
+        const updatedTerms = terms.map(term => {
+          // Case-insensitive search
+          const result = findTermOccurrences(text, term.term)
+
+          // Jeśli case-sensitive nie znalazł, spróbuj case-insensitive
+          if (result.positions.length === 0) {
+            const lowerText = text.toLowerCase()
+            const lowerTerm = term.term.toLowerCase()
+            let startIdx = 0
+            const ciPositions: number[] = []
+            while (startIdx < lowerText.length) {
+              const idx = lowerText.indexOf(lowerTerm, startIdx)
+              if (idx === -1) break
+              ciPositions.push(idx)
+              startIdx = idx + lowerTerm.length
+            }
+            if (ciPositions.length > 0) {
+              const firstPos = ciPositions[0]
+              const ctxStart = Math.max(0, firstPos - 113)
+              const ctxEnd = Math.min(text.length, firstPos + term.term.length + 188)
+              let ctx = text.substring(ctxStart, ctxEnd).trim()
+              if (ctxStart > 0) ctx = '...' + ctx
+              if (ctxEnd < text.length) ctx = ctx + '...'
+
+              foundCount++
+              return {
+                ...term,
+                positions: ciPositions,
+                occurrences: ciPositions.length,
+                context: ctx,
+                sourceDocument: file.name
+              }
+            }
+          } else {
             foundCount++
+            return {
+              ...term,
+              positions: result.positions,
+              occurrences: result.occurrences,
+              context: result.context,
+              sourceDocument: file.name
+            }
           }
+
+          return term
         })
 
-        console.log(`✅ Dołączono dokument: ${file.name}, ${text.length} znaków, ${foundCount}/${terms.length} terminów znalezionych`)
+        // Zapisz zaktualizowane terminy jako nową wersję
+        if (currentProject && currentGlossary && foundCount > 0) {
+          const description = language === 'pl'
+            ? `Dołączono dokument: ${file.name} (${foundCount} terminów znalezionych)`
+            : `Attached document: ${file.name} (${foundCount} terms found)`
+          projectStorage.addVersion(
+            currentProject.id,
+            currentGlossary.id,
+            updatedTerms,
+            description,
+            undefined,
+            false
+          )
+          refreshGlossary()
+        }
+
+        console.log(`✅ Dołączono dokument: ${file.name}, ${text.length} znaków, ${foundCount}/${terms.length} terminów znalezionych i zaktualizowanych`)
         alert(language === 'pl'
-          ? `Dołączono dokument "${file.name}" (${text.length.toLocaleString()} znaków).\n\nZnaleziono ${foundCount} z ${terms.length} terminów w dokumencie.`
-          : `Attached document "${file.name}" (${text.length.toLocaleString()} chars).\n\nFound ${foundCount} of ${terms.length} terms in document.`)
+          ? `Dołączono dokument "${file.name}" (${text.length.toLocaleString()} znaków).\n\nZnaleziono i zaktualizowano pozycje ${foundCount} z ${terms.length} terminów w dokumencie.\nTerminy są teraz zaznaczone w podglądzie dokumentu.`
+          : `Attached document "${file.name}" (${text.length.toLocaleString()} chars).\n\nFound and updated positions for ${foundCount} of ${terms.length} terms in document.\nTerms are now highlighted in document preview.`)
 
       } catch (error) {
         console.error('Błąd dołączania dokumentu:', error)
