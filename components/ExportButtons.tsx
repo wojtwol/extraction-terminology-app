@@ -1876,91 +1876,122 @@ ${entries}
     downloadFile(xml, `${fileName || 'glossary'}_multiterm.xml`, 'application/xml;charset=utf-8;')
   }
 
-  // Eksport .sdltb (SQLite termbase kompatybilny z SDL Trados MultiTerm)
-  const exportToSDLTB = async () => {
-    try {
-      const initSqlJs = (await import('sql.js')).default
-      const SQL = await initSqlJs()
-      const db = new SQL.Database()
+  // Eksport SDLTB-compatible MultiTerm XML (format identyczny z wnętrzem pliku .sdltb)
+  // Format .sdltb to Microsoft Access MDB — nie da się go wygenerować w przeglądarce.
+  // Zamiast tego generujemy MultiTerm XML z wewnętrzną strukturą <cG> identyczną z SDLTB,
+  // który można zaimportować do MultiTerm → File → Import → MultiTerm XML
+  const exportToSDLTB = () => {
+    const escXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
 
-      const src = langToMultiTerm(srcLang || '')
-      const tgt = langToMultiTerm(tgtLang || '')
-      const now = new Date().toISOString()
-      const termsWithTranslation = sortedTerms.filter(t => t.targetTerm)
+    const termsWithTranslation = sortedTerms.filter(t => t.targetTerm)
+    const src = langToMultiTerm(srcLang || '')
+    const tgt = langToMultiTerm(tgtLang || '')
 
-      // Schemat MultiTerm-compatible
-      db.run(`CREATE TABLE IF NOT EXISTS "termbase_info" (
-        "id" INTEGER PRIMARY KEY,
-        "name" TEXT,
-        "description" TEXT,
-        "created_date" TEXT,
-        "source_language" TEXT,
-        "target_language" TEXT,
-        "source_language_code" TEXT,
-        "target_language_code" TEXT,
-        "term_count" INTEGER
-      )`)
+    // Generuj XML w formacie wewnętrznym SDLTB (identycznym z mtConcepts.text)
+    const entries = termsWithTranslation.map((t, i) => {
+      const conceptId = i + 1
+      return `  <conceptGrp>
+    <concept>${conceptId}</concept>
+    <transacGrp>
+      <transac type="origination">IURIDICO GTEXTT</transac>
+      <date>${now}</date>
+    </transacGrp>
+    <transacGrp>
+      <transac type="modification">IURIDICO GTEXTT</transac>
+      <date>${now}</date>
+    </transacGrp>
+    <languageGrp>
+      <language type="${src.name}" lang="${src.code}"/>
+      <termGrp>
+        <term>${escXml(t.term)}</term>
+        <transacGrp>
+          <transac type="origination">IURIDICO GTEXTT</transac>
+          <date>${now}</date>
+        </transacGrp>
+        <transacGrp>
+          <transac type="modification">IURIDICO GTEXTT</transac>
+          <date>${now}</date>
+        </transacGrp>
+      </termGrp>
+    </languageGrp>
+    <languageGrp>
+      <language type="${tgt.name}" lang="${tgt.code}"/>
+      <termGrp>
+        <term>${escXml(t.targetTerm || '')}</term>
+        <transacGrp>
+          <transac type="origination">IURIDICO GTEXTT</transac>
+          <date>${now}</date>
+        </transacGrp>
+        <transacGrp>
+          <transac type="modification">IURIDICO GTEXTT</transac>
+          <date>${now}</date>
+        </transacGrp>
+      </termGrp>
+    </languageGrp>
+  </conceptGrp>`
+    }).join('\n')
 
-      db.run(`CREATE TABLE IF NOT EXISTS "concepts" (
-        "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-        "created_date" TEXT,
-        "modified_date" TEXT,
-        "definition" TEXT
-      )`)
+    // XDT definition file content (wymagany przez MultiTerm Convert)
+    const xdt = `<?xml version="1.0" encoding="UTF-8"?>
+<Schema name="Termbase Definition">
+  <ElementType ID="1" name="mtf" content="eltOnly" order="many">
+    <ElementType ID="2" name="conceptGrp" content="eltOnly" order="many">
+      <Occurences><Level minOccurs="1" maxOccurs="*"/></Occurences>
+      <ElementType ID="3" name="concept" content="textOnly" type="ui4">
+        <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+      </ElementType>
+      <ElementType ID="5" name="transacGrp" content="eltOnly" order="many">
+        <Occurences><Level minOccurs="0" maxOccurs="*"/></Occurences>
+        <ElementType ID="6" name="transac" content="textOnly" type="string">
+          <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+          <AttributeType name="type" type="enumeration" values="origination|modification"/>
+        </ElementType>
+        <ElementType ID="7" name="date" content="textOnly" type="date">
+          <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+        </ElementType>
+      </ElementType>
+      <ElementType ID="8" name="languageGrp" content="eltOnly" order="many">
+        <Occurences><Level minOccurs="0" maxOccurs="*"/></Occurences>
+        <ElementType ID="9" name="language" content="empty">
+          <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+          <AttributeType name="type" type="languages" values="${src.name}|${tgt.name}"/>
+          <AttributeType name="lang" type="locales" values="${src.code}|${tgt.code}"/>
+        </ElementType>
+        <ElementType ID="10" name="termGrp" content="eltOnly" readOnly="no">
+          <Occurences><Level minOccurs="1" maxOccurs="*"/></Occurences>
+          <ElementType ID="11" name="term" content="textOnly" type="string">
+            <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+          </ElementType>
+          <ElementType ID="12" name="transacGrp" content="eltOnly">
+            <Occurences><Level minOccurs="0" maxOccurs="*"/></Occurences>
+            <ElementType ID="13" name="transac" content="textOnly" type="string">
+              <AttributeType name="type" type="enumeration" values="origination|modification"/>
+            </ElementType>
+            <ElementType ID="14" name="date" content="textOnly" type="date"/>
+          </ElementType>
+        </ElementType>
+      </ElementType>
+    </ElementType>
+  </ElementType>
+</Schema>`
 
-      db.run(`CREATE TABLE IF NOT EXISTS "terms" (
-        "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-        "concept_id" INTEGER,
-        "language_code" TEXT,
-        "language_name" TEXT,
-        "term_text" TEXT,
-        "created_date" TEXT,
-        "status" TEXT DEFAULT 'approved',
-        FOREIGN KEY ("concept_id") REFERENCES "concepts"("id")
-      )`)
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<mtf>
+${entries}
+</mtf>`
 
-      // Metadata
-      db.run(`INSERT INTO "termbase_info" VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-        `IURIDICO GTEXTT - ${fileName || 'Glossary'}`,
-        'Exported from IURIDICO GTEXTT - Glossary and Terminology Extraction Tool',
-        now, src.name, tgt.name, src.code, tgt.code, termsWithTranslation.length
-      ])
+    // Pobierz oba pliki: XML z danymi i XDT z definicją schematu
+    downloadFile(xml, `${fileName || 'glossary'}_sdltb.xml`, 'application/xml;charset=utf-8;')
 
-      // Wpisy terminów
-      termsWithTranslation.forEach((t, i) => {
-        const conceptId = i + 1
-        db.run(`INSERT INTO "concepts" VALUES (?, ?, ?, ?)`, [
-          conceptId, now, now, t.definition || null
-        ])
-        db.run(`INSERT INTO "terms" ("concept_id", "language_code", "language_name", "term_text", "created_date") VALUES (?, ?, ?, ?, ?)`, [
-          conceptId, src.code, src.name, t.term, now
-        ])
-        db.run(`INSERT INTO "terms" ("concept_id", "language_code", "language_name", "term_text", "created_date") VALUES (?, ?, ?, ?, ?)`, [
-          conceptId, tgt.code, tgt.name, t.targetTerm || '', now
-        ])
-      })
+    // Poczekaj chwilę i pobierz XDT
+    setTimeout(() => {
+      downloadFile(xdt, `${fileName || 'glossary'}_sdltb.xdt`, 'application/xml;charset=utf-8;')
+    }, 500)
 
-      // Eksport jako plik binarny
-      const data = db.export()
-      db.close()
-
-      const blob = new Blob([data], { type: 'application/octet-stream' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${fileName || 'glossary'}.sdltb`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-
-      console.log(`✅ Wyeksportowano SDLTB: ${termsWithTranslation.length} terminów`)
-    } catch (error) {
-      console.error('Błąd eksportu SDLTB:', error)
-      alert(language === 'pl'
-        ? 'Błąd eksportu SDLTB. Spróbuj eksportu MultiTerm XML jako alternatywę.'
-        : 'SDLTB export error. Try MultiTerm XML export as alternative.')
-    }
+    alert(language === 'pl'
+      ? `Pobrano 2 pliki:\n1. .xml — dane terminów (${termsWithTranslation.length} wpisów)\n2. .xdt — definicja schematu\n\nW MultiTerm: File → Import → wybierz plik .xml\nlub użyj MultiTerm Convert z oboma plikami.`
+      : `Downloaded 2 files:\n1. .xml — term data (${termsWithTranslation.length} entries)\n2. .xdt — schema definition\n\nIn MultiTerm: File → Import → select .xml file\nor use MultiTerm Convert with both files.`)
   }
 
   const hasTerms = terms.length > 0
@@ -2050,7 +2081,7 @@ ${entries}
             <option value="multiterm-xml">📋 MultiTerm XML (SDL Trados)</option>
           )}
           {(hasTranslations || isBilingual) && (
-            <option value="sdltb">📋 SDLTB (MultiTerm Termbase)</option>
+            <option value="sdltb">📋 SDLTB (XML + XDT → MultiTerm)</option>
           )}
           <option disabled>──────────</option>
           <option value="export-project">📦 {language === 'pl' ? 'Eksportuj projekt (.gtextt)' : 'Export project (.gtextt)'}</option>
