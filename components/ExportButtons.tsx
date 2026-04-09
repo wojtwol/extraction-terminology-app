@@ -1853,34 +1853,28 @@ ${entries}
     const tgt = langToMultiTerm(tgtLang || '')
 
     const entries = termsWithTranslation.map((t, i) => {
-      const definition = t.definition ? `
-      <descripGrp>
-        <descrip type="Definition">${escXml(t.definition)}</descrip>
-      </descripGrp>` : ''
-
       return `  <conceptGrp>
     <concept>${i + 1}</concept>
-    <system type="entryClass">Default</system>
-    <transacGrp>
-      <transac type="origination">IURIDICO GTEXTT</transac>
-      <date>${now}</date>
-    </transacGrp>${definition}
+    <system type="entryClass">1</system>
     <languageGrp>
-      <language type="${src.name}" lang="${src.code}"></language>${t.context ? `
-      <descripGrp>
-        <descrip type="Context">${escXml(t.context)}</descrip>
-      </descripGrp>` : ''}
+      <language type="${src.name}" lang="${src.code}"/>
       <termGrp>
-        <term>${escXml(t.term)}</term>
+        <term>${escXml(t.term)}</term>${t.definition ? `
+        <descripGrp>
+          <descrip type="Definition">${escXml(t.definition)}</descrip>
+        </descripGrp>` : ''}${t.context ? `
+        <descripGrp>
+          <descrip type="Context">${escXml(t.context)}</descrip>
+        </descripGrp>` : ''}
       </termGrp>
     </languageGrp>
     <languageGrp>
-      <language type="${tgt.name}" lang="${tgt.code}"></language>${t.targetContext ? `
-      <descripGrp>
-        <descrip type="Context">${escXml(t.targetContext)}</descrip>
-      </descripGrp>` : ''}
+      <language type="${tgt.name}" lang="${tgt.code}"/>
       <termGrp>
-        <term>${escXml(t.targetTerm || '')}</term>
+        <term>${escXml(t.targetTerm || '')}</term>${t.targetContext ? `
+        <descripGrp>
+          <descrip type="Context">${escXml(t.targetContext)}</descrip>
+        </descripGrp>` : ''}
       </termGrp>
     </languageGrp>
   </conceptGrp>`
@@ -1915,46 +1909,23 @@ ${entries}
     </descripGrp>` : ''
       return `  <conceptGrp>
     <concept>${conceptId}</concept>
-    <transacGrp>
-      <transac type="origination">IURIDICO GTEXTT</transac>
-      <date>${now}</date>
-    </transacGrp>
-    <transacGrp>
-      <transac type="modification">IURIDICO GTEXTT</transac>
-      <date>${now}</date>
-    </transacGrp>${defBlock}
+    <system type="entryClass">1</system>
     <languageGrp>
-      <language type="${src.name}" lang="${src.code}"></language>${t.context ? `
-      <descripGrp>
-        <descrip type="Context">${escXml(t.context)}</descrip>
-      </descripGrp>` : ''}
+      <language type="${src.name}" lang="${src.code}"/>
       <termGrp>
-        <term>${escXml(t.term)}</term>
-        <transacGrp>
-          <transac type="origination">IURIDICO GTEXTT</transac>
-          <date>${now}</date>
-        </transacGrp>
-        <transacGrp>
-          <transac type="modification">IURIDICO GTEXTT</transac>
-          <date>${now}</date>
-        </transacGrp>
+        <term>${escXml(t.term)}</term>${defBlock}${t.context ? `
+        <descripGrp>
+          <descrip type="Context">${escXml(t.context)}</descrip>
+        </descripGrp>` : ''}
       </termGrp>
     </languageGrp>
     <languageGrp>
-      <language type="${tgt.name}" lang="${tgt.code}"></language>${t.targetContext ? `
-      <descripGrp>
-        <descrip type="Context">${escXml(t.targetContext)}</descrip>
-      </descripGrp>` : ''}
+      <language type="${tgt.name}" lang="${tgt.code}"/>
       <termGrp>
-        <term>${escXml(t.targetTerm || '')}</term>
-        <transacGrp>
-          <transac type="origination">IURIDICO GTEXTT</transac>
-          <date>${now}</date>
-        </transacGrp>
-        <transacGrp>
-          <transac type="modification">IURIDICO GTEXTT</transac>
-          <date>${now}</date>
-        </transacGrp>
+        <term>${escXml(t.targetTerm || '')}</term>${t.targetContext ? `
+        <descripGrp>
+          <descrip type="Context">${escXml(t.targetContext)}</descrip>
+        </descripGrp>` : ''}
       </termGrp>
     </languageGrp>
   </conceptGrp>`
