@@ -1763,13 +1763,21 @@ export default function ExportButtons({
       <descripGrp>
         <descrip type="definition">${escXml(t.definition)}</descrip>
       </descripGrp>` : ''
+      const tbxCtx = t.context ? `
+        <descripGrp>
+          <descrip type="context">${escXml(t.context)}</descrip>
+        </descripGrp>` : ''
+      const tbxTgtCtx = t.targetContext ? `
+        <descripGrp>
+          <descrip type="context">${escXml(t.targetContext)}</descrip>
+        </descripGrp>` : ''
       return `    <termEntry id="t${i + 1}">${tbxDef}
-      <langSet xml:lang="${srcCode}">
+      <langSet xml:lang="${srcCode}">${tbxCtx}
         <tig>
           <term>${escXml(t.term)}</term>
         </tig>
       </langSet>
-      <langSet xml:lang="${tgtCode}">
+      <langSet xml:lang="${tgtCode}">${tbxTgtCtx}
         <tig>
           <term>${escXml(t.targetTerm || '')}</term>
         </tig>
@@ -1858,13 +1866,19 @@ ${entries}
       <date>${now}</date>
     </transacGrp>${definition}
     <languageGrp>
-      <language type="${src.name}" lang="${src.code}"/>
+      <language type="${src.name}" lang="${src.code}"/>${t.context ? `
+      <descripGrp>
+        <descrip type="Context">${escXml(t.context)}</descrip>
+      </descripGrp>` : ''}
       <termGrp>
         <term>${escXml(t.term)}</term>
       </termGrp>
     </languageGrp>
     <languageGrp>
-      <language type="${tgt.name}" lang="${tgt.code}"/>
+      <language type="${tgt.name}" lang="${tgt.code}"/>${t.targetContext ? `
+      <descripGrp>
+        <descrip type="Context">${escXml(t.targetContext)}</descrip>
+      </descripGrp>` : ''}
       <termGrp>
         <term>${escXml(t.targetTerm || '')}</term>
       </termGrp>
@@ -1910,7 +1924,10 @@ ${entries}
       <date>${now}</date>
     </transacGrp>${defBlock}
     <languageGrp>
-      <language type="${src.name}" lang="${src.code}"/>
+      <language type="${src.name}" lang="${src.code}"/>${t.context ? `
+      <descripGrp>
+        <descrip type="Context">${escXml(t.context)}</descrip>
+      </descripGrp>` : ''}
       <termGrp>
         <term>${escXml(t.term)}</term>
         <transacGrp>
@@ -1924,7 +1941,10 @@ ${entries}
       </termGrp>
     </languageGrp>
     <languageGrp>
-      <language type="${tgt.name}" lang="${tgt.code}"/>
+      <language type="${tgt.name}" lang="${tgt.code}"/>${t.targetContext ? `
+      <descripGrp>
+        <descrip type="Context">${escXml(t.targetContext)}</descrip>
+      </descripGrp>` : ''}
       <termGrp>
         <term>${escXml(t.targetTerm || '')}</term>
         <transacGrp>
@@ -1963,13 +1983,20 @@ ${entries}
         <Occurences><Level minOccurs="0" maxOccurs="*"/></Occurences>
         <ElementType ID="16" name="descrip" content="textOnly" type="string">
           <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
-          <AttributeType name="type" type="enumeration" values="Definition"/>
+          <AttributeType name="type" type="enumeration" values="Definition|Context"/>
         </ElementType>
       </ElementType>
       <ElementType ID="8" name="languageGrp" content="eltOnly" order="many">
         <Occurences><Level minOccurs="0" maxOccurs="*"/></Occurences>
         <ElementType ID="9" name="language" content="empty">
           <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+        </ElementType>
+        <ElementType ID="17" name="descripGrp" content="eltOnly" order="many">
+          <Occurences><Level minOccurs="0" maxOccurs="*"/></Occurences>
+          <ElementType ID="18" name="descrip" content="textOnly" type="string">
+            <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+            <AttributeType name="type" type="enumeration" values="Context"/>
+          </ElementType>
           <AttributeType name="type" type="languages" values="${src.name}|${tgt.name}"/>
           <AttributeType name="lang" type="locales" values="${src.code}|${tgt.code}"/>
         </ElementType>
