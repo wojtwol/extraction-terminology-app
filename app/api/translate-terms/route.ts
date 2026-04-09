@@ -90,19 +90,45 @@ Return ONLY valid JSON (no markdown):
 Return ALL ${chunk.length} translations in input order.`
 
       try {
-        const response = await client.messages.create({
-          model,
-          max_tokens: 8192,
-          messages: [{
-            role: 'user',
-            content: prompt
-          }]
-        })
-
         let responseText = ''
-        for (const block of response.content) {
-          if (block.type === 'text') {
-            responseText += block.text
+
+        // Probuj z web_search, fallback bez niego
+        try {
+          const response = await client.messages.create({
+            model,
+            max_tokens: 8192,
+            tools: [{
+              type: 'web_search_20250305',
+              name: 'web_search',
+              max_uses: 3
+            } as any],
+            messages: [{
+              role: 'user',
+              content: prompt
+            }]
+          })
+
+          for (const block of response.content) {
+            if (block.type === 'text') {
+              responseText += block.text
+            }
+          }
+          console.log(`   ✅ Web search OK, odpowiedz: ${responseText.length} znakow`)
+        } catch (wsError: any) {
+          console.log(`   ⚠️ Web search fallback (${wsError.message?.substring(0, 60)}), tlumacze bez web search...`)
+          const response = await client.messages.create({
+            model,
+            max_tokens: 8192,
+            messages: [{
+              role: 'user',
+              content: prompt
+            }]
+          })
+
+          for (const block of response.content) {
+            if (block.type === 'text') {
+              responseText += block.text
+            }
           }
         }
 
