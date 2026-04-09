@@ -1,5 +1,5 @@
 {
-  "name": "iuridico-ej-gtextt",
+  "name": "iuridico-gtextt",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -20,6 +20,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "stopword": "^3.1.5",
+    "sql.js": "^1.11.0",
     "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
   },

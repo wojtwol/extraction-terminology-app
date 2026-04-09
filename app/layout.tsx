@@ -11,7 +11,7 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <head>
-        <title>IURIDICO EJ GTEXTT - Glossary and Terminology Extraction Tool</title>
+        <title>IURIDICO GTEXTT - Glossary and Terminology Extraction Tool</title>
         <meta name="description" content="Professional tool for terminology extraction and glossary creation from legal and official documents" />
       </head>
       <body>

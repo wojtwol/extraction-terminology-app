@@ -137,7 +137,7 @@ export interface Translations {
 export const translations: Record<Language, Translations> = {
   pl: {
     // Main page
-    title: 'IURIDICO EJ GTEXTT',
+    title: 'IURIDICO GTEXTT',
     subtitle: 'Glossary and Terminology Extraction Tool',
     apiKeyLabel: 'Klucz API Anthropic',
     apiKeyPlaceholder: 'Wprowadź klucz API...',
@@ -270,7 +270,7 @@ export const translations: Record<Language, Translations> = {
   },
   en: {
     // Main page
-    title: 'IURIDICO EJ GTEXTT',
+    title: 'IURIDICO GTEXTT',
     subtitle: 'Glossary and Terminology Extraction Tool',
     apiKeyLabel: 'Anthropic API Key',
     apiKeyPlaceholder: 'Enter API key...',
