@@ -1541,8 +1541,67 @@ export default function ExportButtons({
           }
         }
 
+        // Jeśli nie znaleziono standardowego formatu, szukaj formatu dwujęzycznego (EN/PL, Source/Target, itp.)
         if (headerRowIndex === -1 || termColIndex === -1) {
-          alert('Błąd: Nie znaleziono kolumny "Termin" w pliku XLSX.')
+          // Szukaj formatu: dwie kolumny z kodami języków lub nazwami
+          const langCodes = ['en', 'pl', 'de', 'fr', 'es', 'it', 'nl', 'pt', 'cs', 'sk', 'hr', 'bg', 'ro', 'hu', 'da', 'sv', 'fi', 'el', 'et', 'lv', 'lt', 'sl', 'ga', 'mt', 'ru', 'uk', 'sr', 'tr',
+            'english', 'polish', 'german', 'french', 'spanish', 'italian', 'dutch', 'portuguese',
+            'angielski', 'polski', 'niemiecki', 'francuski', 'hiszpański', 'włoski',
+            'source', 'target', 'źródło', 'cel', 'źródłowy', 'docelowy']
+
+          for (let i = 0; i < Math.min(jsonData.length, 5); i++) {
+            const row = jsonData[i]
+            if (!row || row.length < 2) continue
+
+            const col0 = (row[0] || '').toString().toLowerCase().trim()
+            const col1 = (row[1] || '').toString().toLowerCase().trim()
+
+            if (langCodes.includes(col0) && langCodes.includes(col1)) {
+              console.log(`✅ Wykryto format dwujęzyczny: "${row[0]}" | "${row[1]}" w wierszu ${i}`)
+
+              // Import jako terminy z tłumaczeniami
+              const importedTerms: Term[] = []
+              for (let j = i + 1; j < jsonData.length; j++) {
+                const dataRow = jsonData[j]
+                const sourceTerm = dataRow[0]?.toString()?.trim()
+                const targetTerm = dataRow[1]?.toString()?.trim()
+
+                if (!sourceTerm) continue
+
+                importedTerms.push({
+                  id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  term: sourceTerm,
+                  context: '',
+                  occurrences: 0,
+                  positions: [],
+                  targetTerm: targetTerm || '',
+                  targetContext: '',
+                  targetSource: targetTerm ? 'manual' : undefined,
+                  sourceDocument: file.name
+                })
+              }
+
+              if (importedTerms.length === 0) {
+                alert(language === 'pl' ? 'Nie znaleziono terminów w pliku.' : 'No terms found in file.')
+                return
+              }
+
+              if (onImportTerms) {
+                onImportTerms(importedTerms, file.name)
+              }
+
+              const translatedCount = importedTerms.filter(t => t.targetTerm).length
+              console.log(`✅ Zaimportowano ${importedTerms.length} terminów dwujęzycznych (${translatedCount} z tłumaczeniami)`)
+              alert(language === 'pl'
+                ? `Zaimportowano ${importedTerms.length} terminów z pliku "${file.name}".\n${translatedCount} terminów z tłumaczeniami (${row[0]} → ${row[1]}).`
+                : `Imported ${importedTerms.length} terms from "${file.name}".\n${translatedCount} terms with translations (${row[0]} → ${row[1]}).`)
+              return
+            }
+          }
+
+          alert(language === 'pl'
+            ? 'Nie znaleziono kolumny "Termin" ani formatu dwujęzycznego (np. EN/PL) w pliku XLSX.'
+            : 'Could not find "Term" column or bilingual format (e.g. EN/PL) in XLSX file.')
           return
         }
 
