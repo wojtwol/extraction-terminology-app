@@ -1520,15 +1520,24 @@ export default function Home() {
       return
     }
 
+    // Pobierz świeży projekt z localStorage (state może być niezsynchronizowany)
+    const freshProject = projectStorage.getById(currentProject.id)
+    const fullDocumentText = freshProject?.documentText || currentProject.documentText || documentText || ''
+
+    // Dla multi-document: zbierz teksty ze wszystkich dokumentów
+    const allDocuments = freshProject?.documents || currentProject.documents || []
+
+    console.log(`📦 Eksport projektu: documentText state=${documentText.length}, project=${currentProject.documentText?.length || 0}, fresh=${fullDocumentText.length}, docs=${allDocuments.length}`)
+
     const projectData = {
       type: 'iuridico-project',
       version: '1.0',
       name: currentProject.name || fileName,
-      fileName: fileName,
-      documentText: documentText,
-      detectedLanguage: detectedLanguage,
+      fileName: currentProject.fileName || fileName,
+      documentText: fullDocumentText,
+      detectedLanguage: freshProject?.detectedLanguage || detectedLanguage,
       isMultiDocument: currentProject.isMultiDocument || false,
-      documents: currentProject.documents || [],
+      documents: allDocuments,
       glossary: {
         name: currentGlossary?.name || 'Glossary',
         terms: terms,
@@ -1552,10 +1561,12 @@ export default function Home() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    console.log(`✅ Wyeksportowano projekt: ${terms.length} terminów, ${documentText.length} znaków dokumentu`)
+    const docSize = fullDocumentText.length
+    const docsCount = allDocuments.length
+    console.log(`✅ Wyeksportowano projekt: ${terms.length} terminów, dokument: ${docSize} znaków, docs: ${docsCount}`)
     alert(language === 'pl'
-      ? `${t.projectExported}: ${terms.length} terminów${documentText ? ` + dokument źródłowy (${documentText.length.toLocaleString()} znaków)` : ''}`
-      : `${t.projectExported}: ${terms.length} terms${documentText ? ` + source document (${documentText.length.toLocaleString()} chars)` : ''}`)
+      ? `${t.projectExported}: ${terms.length} terminów${docSize > 0 ? ` + dokument źródłowy (${docSize.toLocaleString()} znaków)` : ''}${docsCount > 0 ? ` + ${docsCount} dokument(ów)` : ''}`
+      : `${t.projectExported}: ${terms.length} terms${docSize > 0 ? ` + source document (${docSize.toLocaleString()} chars)` : ''}${docsCount > 0 ? ` + ${docsCount} document(s)` : ''}`)
   }
 
   // Import pełnego projektu (.gtextt)
