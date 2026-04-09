@@ -18,6 +18,8 @@ interface ExportButtonsProps {
   sortBy?: 'alphabetical' | 'occurrences' | 'position'  // Sposób sortowania terminów
   onExportProject?: () => void  // Callback do eksportu pełnego projektu
   onImportProject?: () => void  // Callback do importu pełnego projektu
+  sourceLanguage?: string  // Język źródłowy (np. "Angielski")
+  targetLanguage?: string  // Język docelowy (np. "Polski")
 }
 
 export default function ExportButtons({
@@ -30,7 +32,9 @@ export default function ExportButtons({
   targetDocumentText,
   sortBy = 'alphabetical',
   onExportProject,
-  onImportProject
+  onImportProject,
+  sourceLanguage: srcLang,
+  targetLanguage: tgtLang
 }: ExportButtonsProps) {
   const { language } = useLanguage()
 
@@ -1751,15 +1755,17 @@ export default function ExportButtons({
     const escXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
     const termsWithTranslation = sortedTerms.filter(t => t.targetTerm)
+    const srcCode = langToMultiTerm(srcLang || '').code.toLowerCase()
+    const tgtCode = langToMultiTerm(tgtLang || '').code.toLowerCase()
 
     const entries = termsWithTranslation.map((t, i) => {
       return `    <termEntry id="t${i + 1}">
-      <langSet xml:lang="en">
+      <langSet xml:lang="${srcCode}">
         <tig>
           <term>${escXml(t.term)}</term>
         </tig>
       </langSet>
-      <langSet xml:lang="pl">
+      <langSet xml:lang="${tgtCode}">
         <tig>
           <term>${escXml(t.targetTerm || '')}</term>
         </tig>
@@ -1769,7 +1775,7 @@ export default function ExportButtons({
 
     const tbx = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE martif SYSTEM "TBXcoreStructV02.dtd">
-<martif type="TBX" xml:lang="en">
+<martif type="TBX" xml:lang="${srcCode}">
   <martifHeader>
     <fileDesc>
       <titleStmt>
@@ -1791,6 +1797,83 @@ ${entries}
 </martif>`
 
     downloadFile(tbx, `${fileName || 'glossary'}.tbx`, 'application/xml;charset=utf-8;')
+  }
+
+  // Mapowanie nazw języków PL na kody ISO i nazwy MultiTerm
+  const langToMultiTerm = (langName: string): { code: string, name: string } => {
+    const map: Record<string, { code: string, name: string }> = {
+      'Angielski': { code: 'EN', name: 'English' },
+      'Polski': { code: 'PL', name: 'Polish' },
+      'Niemiecki': { code: 'DE', name: 'German' },
+      'Francuski': { code: 'FR', name: 'French' },
+      'Hiszpański': { code: 'ES', name: 'Spanish' },
+      'Włoski': { code: 'IT', name: 'Italian' },
+      'Niderlandzki': { code: 'NL', name: 'Dutch' },
+      'Portugalski': { code: 'PT', name: 'Portuguese' },
+      'Czeski': { code: 'CS', name: 'Czech' },
+      'Słowacki': { code: 'SK', name: 'Slovak' },
+      'Chorwacki': { code: 'HR', name: 'Croatian' },
+      'Bułgarski': { code: 'BG', name: 'Bulgarian' },
+      'Rumuński': { code: 'RO', name: 'Romanian' },
+      'Węgierski': { code: 'HU', name: 'Hungarian' },
+      'Duński': { code: 'DA', name: 'Danish' },
+      'Szwedzki': { code: 'SV', name: 'Swedish' },
+      'Fiński': { code: 'FI', name: 'Finnish' },
+      'Grecki': { code: 'EL', name: 'Greek' },
+      'Estoński': { code: 'ET', name: 'Estonian' },
+      'Łotewski': { code: 'LV', name: 'Latvian' },
+      'Litewski': { code: 'LT', name: 'Lithuanian' },
+      'Słoweński': { code: 'SL', name: 'Slovenian' },
+      'Rosyjski': { code: 'RU', name: 'Russian' },
+      'Ukraiński': { code: 'UK', name: 'Ukrainian' },
+      'Turecki': { code: 'TR', name: 'Turkish' },
+    }
+    return map[langName] || { code: langName?.substring(0, 2)?.toUpperCase() || 'EN', name: langName || 'English' }
+  }
+
+  // Eksport MultiTerm XML (.xml) — kompatybilny z SDL Trados MultiTerm
+  const exportToMultiTermXML = () => {
+    const escXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
+    const termsWithTranslation = sortedTerms.filter(t => t.targetTerm)
+    const src = langToMultiTerm(srcLang || '')
+    const tgt = langToMultiTerm(tgtLang || '')
+
+    const entries = termsWithTranslation.map((t, i) => {
+      const definition = t.definition ? `
+      <descripGrp>
+        <descrip type="Definition">${escXml(t.definition)}</descrip>
+      </descripGrp>` : ''
+
+      return `  <conceptGrp>
+    <concept>${i + 1}</concept>
+    <system type="entryClass">Default</system>
+    <transacGrp>
+      <transac type="origination">IURIDICO EJ GTEXTT</transac>
+      <date>${now}</date>
+    </transacGrp>${definition}
+    <languageGrp>
+      <language type="${src.name}" lang="${src.code}"/>
+      <termGrp>
+        <term>${escXml(t.term)}</term>
+      </termGrp>
+    </languageGrp>
+    <languageGrp>
+      <language type="${tgt.name}" lang="${tgt.code}"/>
+      <termGrp>
+        <term>${escXml(t.targetTerm || '')}</term>
+      </termGrp>
+    </languageGrp>
+  </conceptGrp>`
+    }).join('\n')
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<mtf>
+${entries}
+</mtf>`
+
+    downloadFile(xml, `${fileName || 'glossary'}_multiterm.xml`, 'application/xml;charset=utf-8;')
   }
 
   const hasTerms = terms.length > 0
@@ -1824,6 +1907,8 @@ ${entries}
       exportToBilingualXML()
     } else if (value === 'tbx') {
       exportToTBX()
+    } else if (value === 'multiterm-xml') {
+      exportToMultiTermXML()
     } else if (value === 'export-project') {
       onExportProject?.()
     }
@@ -1871,6 +1956,9 @@ ${entries}
           )}
           {(hasTranslations || isBilingual) && (
             <option value="tbx">📋 TBX (TermBase eXchange)</option>
+          )}
+          {(hasTranslations || isBilingual) && (
+            <option value="multiterm-xml">📋 MultiTerm XML (SDL Trados)</option>
           )}
           <option disabled>──────────</option>
           <option value="export-project">📦 {language === 'pl' ? 'Eksportuj projekt (.gtextt)' : 'Export project (.gtextt)'}</option>

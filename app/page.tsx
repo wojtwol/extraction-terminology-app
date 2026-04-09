@@ -3368,6 +3368,8 @@ export default function Home() {
                     sortBy={sortBy}
                     onExportProject={handleExportFullProject}
                     onImportProject={handleImportFullProject}
+                    sourceLanguage={sourceLanguage || detectedLanguage}
+                    targetLanguage={targetLanguage}
                   />
                 </div>
               </div>
