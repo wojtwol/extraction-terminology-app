@@ -1759,7 +1759,11 @@ export default function ExportButtons({
     const tgtCode = langToMultiTerm(tgtLang || '').code.toLowerCase()
 
     const entries = termsWithTranslation.map((t, i) => {
-      return `    <termEntry id="t${i + 1}">
+      const tbxDef = t.definition ? `
+      <descripGrp>
+        <descrip type="definition">${escXml(t.definition)}</descrip>
+      </descripGrp>` : ''
+      return `    <termEntry id="t${i + 1}">${tbxDef}
       <langSet xml:lang="${srcCode}">
         <tig>
           <term>${escXml(t.term)}</term>
@@ -1891,6 +1895,10 @@ ${entries}
     // Generuj XML w formacie wewnętrznym SDLTB (identycznym z mtConcepts.text)
     const entries = termsWithTranslation.map((t, i) => {
       const conceptId = i + 1
+      const defBlock = t.definition ? `
+    <descripGrp>
+      <descrip type="Definition">${escXml(t.definition)}</descrip>
+    </descripGrp>` : ''
       return `  <conceptGrp>
     <concept>${conceptId}</concept>
     <transacGrp>
@@ -1900,7 +1908,7 @@ ${entries}
     <transacGrp>
       <transac type="modification">IURIDICO GTEXTT</transac>
       <date>${now}</date>
-    </transacGrp>
+    </transacGrp>${defBlock}
     <languageGrp>
       <language type="${src.name}" lang="${src.code}"/>
       <termGrp>
@@ -1949,6 +1957,13 @@ ${entries}
         </ElementType>
         <ElementType ID="7" name="date" content="textOnly" type="date">
           <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+        </ElementType>
+      </ElementType>
+      <ElementType ID="15" name="descripGrp" content="eltOnly" order="many">
+        <Occurences><Level minOccurs="0" maxOccurs="*"/></Occurences>
+        <ElementType ID="16" name="descrip" content="textOnly" type="string">
+          <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
+          <AttributeType name="type" type="enumeration" values="Definition"/>
         </ElementType>
       </ElementType>
       <ElementType ID="8" name="languageGrp" content="eltOnly" order="many">
