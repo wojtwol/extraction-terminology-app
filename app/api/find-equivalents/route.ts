@@ -227,7 +227,7 @@ ${needsLemmatization
 Or if not found: {"found": false}`
 
         const response = await client.messages.create({
-          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6-20250514',
+          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
           max_tokens: 200,
           temperature: 0,
           messages: [{
@@ -281,7 +281,7 @@ Or if not found: {"found": false}`
             try {
               console.log(`   🔄 Performing lemmatization for: "${textToLemmatize}"`)
               const lemmaResponse = await client.messages.create({
-                model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6-20250514',
+                model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
                 max_tokens: 100,
                 temperature: 0,
                 messages: [{

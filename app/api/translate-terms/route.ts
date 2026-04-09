@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     console.log(`🌐 Tlumaczenie ${terms.length} terminow: ${sourceLanguage} -> ${targetLanguage}`)
 
     const client = new Anthropic({ apiKey })
-    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6-20250514'
+    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 
     // Podziel terminy na chunki
     const chunks: Array<typeof terms> = []

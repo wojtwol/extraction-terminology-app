@@ -367,7 +367,7 @@ TEXT:`
     }
 
     // Model można skonfigurować przez zmienną środowiskową ANTHROPIC_MODEL
-    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6-20250514'
+    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 
     // KROK 4: Przetwarzaj każdy chunk
     const allChunkTerms: any[] = []
