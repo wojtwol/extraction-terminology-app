@@ -718,18 +718,18 @@ export default function TerminologyTable({
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-gray-100 border-b-2 border-gray-300">
-                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
-                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasTranslations ? '150px' : (hasDefinitions ? '170px' : '200px')}}>{t.term}</th>
-                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '70px'}}>{t.occurrences}</th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '30px'}}>{t.number}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasTranslations ? '14%' : (hasDefinitions ? '170px' : '200px')}}>{t.term}</th>
                 {hasTranslations && (
-                  <th className="px-3 py-3 text-left text-sm font-semibold text-teal-700" style={{width: '160px'}}>{t.translationColumn}</th>
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-teal-700" style={{width: '14%'}}>{t.translationColumn}</th>
                 )}
-                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '126px' : '140px'}}>
-                  {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '45px'}}>{t.occurrences}</th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasTranslations ? '90px' : (hasDefinitions ? '126px' : '140px')}}>
+                  {language === 'pl' ? 'Dokument' : 'Document'}
                 </th>
                 <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '22%' : '10%'}}>{t.definition}</th>
-                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '22%' : '28%'}}>{t.context}</th>
-                <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '100px'}}>{t.actions}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasTranslations ? '30%' : (hasDefinitions ? '22%' : '28%')}}>{t.context}</th>
+                <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '80px'}}>{t.actions}</th>
               </tr>
             </thead>
           <tbody>
