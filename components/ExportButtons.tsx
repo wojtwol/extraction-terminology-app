@@ -16,6 +16,8 @@ interface ExportButtonsProps {
   selectedColumnView?: '2' | '4'  // Widok kolumn dla dwujęzycznego (2 lub 4)
   targetDocumentText?: string  // Tekst dokumentu docelowego (dla dwujęzycznych)
   sortBy?: 'alphabetical' | 'occurrences' | 'position'  // Sposób sortowania terminów
+  onExportProject?: () => void  // Callback do eksportu pełnego projektu
+  onImportProject?: () => void  // Callback do importu pełnego projektu
 }
 
 export default function ExportButtons({
@@ -26,7 +28,9 @@ export default function ExportButtons({
   glossaryMode,
   selectedColumnView = '4',
   targetDocumentText,
-  sortBy = 'alphabetical'
+  sortBy = 'alphabetical',
+  onExportProject,
+  onImportProject
 }: ExportButtonsProps) {
   const { language } = useLanguage()
 
@@ -1797,6 +1801,8 @@ ${entries}
       handleImportJSON()
     } else if (value === 'xlsx') {
       handleImportXLSX()
+    } else if (value === 'import-project') {
+      onImportProject?.()
     }
     // Reset select
     e.target.value = ''
@@ -1818,6 +1824,8 @@ ${entries}
       exportToBilingualXML()
     } else if (value === 'tbx') {
       exportToTBX()
+    } else if (value === 'export-project') {
+      onExportProject?.()
     }
     // Reset select
     e.target.value = ''
@@ -1837,6 +1845,8 @@ ${entries}
           <option value="">{language === 'pl' ? 'Wybierz format...' : 'Select format...'}</option>
           <option value="json">📥 Import JSON</option>
           <option value="xlsx">📥 Import XLSX</option>
+          <option disabled>──────────</option>
+          <option value="import-project">📦 {language === 'pl' ? 'Importuj projekt (.gtextt)' : 'Import project (.gtextt)'}</option>
         </select>
       </div>
 
@@ -1862,6 +1872,8 @@ ${entries}
           {(hasTranslations || isBilingual) && (
             <option value="tbx">📋 TBX (TermBase eXchange)</option>
           )}
+          <option disabled>──────────</option>
+          <option value="export-project">📦 {language === 'pl' ? 'Eksportuj projekt (.gtextt)' : 'Export project (.gtextt)'}</option>
         </select>
         {isBilingual ? (
           <p className="text-xs text-gray-500 mt-2">

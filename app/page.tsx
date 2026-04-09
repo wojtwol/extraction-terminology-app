@@ -3260,6 +3260,8 @@ export default function Home() {
                     selectedColumnView={selectedColumnView}
                     targetDocumentText={targetDocumentText}
                     sortBy={sortBy}
+                    onExportProject={handleExportFullProject}
+                    onImportProject={handleImportFullProject}
                   />
                 </div>
               </div>
