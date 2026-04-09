@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.27.0",
+    "@anthropic-ai/sdk": "^0.52.0",
     "compromise": "^14.14.4",
     "franc-min": "^6.2.0",
     "jspdf": "^2.5.1",

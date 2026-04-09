@@ -174,7 +174,7 @@ INSTRUCTIONS:
 Respond with just the target term or "NOT_FOUND".`
 
         const response = await client.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
+          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6-20250514',
           max_tokens: 100,
           temperature: 0,
           messages: [{

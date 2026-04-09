@@ -232,7 +232,7 @@ TEXT:`
     }
 
     // Model można skonfigurować przez zmienną środowiskową ANTHROPIC_MODEL
-    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
+    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6-20250514'
 
     const message = await anthropic.messages.create({
       model,
