@@ -95,26 +95,48 @@ Return ONLY valid JSON (no markdown, no explanation):
 IMPORTANT: Return translations for ALL ${chunk.length} terms. The order must match the input order.`
 
       try {
-        const response = await client.messages.create({
-          model,
-          max_tokens: 4096,
-          tools: [{
-            type: 'web_search_20250305' as const,
-            name: 'web_search',
-            max_uses: 10
-          }],
-          messages: [{
-            role: 'user',
-            content: prompt
-          }]
-        })
-
-        // Wyciagnij tekst z odpowiedzi (moze zawierac tool_use blocks)
         let responseText = ''
-        for (const block of response.content) {
-          if (block.type === 'text') {
-            responseText += block.text
+
+        // Probuj z web_search, jesli sie nie uda - bez niego
+        try {
+          console.log(`   Probuje z web_search...`)
+          const response = await client.messages.create({
+            model,
+            max_tokens: 4096,
+            tools: [{
+              type: 'web_search_20250305',
+              name: 'web_search',
+              max_uses: 5
+            } as any],
+            messages: [{
+              role: 'user',
+              content: prompt
+            }]
+          })
+
+          for (const block of response.content) {
+            if (block.type === 'text') {
+              responseText += block.text
+            }
           }
+          console.log(`   Web search OK, odpowiedz: ${responseText.length} znakow`)
+        } catch (wsError: any) {
+          console.log(`   Web search nie zadziałał (${wsError.message?.substring(0, 80)}), probuje bez web search...`)
+          const response = await client.messages.create({
+            model,
+            max_tokens: 4096,
+            messages: [{
+              role: 'user',
+              content: prompt
+            }]
+          })
+
+          for (const block of response.content) {
+            if (block.type === 'text') {
+              responseText += block.text
+            }
+          }
+          console.log(`   Fallback OK, odpowiedz: ${responseText.length} znakow`)
         }
 
         console.log(`   Odpowiedz (pierwsze 200 znakow): ${responseText.substring(0, 200)}`)
