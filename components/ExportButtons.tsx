@@ -922,23 +922,43 @@ export default function ExportButtons({
     ]
 
     // Dynamiczne szerokości kolumn
-    if (hasDefinitions) {
+    if (hasTranslations && hasDefinitions) {
       ws['!cols'] = [
-        { wch: 8 },   // Nr
+        { wch: 5 },   // Nr
+        { wch: 28 },  // Termin
+        { wch: 28 },  // Tłumaczenie
+        { wch: 6 },   // Liczba wystąpień
+        { wch: 18 },  // Dokument
+        { wch: 45 },  // Definicja
+        { wch: 14 },  // Źródło definicji
+        { wch: 50 }   // Kontekst
+      ]
+    } else if (hasTranslations) {
+      ws['!cols'] = [
+        { wch: 5 },   // Nr
+        { wch: 28 },  // Termin
+        { wch: 28 },  // Tłumaczenie
+        { wch: 6 },   // Liczba wystąpień
+        { wch: 18 },  // Dokument
+        { wch: 70 }   // Kontekst
+      ]
+    } else if (hasDefinitions) {
+      ws['!cols'] = [
+        { wch: 5 },   // Nr
         { wch: 30 },  // Termin
-        { wch: 12 },  // Liczba wystąpień
-        { wch: 25 },  // Dokument
+        { wch: 8 },   // Liczba wystąpień
+        { wch: 20 },  // Dokument
         { wch: 60 },  // Definicja
         { wch: 18 },  // Źródło definicji
-        { wch: 32 }   // Kontekst
+        { wch: 50 }   // Kontekst
       ]
     } else {
       ws['!cols'] = [
-        { wch: 8 },   // Nr
+        { wch: 5 },   // Nr
         { wch: 30 },  // Termin
-        { wch: 12 },  // Liczba wystąpień
-        { wch: 25 },  // Dokument
-        { wch: 80 }   // Kontekst (szersza bez definicji)
+        { wch: 8 },   // Liczba wystąpień
+        { wch: 20 },  // Dokument
+        { wch: 80 }   // Kontekst
       ]
     }
 
