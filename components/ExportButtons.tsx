@@ -1756,7 +1756,7 @@ export default function ExportButtons({
 
     const termsWithTranslation = sortedTerms.filter(t => t.targetTerm)
     const srcCode = langToMultiTerm(srcLang || '').code.toLowerCase()
-    const tgtCode = langToMultiTerm(tgtLang || '').code.toLowerCase()
+    const tgtCode = langToMultiTerm(detectTargetLang()).code.toLowerCase()
 
     const entries = termsWithTranslation.map((t, i) => {
       const tbxDef = t.definition ? `
@@ -1843,6 +1843,25 @@ ${entries}
     return map[langName] || { code: langName?.substring(0, 2)?.toUpperCase() || 'EN', name: langName || 'English' }
   }
 
+  // Automatyczne wykrywanie języka docelowego jeśli nie podano
+  const detectTargetLang = (): string => {
+    if (tgtLang) return tgtLang
+    // Spróbuj wykryć z nazwy pliku (np. "EN_PL" → "Polski")
+    const fnLower = (fileName || '').toLowerCase()
+    const langPairs: Record<string, string> = {
+      '_pl': 'Polski', '_en': 'Angielski', '_de': 'Niemiecki', '_fr': 'Francuski',
+      '_es': 'Hiszpański', '_it': 'Włoski', '_nl': 'Niderlandzki', '_pt': 'Portugalski',
+      '_cs': 'Czeski', '_sk': 'Słowacki', '_ru': 'Rosyjski', '_uk': 'Ukraiński'
+    }
+    for (const [suffix, langName] of Object.entries(langPairs)) {
+      if (fnLower.includes(suffix) && langName !== (srcLang || '')) return langName
+    }
+    // Fallback: jeśli źródło to angielski, cel prawdopodobnie polski (i odwrotnie)
+    if ((srcLang || '').includes('Angielski') || (srcLang || '').includes('English')) return 'Polski'
+    if ((srcLang || '').includes('Polski') || (srcLang || '').includes('Polish')) return 'Angielski'
+    return 'Polski' // ostateczny fallback
+  }
+
   // Eksport MultiTerm XML (.xml) — kompatybilny z SDL Trados MultiTerm
   const exportToMultiTermXML = () => {
     const escXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -1850,7 +1869,7 @@ ${entries}
 
     const termsWithTranslation = sortedTerms.filter(t => t.targetTerm)
     const src = langToMultiTerm(srcLang || '')
-    const tgt = langToMultiTerm(tgtLang || '')
+    const tgt = langToMultiTerm(detectTargetLang())
 
     const entries = termsWithTranslation.map((t, i) => {
       return `  <conceptGrp>
@@ -1942,7 +1961,7 @@ ${entries}
 
     const termsWithTranslation = sortedTerms.filter(t => t.targetTerm)
     const src = langToMultiTerm(srcLang || '')
-    const tgt = langToMultiTerm(tgtLang || '')
+    const tgt = langToMultiTerm(detectTargetLang())
 
     // Generuj XML w formacie wewnętrznym SDLTB (identycznym z mtConcepts.text)
     const entries = termsWithTranslation.map((t, i) => {
