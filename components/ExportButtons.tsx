@@ -1866,7 +1866,7 @@ ${entries}
       <date>${now}</date>
     </transacGrp>${definition}
     <languageGrp>
-      <language type="${src.name}" lang="${src.code}"/>${t.context ? `
+      <language type="${src.name}" lang="${src.code}"></language>${t.context ? `
       <descripGrp>
         <descrip type="Context">${escXml(t.context)}</descrip>
       </descripGrp>` : ''}
@@ -1875,7 +1875,7 @@ ${entries}
       </termGrp>
     </languageGrp>
     <languageGrp>
-      <language type="${tgt.name}" lang="${tgt.code}"/>${t.targetContext ? `
+      <language type="${tgt.name}" lang="${tgt.code}"></language>${t.targetContext ? `
       <descripGrp>
         <descrip type="Context">${escXml(t.targetContext)}</descrip>
       </descripGrp>` : ''}
@@ -1924,7 +1924,7 @@ ${entries}
       <date>${now}</date>
     </transacGrp>${defBlock}
     <languageGrp>
-      <language type="${src.name}" lang="${src.code}"/>${t.context ? `
+      <language type="${src.name}" lang="${src.code}"></language>${t.context ? `
       <descripGrp>
         <descrip type="Context">${escXml(t.context)}</descrip>
       </descripGrp>` : ''}
@@ -1941,7 +1941,7 @@ ${entries}
       </termGrp>
     </languageGrp>
     <languageGrp>
-      <language type="${tgt.name}" lang="${tgt.code}"/>${t.targetContext ? `
+      <language type="${tgt.name}" lang="${tgt.code}"></language>${t.targetContext ? `
       <descripGrp>
         <descrip type="Context">${escXml(t.targetContext)}</descrip>
       </descripGrp>` : ''}
