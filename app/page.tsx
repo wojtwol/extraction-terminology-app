@@ -2235,8 +2235,18 @@ export default function Home() {
       setProgress(95)
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Błąd tłumaczenia')
+        let errorMsg = `Błąd ${response.status}`
+        try {
+          const data = await response.json()
+          errorMsg = data.error || errorMsg
+        } catch {
+          if (response.status === 504) {
+            errorMsg = 'Timeout - zbyt wiele terminów. Spróbuj z mniejszą liczbą.'
+          } else {
+            errorMsg = `Serwer zwrócił błąd ${response.status}`
+          }
+        }
+        throw new Error(errorMsg)
       }
 
       const data = await response.json()
