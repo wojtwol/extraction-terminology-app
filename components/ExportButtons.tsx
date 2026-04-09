@@ -1406,7 +1406,14 @@ export default function ExportButtons({
   }
 
   const downloadFile = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType })
+    // Użyj BOM + TextEncoder dla poprawnego UTF-8 (polskie znaki)
+    const encoder = new TextEncoder()
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]) // UTF-8 BOM
+    const encoded = encoder.encode(content)
+    const combined = new Uint8Array(bom.length + encoded.length)
+    combined.set(bom)
+    combined.set(encoded, bom.length)
+    const blob = new Blob([combined], { type: mimeType })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
