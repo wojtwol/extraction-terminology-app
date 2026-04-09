@@ -34,6 +34,7 @@ export default function ExportButtons({
   const isBilingual = glossaryMode === 'bilingual'
   const is2Column = selectedColumnView === '2'
   const is4Column = selectedColumnView === '4'
+  const hasTranslations = !isBilingual && terms.some(t => t.targetTerm)
 
   // Zbierz unikalne tytuły dokumentów źródłowych z terminów (znormalizowane)
   const getSourceDocumentTitles = (): string => {
@@ -163,25 +164,38 @@ export default function ExportButtons({
       const hasDefinitions = sortedTerms.some(t => t.definition && t.definition.trim() !== '')
       const expandedRows = expandTermsForExport(sortedTerms)
 
+      const tlumaczenie = language === 'pl' ? 'Tłumaczenie' : 'Translation'
+
       if (hasDefinitions) {
+        const header = hasTranslations
+          ? ['Termin', tlumaczenie, 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst']
+          : ['Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst']
         csvContent = [
-          ['Termin', 'Liczba wystąpień', 'Dokument', 'Definicja', 'Źródło definicji', 'Kontekst'],
-          ...expandedRows.map(row => [
-            row.isFirstRow ? row.term.term : '',  // Tylko w pierwszym wierszu pokazujemy termin
-            row.occurrences.toString(),
-            row.documentName,
-            row.isFirstRow ? (row.term.definition || '') : '',  // Definicja tylko w pierwszym wierszu
-            row.isFirstRow ? (row.term.definitionSource === 'document' ? 'Z dokumentu' :
-             row.term.definitionSource === 'edited' ? 'Edytowano' :
-             row.term.definitionSource === 'ai' ? 'AI' : '') : '',
-            row.context
-          ])
+          header,
+          ...expandedRows.map(row => {
+            const base = [
+              row.isFirstRow ? row.term.term : '',
+              ...(hasTranslations ? [row.isFirstRow ? (row.term.targetTerm || '') : ''] : []),
+              row.occurrences.toString(),
+              row.documentName,
+              row.isFirstRow ? (row.term.definition || '') : '',
+              row.isFirstRow ? (row.term.definitionSource === 'document' ? 'Z dokumentu' :
+               row.term.definitionSource === 'edited' ? 'Edytowano' :
+               row.term.definitionSource === 'ai' ? 'AI' : '') : '',
+              row.context
+            ]
+            return base
+          })
         ]
       } else {
+        const header = hasTranslations
+          ? ['Termin', tlumaczenie, 'Liczba wystąpień', 'Dokument', 'Kontekst']
+          : ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst']
         csvContent = [
-          ['Termin', 'Liczba wystąpień', 'Dokument', 'Kontekst'],
+          header,
           ...expandedRows.map(row => [
-            row.isFirstRow ? row.term.term : '',  // Tylko w pierwszym wierszu pokazujemy termin
+            row.isFirstRow ? row.term.term : '',
+            ...(hasTranslations ? [row.isFirstRow ? (row.term.targetTerm || '') : ''] : []),
             row.occurrences.toString(),
             row.documentName,
             row.context
@@ -557,7 +571,8 @@ export default function ExportButtons({
       <thead>
         <tr>
           <th class="nr-col">${t.nr}</th>
-          <th style="width: 180px;">${t.term}</th>
+          <th style="width: ${hasTranslations ? '150px' : '180px'};">${t.term}</th>
+          ${hasTranslations ? `<th style="width: 150px;">${language === 'pl' ? 'Tłumaczenie' : 'Translation'}</th>` : ''}
           <th style="width: 70px; text-align: center;">${t.occurrences}</th>
           <th style="width: 150px;">${t.document}</th>
           ${hasDefinitions ? `
@@ -579,6 +594,7 @@ export default function ExportButtons({
           <tr${!row.isFirstRow ? ' style="background: #f8f9fa;"' : ''}>
             <td class="nr-col">${row.isFirstRow ? termNumber : ''}</td>
             <td class="term">${row.isFirstRow ? row.term.term : ''}</td>
+            ${hasTranslations ? `<td class="term" style="color: #0d6efd;">${row.isFirstRow ? (row.term.targetTerm || '<span style="color: #adb5bd;">-</span>') : ''}</td>` : ''}
             <td class="occurrences">${row.occurrences}</td>
             <td style="font-size: 0.85em; color: #6c757d;">
               ${row.documentName}
@@ -809,7 +825,8 @@ export default function ExportButtons({
 
     // Sprawdź czy są jakieś definicje (dla jednojęzycznych)
     const hasDefinitions = sortedTerms.some(t => t.definition && t.definition.trim() !== '')
-    const numCols = hasDefinitions ? 7 : 5  // 7 z definicjami, 5 bez
+    const extraCols = (hasTranslations ? 1 : 0)
+    const numCols = (hasDefinitions ? 7 : 5) + extraCols
 
     // Tłumaczenia
     const t = {
@@ -818,6 +835,7 @@ export default function ExportButtons({
       termCount: language === 'pl' ? 'Liczba terminów:' : 'Number of terms:',
       nr: language === 'pl' ? 'Nr' : 'No.',
       term: language === 'pl' ? 'Termin' : 'Term',
+      translation: language === 'pl' ? 'Tłumaczenie' : 'Translation',
       occurrences: language === 'pl' ? 'Liczba wystąpień' : 'Number of occurrences',
       document: language === 'pl' ? 'Dokument' : 'Document',
       definition: language === 'pl' ? 'Definicja' : 'Definition',
@@ -840,13 +858,14 @@ export default function ExportButtons({
     let termNumber = 0
 
     if (hasDefinitions) {
-      headerRow = [t.nr, t.term, t.occurrences, t.document, t.definition, t.defSource, t.context]
+      headerRow = [t.nr, t.term, ...(hasTranslations ? [t.translation] : []), t.occurrences, t.document, t.definition, t.defSource, t.context]
       dataRows = expandedRows.map(row => {
-        if (row.isFirstRow) termNumber++  // Inkrementuj tylko dla pierwszego wiersza terminu
+        if (row.isFirstRow) termNumber++
 
         return [
           row.isFirstRow ? termNumber.toString() : '',
           row.isFirstRow ? row.term.term : '',
+          ...(hasTranslations ? [row.isFirstRow ? (row.term.targetTerm || '') : ''] : []),
           row.occurrences.toString(),
           row.documentName,
           row.isFirstRow ? (row.term.definition || '') : '',
@@ -857,13 +876,14 @@ export default function ExportButtons({
         ]
       })
     } else {
-      headerRow = [t.nr, t.term, t.occurrences, t.document, t.context]
+      headerRow = [t.nr, t.term, ...(hasTranslations ? [t.translation] : []), t.occurrences, t.document, t.context]
       dataRows = expandedRows.map(row => {
-        if (row.isFirstRow) termNumber++  // Inkrementuj tylko dla pierwszego wiersza terminu
+        if (row.isFirstRow) termNumber++
 
         return [
           row.isFirstRow ? termNumber.toString() : '',
           row.isFirstRow ? row.term.term : '',
+          ...(hasTranslations ? [row.isFirstRow ? (row.term.targetTerm || '') : ''] : []),
           row.occurrences.toString(),
           row.documentName,
           row.context
@@ -1226,8 +1246,11 @@ export default function ExportButtons({
     let termNumber = 0
 
     if (hasDefinitions) {
-      // Z definicjami: Nr | Term | Occurrences | Source Document | Definition | Def Source | Context
-      tableHead = [['No.', 'Term', 'Number of\noccurrences', 'Source\nDocument', 'Definition', 'Source of\ndefinition', 'Context']]
+      // Z definicjami: Nr | Term | [Translation] | Occurrences | Source Document | Definition | Def Source | Context
+      tableHead = [hasTranslations
+        ? ['No.', 'Term', 'Translation', 'Occ.', 'Source\nDoc.', 'Definition', 'Def.\nSource', 'Context']
+        : ['No.', 'Term', 'Number of\noccurrences', 'Source\nDocument', 'Definition', 'Source of\ndefinition', 'Context']
+      ]
       tableData = expandedRows.map(row => {
         if (row.isFirstRow) termNumber++
 
@@ -1241,6 +1264,7 @@ export default function ExportButtons({
         return [
           row.isFirstRow ? String(termNumber) : '',
           row.isFirstRow ? (row.term.term || '') : '',
+          ...(hasTranslations ? [row.isFirstRow ? (row.term.targetTerm || '-') : ''] : []),
           String(row.occurrences),
           row.documentName,
           row.isFirstRow ? (row.term.definition || '-') : '',
@@ -1248,24 +1272,30 @@ export default function ExportButtons({
           row.context || '-'
         ]
       })
-      // Term: 42 * 1.15 = 48, Occurrences: 18 * 1.15 = 21, Context: 70 * 1.15 = 81
-      colWidths = { 0: 10, 1: 48, 2: 21, 3: 25, 4: 50, 5: 20, 6: 81 }
+      colWidths = hasTranslations
+        ? { 0: 8, 1: 38, 2: 38, 3: 14, 4: 22, 5: 42, 6: 16, 7: 70 }
+        : { 0: 10, 1: 48, 2: 21, 3: 25, 4: 50, 5: 20, 6: 81 }
     } else {
-      // Bez definicji: Nr | Term | Occurrences | Source Document | Context
-      tableHead = [['No.', 'Term', 'Number of\noccurrences', 'Source\nDocument', 'Context']]
+      // Bez definicji: Nr | Term | [Translation] | Occurrences | Source Document | Context
+      tableHead = [hasTranslations
+        ? ['No.', 'Term', 'Translation', 'Occ.', 'Source\nDocument', 'Context']
+        : ['No.', 'Term', 'Number of\noccurrences', 'Source\nDocument', 'Context']
+      ]
       tableData = expandedRows.map(row => {
         if (row.isFirstRow) termNumber++
 
         return [
           row.isFirstRow ? String(termNumber) : '',
           row.isFirstRow ? (row.term.term || '') : '',
+          ...(hasTranslations ? [row.isFirstRow ? (row.term.targetTerm || '-') : ''] : []),
           String(row.occurrences),
           row.documentName,
           row.context || '-'
         ]
       })
-      // Term: 45 * 1.15 = 52, Occurrences: 18 * 1.15 = 21, Context: 105 * 1.15 = 121
-      colWidths = { 0: 10, 1: 52, 2: 21, 3: 30, 4: 121 }
+      colWidths = hasTranslations
+        ? { 0: 8, 1: 45, 2: 45, 3: 16, 4: 28, 5: 100 }
+        : { 0: 10, 1: 52, 2: 21, 3: 30, 4: 121 }
     }
 
     // Tabela z danymi
