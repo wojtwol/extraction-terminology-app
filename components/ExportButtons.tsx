@@ -1726,6 +1726,69 @@ export default function ExportButtons({
     input.click()
   }
 
+  // Eksport dwujęzyczny XML (prosty format)
+  const exportToBilingualXML = () => {
+    const sourceLang = (glossaryMode === 'bilingual' ? (terms[0]?.term ? 'source' : '') : (terms.some(t => t.targetTerm) ? 'source' : '')) || 'en'
+    const targetLang = 'target'
+
+    const escXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+    const entries = sortedTerms
+      .filter(t => t.targetTerm)
+      .map(t => `  <entry>\n    <source>${escXml(t.term)}</source>\n    <target>${escXml(t.targetTerm || '')}</target>\n  </entry>`)
+      .join('\n')
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<glossary>\n${entries}\n</glossary>`
+    downloadFile(xml, `${fileName || 'glossary'}_bilingual.xml`, 'application/xml;charset=utf-8;')
+  }
+
+  // Eksport TBX (TermBase eXchange format)
+  const exportToTBX = () => {
+    const escXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+    const termsWithTranslation = sortedTerms.filter(t => t.targetTerm)
+
+    const entries = termsWithTranslation.map((t, i) => {
+      return `    <termEntry id="t${i + 1}">
+      <langSet xml:lang="en">
+        <tig>
+          <term>${escXml(t.term)}</term>
+        </tig>
+      </langSet>
+      <langSet xml:lang="pl">
+        <tig>
+          <term>${escXml(t.targetTerm || '')}</term>
+        </tig>
+      </langSet>
+    </termEntry>`
+    }).join('\n')
+
+    const tbx = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE martif SYSTEM "TBXcoreStructV02.dtd">
+<martif type="TBX" xml:lang="en">
+  <martifHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>IURIDICO EJ GTEXTT - ${escXml(fileName || 'Glossary')}</title>
+      </titleStmt>
+      <sourceDesc>
+        <p>Exported from IURIDICO EJ GTEXTT</p>
+      </sourceDesc>
+    </fileDesc>
+    <encodingDesc>
+      <p type="XCSURI">TBXXCSV02.xcs</p>
+    </encodingDesc>
+  </martifHeader>
+  <text>
+    <body>
+${entries}
+    </body>
+  </text>
+</martif>`
+
+    downloadFile(tbx, `${fileName || 'glossary'}.tbx`, 'application/xml;charset=utf-8;')
+  }
+
   const hasTerms = terms.length > 0
 
   const handleImportChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -1751,6 +1814,10 @@ export default function ExportButtons({
       exportToHTML()
     } else if (value === 'json') {
       exportToJSON()
+    } else if (value === 'xml-bilingual') {
+      exportToBilingualXML()
+    } else if (value === 'tbx') {
+      exportToTBX()
     }
     // Reset select
     e.target.value = ''
@@ -1789,6 +1856,12 @@ export default function ExportButtons({
           <option value="csv">📊 CSV{isBilingual ? ` - ${is2Column ? (language === 'pl' ? '2 kolumny' : '2 columns') : (language === 'pl' ? '4 kolumny' : '4 columns')}` : ''}</option>
           <option value="html">🌐 HTML{isBilingual ? ` - ${is2Column ? (language === 'pl' ? '2 kolumny' : '2 columns') : (language === 'pl' ? '4 kolumny' : '4 columns')}` : ''}</option>
           <option value="json">💾 JSON</option>
+          {(hasTranslations || isBilingual) && (
+            <option value="xml-bilingual">📋 XML ({language === 'pl' ? 'dwujęzyczny' : 'bilingual'})</option>
+          )}
+          {(hasTranslations || isBilingual) && (
+            <option value="tbx">📋 TBX (TermBase eXchange)</option>
+          )}
         </select>
         {isBilingual ? (
           <p className="text-xs text-gray-500 mt-2">

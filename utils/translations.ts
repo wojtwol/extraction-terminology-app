@@ -102,6 +102,15 @@ export interface Translations {
   translateError: string
   translateButton: string
 
+  // Project export/import
+  exportProject: string
+  importProject: string
+  attachDocument: string
+  noSourceDocument: string
+  attachDocumentHint: string
+  projectExported: string
+  projectImported: string
+
   // FileUpload
   loadDocument: string
   apiKeyRequired: string
@@ -228,6 +237,15 @@ export const translations: Record<Language, Translations> = {
     translateError: 'Błąd tłumaczenia',
     translateButton: 'Przetłumacz',
 
+    // Project export/import
+    exportProject: 'Eksportuj projekt (.gtextt)',
+    importProject: 'Importuj projekt (.gtextt)',
+    attachDocument: 'Dołącz dokument źródłowy',
+    noSourceDocument: 'Brak dokumentu źródłowego — funkcje podglądu i dodawania terminów ograniczone.',
+    attachDocumentHint: 'Dołącz plik źródłowy, aby odblokować podgląd terminów w dokumencie.',
+    projectExported: 'Projekt wyeksportowany',
+    projectImported: 'Projekt zaimportowany',
+
     // FileUpload
     loadDocument: 'Załaduj dokument',
     apiKeyRequired: 'Klucz API Anthropic (wymagany)',
@@ -351,6 +369,15 @@ export const translations: Record<Language, Translations> = {
     translateSuccess: 'Terms translated',
     translateError: 'Translation error',
     translateButton: 'Translate',
+
+    // Project export/import
+    exportProject: 'Export project (.gtextt)',
+    importProject: 'Import project (.gtextt)',
+    attachDocument: 'Attach source document',
+    noSourceDocument: 'No source document — preview and manual term adding are limited.',
+    attachDocumentHint: 'Attach a source file to unlock term preview in document.',
+    projectExported: 'Project exported',
+    projectImported: 'Project imported',
 
     // FileUpload
     loadDocument: 'Upload Source Document',

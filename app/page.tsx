@@ -1513,6 +1513,207 @@ export default function Home() {
     console.log(`✅ Zapisano glosariusz lokalnie: ${terms.length} terminów`)
   }
 
+  // Eksport pełnego projektu (.gtextt)
+  const handleExportFullProject = () => {
+    if (!currentProject || terms.length === 0) {
+      alert(language === 'pl' ? 'Brak projektu do eksportu.' : 'No project to export.')
+      return
+    }
+
+    const projectData = {
+      type: 'iuridico-project',
+      version: '1.0',
+      name: currentProject.name || fileName,
+      fileName: fileName,
+      documentText: documentText,
+      detectedLanguage: detectedLanguage,
+      isMultiDocument: currentProject.isMultiDocument || false,
+      documents: currentProject.documents || [],
+      glossary: {
+        name: currentGlossary?.name || 'Glossary',
+        terms: terms,
+        isBilingual: currentGlossary?.isBilingual || false,
+        sourceLanguage: sourceLanguage || detectedLanguage,
+        targetLanguage: targetLanguage || '',
+        sourceDocumentText: currentGlossary?.sourceDocumentText || '',
+        targetDocumentText: currentGlossary?.targetDocumentText || ''
+      },
+      exportedAt: new Date().toISOString()
+    }
+
+    const jsonContent = JSON.stringify(projectData, null, 2)
+    const blob = new Blob([jsonContent], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${currentProject.name || fileName || 'projekt'}.gtextt.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    console.log(`✅ Wyeksportowano projekt: ${terms.length} terminów, ${documentText.length} znaków dokumentu`)
+    alert(language === 'pl'
+      ? `${t.projectExported}: ${terms.length} terminów${documentText ? ` + dokument źródłowy (${documentText.length.toLocaleString()} znaków)` : ''}`
+      : `${t.projectExported}: ${terms.length} terms${documentText ? ` + source document (${documentText.length.toLocaleString()} chars)` : ''}`)
+  }
+
+  // Import pełnego projektu (.gtextt)
+  const handleImportFullProject = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json,.gtextt.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const text = await file.text()
+        const data = JSON.parse(text)
+
+        if (data.type !== 'iuridico-project') {
+          alert(language === 'pl'
+            ? 'To nie jest plik projektu IURIDICO (.gtextt). Użyj opcji "Import XLSX/JSON" dla zwykłych glosariuszy.'
+            : 'This is not an IURIDICO project file (.gtextt). Use "Import XLSX/JSON" for regular glossaries.')
+          return
+        }
+
+        // Utwórz nowy projekt
+        const project = projectStorage.save({
+          name: data.name || file.name,
+          fileName: data.fileName || file.name,
+          documentText: data.documentText || '',
+          detectedLanguage: data.detectedLanguage || ''
+        })
+
+        // Jeśli multi-document, dodaj dokumenty
+        if (data.isMultiDocument && data.documents && data.documents.length > 0) {
+          projectStorage.update(project.id, { isMultiDocument: true })
+          data.documents.forEach((doc: any) => {
+            projectStorage.addDocument(project.id, doc.fileName, doc.text, doc.language)
+          })
+        }
+
+        // Dodaj terminy do glosariusza
+        const glossary = projectStorage.getCurrentGlossary(project.id)
+        if (glossary && data.glossary?.terms) {
+          // Ustaw metadane glosariusza
+          if (data.glossary.name) {
+            projectStorage.renameGlossary(project.id, glossary.id, data.glossary.name)
+          }
+
+          const description = `Import projektu: ${data.name || file.name}`
+          projectStorage.addVersion(
+            project.id,
+            glossary.id,
+            data.glossary.terms,
+            description,
+            undefined,
+            false
+          )
+        }
+
+        // Przełącz na zaimportowany projekt
+        const updatedProject = projectStorage.getById(project.id)
+        if (updatedProject) {
+          setCurrentProject(updatedProject)
+          setProjectName(updatedProject.name)
+          setFileName(updatedProject.fileName)
+          setDocumentText(updatedProject.documentText)
+          setDetectedLanguage(updatedProject.detectedLanguage)
+          if (data.glossary?.targetLanguage) setTargetLanguage(data.glossary.targetLanguage)
+          if (data.glossary?.sourceLanguage) setSourceLanguage(data.glossary.sourceLanguage)
+          setLoadedText('')
+          setLoadedFileName('')
+          refreshGlossary()
+        }
+
+        const termCount = data.glossary?.terms?.length || 0
+        const hasDoc = data.documentText ? true : false
+        console.log(`✅ Zaimportowano projekt: ${termCount} terminów, dokument: ${hasDoc}`)
+        alert(language === 'pl'
+          ? `${t.projectImported}: "${data.name}"\n${termCount} terminów${hasDoc ? ` + dokument źródłowy` : '\n⚠️ Brak dokumentu źródłowego - użyj "Dołącz dokument" aby dodać.'}`
+          : `${t.projectImported}: "${data.name}"\n${termCount} terms${hasDoc ? ` + source document` : '\n⚠️ No source document - use "Attach document" to add one.'}`)
+
+      } catch (error) {
+        console.error('Błąd importu projektu:', error)
+        alert(language === 'pl'
+          ? 'Błąd podczas importu projektu. Sprawdź czy plik jest poprawny.'
+          : 'Error importing project. Check if the file is valid.')
+      }
+    }
+    input.click()
+  }
+
+  // Dołączanie pliku źródłowego do projektu
+  const handleAttachSourceDocument = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.txt,.html,.docx,.xlsx,.xls,.xml'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        let text = ''
+        const extension = file.name.split('.').pop()?.toLowerCase()
+
+        if (extension === 'docx') {
+          const mammoth = (await import('mammoth')).default
+          const arrayBuffer = await file.arrayBuffer()
+          const result = await mammoth.extractRawText({ arrayBuffer })
+          text = result.value
+        } else if (extension === 'xlsx' || extension === 'xls') {
+          const XLSX = await import('xlsx')
+          const buffer = await file.arrayBuffer()
+          const workbook = XLSX.read(buffer, { type: 'array' })
+          workbook.SheetNames.forEach(sheetName => {
+            const sheet = workbook.Sheets[sheetName]
+            text += XLSX.utils.sheet_to_txt(sheet) + '\n'
+          })
+        } else {
+          text = await file.text()
+        }
+
+        if (text.length < 50) {
+          alert(language === 'pl' ? 'Dokument jest zbyt krótki.' : 'Document is too short.')
+          return
+        }
+
+        // Zapisz dokument w projekcie
+        setDocumentText(text)
+        setFileName(file.name)
+
+        if (currentProject) {
+          projectStorage.update(currentProject.id, {
+            documentText: text,
+            fileName: file.name
+          })
+          const updated = projectStorage.getById(currentProject.id)
+          if (updated) setCurrentProject(updated)
+        }
+
+        // Policz ile terminów znaleziono w dokumencie
+        let foundCount = 0
+        terms.forEach(term => {
+          if (text.toLowerCase().includes(term.term.toLowerCase())) {
+            foundCount++
+          }
+        })
+
+        console.log(`✅ Dołączono dokument: ${file.name}, ${text.length} znaków, ${foundCount}/${terms.length} terminów znalezionych`)
+        alert(language === 'pl'
+          ? `Dołączono dokument "${file.name}" (${text.length.toLocaleString()} znaków).\n\nZnaleziono ${foundCount} z ${terms.length} terminów w dokumencie.`
+          : `Attached document "${file.name}" (${text.length.toLocaleString()} chars).\n\nFound ${foundCount} of ${terms.length} terms in document.`)
+
+      } catch (error) {
+        console.error('Błąd dołączania dokumentu:', error)
+        alert(language === 'pl' ? 'Błąd podczas wczytywania pliku.' : 'Error loading file.')
+      }
+    }
+    input.click()
+  }
+
   // Łączenie wielu glosariuszy (do 3 plików JSON lub XLSX)
   const handleMergeMultipleGlossaries = () => {
     if (!currentProject || !currentGlossary) {
@@ -2854,6 +3055,12 @@ export default function Home() {
                         handleMergeMultipleGlossaries()
                       } else if (value === 'merge-project-glossaries') {
                         handleMergeProjectGlossaries()
+                      } else if (value === 'export-project') {
+                        handleExportFullProject()
+                      } else if (value === 'import-project') {
+                        handleImportFullProject()
+                      } else if (value === 'attach-document') {
+                        handleAttachSourceDocument()
                       } else if (value === 'expand-auto') {
                         handleExpandGlossary()
                       } else if (value === 'create-bilingual') {
@@ -2900,6 +3107,22 @@ export default function Home() {
                     <option value="local-save" disabled={terms.length === 0}>
                       💾 {language === 'pl' ? 'Zapisz lokalnie (JSON)' : 'Save locally (JSON)'}
                     </option>
+
+                    {currentProject && terms.length > 0 && (
+                      <option value="export-project">
+                        📦 {t.exportProject}
+                      </option>
+                    )}
+
+                    <option value="import-project">
+                      📦 {t.importProject}
+                    </option>
+
+                    {currentProject && terms.length > 0 && !documentText && (
+                      <option value="attach-document">
+                        📎 {t.attachDocument}
+                      </option>
+                    )}
 
                     <option value="merge-glossaries">
                       🔗 {language === 'pl' ? 'Połącz glosariusze (pliki)' : 'Merge glossaries (files)'}
@@ -3291,6 +3514,22 @@ export default function Home() {
         {/* Bottom Section - Glossary Table (full width) */}
         {terms.length > 0 && !isLoading && (
           <div className="w-full space-y-4">
+            {/* Banner: brak dokumentu źródłowego */}
+            {!documentText && currentProject && (
+              <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-4 shadow-md flex items-center justify-between">
+                <div>
+                  <p className="text-amber-800 font-medium">⚠️ {t.noSourceDocument}</p>
+                  <p className="text-amber-600 text-sm mt-1">{t.attachDocumentHint}</p>
+                </div>
+                <button
+                  onClick={handleAttachSourceDocument}
+                  className="ml-4 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium text-sm whitespace-nowrap"
+                >
+                  📎 {t.attachDocument}
+                </button>
+              </div>
+            )}
+
             {/* Sugestia dotycząca liczby terminów */}
             {extractionSuggestion && (
               <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 shadow-md">
