@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     console.log(`🔍 Szukam definicji dla terminu: ${term} (język: ${language})`)
 
     // Model można skonfigurować przez zmienną środowiskową ANTHROPIC_MODEL
-    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
+    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6-20250514'
 
     // Najpierw sprawdź czy definicja jest w dokumencie
     const documentCheckMessage = await anthropic.messages.create({
@@ -130,7 +130,7 @@ ${documentText.slice(0, 50000)}
 
 Return ONLY the definition text in ${langName}, without additional comments.`
 
-  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
+  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6-20250514'
 
   const aiMessage = await anthropic.messages.create({
     model,

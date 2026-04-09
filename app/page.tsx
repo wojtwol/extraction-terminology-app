@@ -179,6 +179,10 @@ export default function Home() {
   // Wybrany termin do podświetlenia w dokumencie
   const [selectedTerm, setSelectedTerm] = useState<Term | null>(null)
 
+  // Translation state
+  const [showTranslateDialog, setShowTranslateDialog] = useState(false)
+  const [translateTargetLanguage, setTranslateTargetLanguage] = useState('')
+
   // Sugestia dotycząca liczby terminów
   const [extractionSuggestion, setExtractionSuggestion] = useState<string | null>(null)
 
@@ -2169,6 +2173,131 @@ export default function Home() {
     }
   }
 
+  // Lista języków do tłumaczenia
+  const TRANSLATION_LANGUAGES: Record<string, string> = {
+    'Angielski': 'English',
+    'Polski': 'Polish',
+    'Niemiecki': 'German',
+    'Francuski': 'French',
+    'Hiszpański': 'Spanish',
+    'Włoski': 'Italian',
+    'Niderlandzki': 'Dutch',
+    'Portugalski': 'Portuguese',
+    'Czeski': 'Czech',
+    'Słowacki': 'Slovak',
+    'Chorwacki': 'Croatian',
+    'Bułgarski': 'Bulgarian',
+    'Rumuński': 'Romanian',
+    'Węgierski': 'Hungarian',
+    'Duński': 'Danish',
+    'Szwedzki': 'Swedish',
+    'Fiński': 'Finnish',
+    'Grecki': 'Greek',
+    'Estoński': 'Estonian',
+    'Łotewski': 'Latvian',
+    'Litewski': 'Lithuanian',
+    'Słoweński': 'Slovenian',
+    'Irlandzki': 'Irish',
+    'Maltański': 'Maltese',
+    'Rosyjski': 'Russian',
+    'Ukraiński': 'Ukrainian',
+    'Serbski': 'Serbian',
+    'Turecki': 'Turkish',
+  }
+
+  // Tłumaczenie wszystkich terminów
+  const handleTranslateAllTerms = async (selectedTargetLang: string) => {
+    if (!currentProject || !currentGlossary || terms.length === 0 || !apiKey) return
+
+    setShowTranslateDialog(false)
+    setIsLoading(true)
+    setProgress(10)
+
+    try {
+      console.log(`🌐 Tłumaczenie ${terms.length} terminów na ${selectedTargetLang}`)
+
+      const progressInterval = setInterval(() => {
+        setProgress(prev => prev >= 90 ? prev : prev + 3)
+      }, 1000)
+
+      const response = await fetch('/api/translate-terms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey,
+          terms: terms.map(t => ({ term: t.term, context: t.context })),
+          sourceLanguage: detectedLanguage || 'Unknown',
+          targetLanguage: selectedTargetLang
+        })
+      })
+
+      clearInterval(progressInterval)
+      setProgress(95)
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Błąd tłumaczenia')
+      }
+
+      const data = await response.json()
+
+      if (!data.translations || data.translations.length === 0) {
+        throw new Error('Brak tłumaczeń w odpowiedzi')
+      }
+
+      // Aktualizuj terminy z tłumaczeniami
+      const updatedTerms = terms.map((term, index) => {
+        const translation = data.translations[index] ||
+          data.translations.find((t: any) => t.sourceTerm?.toLowerCase() === term.term.toLowerCase())
+
+        if (translation && translation.targetTerm) {
+          return {
+            ...term,
+            targetTerm: translation.targetTerm,
+            targetContext: translation.targetContext || '',
+            targetSource: 'ai' as const
+          }
+        }
+        return term
+      })
+
+      // Zapisz jako nową wersję
+      const description = `Tłumaczenie: ${detectedLanguage} → ${selectedTargetLang}`
+      projectStorage.addVersion(
+        currentProject.id,
+        currentGlossary.id,
+        updatedTerms,
+        description,
+        undefined,
+        false
+      )
+
+      // Zapisz język docelowy w stanie
+      setTargetLanguage(selectedTargetLang)
+
+      // Odśwież
+      const updatedProject = projectStorage.getById(currentProject.id)
+      if (updatedProject) setCurrentProject(updatedProject)
+      refreshGlossary()
+
+      setProgress(100)
+
+      const translatedCount = updatedTerms.filter(t => t.targetTerm).length
+      console.log(`✅ Przetłumaczono ${translatedCount}/${terms.length} terminów`)
+      alert(language === 'pl'
+        ? `Przetłumaczono ${translatedCount} z ${terms.length} terminów na ${selectedTargetLang}.`
+        : `Translated ${translatedCount} of ${terms.length} terms to ${selectedTargetLang}.`)
+
+      setTimeout(() => setProgress(0), 1000)
+    } catch (error) {
+      console.error('❌ Błąd tłumaczenia:', error)
+      alert(`${t.translateError}: ${error instanceof Error ? error.message : 'Nieznany błąd'}`)
+      setProgress(0)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Odśwież glosariusz gdy projekt się zmieni
   useEffect(() => {
     refreshGlossary()
@@ -2727,6 +2856,8 @@ export default function Home() {
                           setBilingualStage(2)
                           console.log('✅ Glosariusz bazowy zatwierdzony, przejście do Stage 2')
                         }
+                      } else if (value === 'translate-terms') {
+                        setShowTranslateDialog(true)
                       } else if (value === 'find-equivalents') {
                         handleFindAllEquivalents()
                       } else if (value === 'back-stage1') {
@@ -2774,6 +2905,13 @@ export default function Home() {
                     <option value="expand-auto" disabled={!documentText || isLoading || currentGlossary?.isBilingual}>
                       🔍 {language === 'pl' ? 'Rozbuduj (automatycznie)' : 'Expand (automatic)'}
                     </option>
+
+                    {/* Opcja tłumaczenia terminów */}
+                    {glossaryMode !== 'bilingual' && terms.length > 0 && (
+                      <option value="translate-terms" disabled={isLoading}>
+                        🌐 {language === 'pl' ? 'Przetłumacz terminy' : 'Translate terms'}
+                      </option>
+                    )}
 
                     {/* Opcja tworzenia glosariusza dwujęzycznego - widoczna zawsze, aktywna gdy są terminy */}
                     {currentGlossary && !currentGlossary.isBilingual && (
@@ -2837,6 +2975,44 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+
+                {/* Translation Language Dialog */}
+                {showTranslateDialog && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-2xl p-6 w-96 max-h-[80vh] overflow-y-auto">
+                      <h3 className="text-lg font-semibold mb-3 text-gray-800">
+                        {t.selectTargetLanguage}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        {language === 'pl'
+                          ? `Język źródłowy: ${detectedLanguage || 'Nieznany'}`
+                          : `Source language: ${detectedLanguage || 'Unknown'}`}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                        {Object.entries(TRANSLATION_LANGUAGES)
+                          .filter(([plName]) => plName !== detectedLanguage)
+                          .map(([plName, enName]) => (
+                            <button
+                              key={plName}
+                              onClick={() => {
+                                setTranslateTargetLanguage(plName)
+                                handleTranslateAllTerms(plName)
+                              }}
+                              className="px-3 py-2 text-sm bg-gray-100 hover:bg-teal-100 hover:text-teal-800 rounded-lg transition-colors text-left"
+                            >
+                              {language === 'pl' ? plName : enName}
+                            </button>
+                          ))}
+                      </div>
+                      <button
+                        onClick={() => setShowTranslateDialog(false)}
+                        className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      >
+                        {t.cancel}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-white rounded-lg shadow-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">

@@ -93,6 +93,15 @@ export interface Translations {
   extractionParamsTitle: string
   extractionParamsDescription: string
 
+  // Translation
+  translateTerms: string
+  selectTargetLanguage: string
+  translating: string
+  translationColumn: string
+  translateSuccess: string
+  translateError: string
+  translateButton: string
+
   // FileUpload
   loadDocument: string
   apiKeyRequired: string
@@ -210,6 +219,15 @@ export const translations: Record<Language, Translations> = {
     extractionParamsTitle: 'Parametry ekstrakcji',
     extractionParamsDescription: 'Ustaw zakres liczby terminów do wyekstraktowania',
 
+    // Translation
+    translateTerms: 'Przetłumacz terminy',
+    selectTargetLanguage: 'Wybierz język docelowy',
+    translating: 'Tłumaczenie w toku...',
+    translationColumn: 'Tłumaczenie',
+    translateSuccess: 'Przetłumaczono terminy',
+    translateError: 'Błąd tłumaczenia',
+    translateButton: 'Przetłumacz',
+
     // FileUpload
     loadDocument: 'Załaduj dokument',
     apiKeyRequired: 'Klucz API Anthropic (wymagany)',
@@ -324,6 +342,15 @@ export const translations: Record<Language, Translations> = {
     // Extraction params labels
     extractionParamsTitle: 'Extraction Parameters',
     extractionParamsDescription: 'Set the range of terms to extract',
+
+    // Translation
+    translateTerms: 'Translate Terms',
+    selectTargetLanguage: 'Select target language',
+    translating: 'Translating...',
+    translationColumn: 'Translation',
+    translateSuccess: 'Terms translated',
+    translateError: 'Translation error',
+    translateButton: 'Translate',
 
     // FileUpload
     loadDocument: 'Upload Source Document',

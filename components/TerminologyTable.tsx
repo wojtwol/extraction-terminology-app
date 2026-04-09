@@ -131,6 +131,7 @@ export default function TerminologyTable({
 
   // Check if any term has a definition
   const hasDefinitions = terms.some(t => t.definition)
+  const hasTranslations = !isBilingual && terms.some(t => t.targetTerm)
 
   // Funkcja do wyróżnienia terminu w kontekście
   const highlightTermInContext = (context: string, termText: string) => {
@@ -718,14 +719,17 @@ export default function TerminologyTable({
             <thead>
               <tr className="bg-gray-100 border-b-2 border-gray-300">
                 <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '40px'}}>{t.number}</th>
-                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '170px' : '200px'}}>{t.term}</th>
-                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '90px'}}>{t.occurrences}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasTranslations ? '150px' : (hasDefinitions ? '170px' : '200px')}}>{t.term}</th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: '70px'}}>{t.occurrences}</th>
+                {hasTranslations && (
+                  <th className="px-3 py-3 text-left text-sm font-semibold text-teal-700" style={{width: '160px'}}>{t.translationColumn}</th>
+                )}
                 <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '126px' : '140px'}}>
                   {language === 'pl' ? 'Dokument źródłowy' : 'Source Document'}
                 </th>
-                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '26%' : '12%'}}>{t.definition}</th>
-                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '26%' : '32%'}}>{t.context}</th>
-                <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '120px'}}>{t.actions}</th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '22%' : '10%'}}>{t.definition}</th>
+                <th className="px-3 py-3 text-left text-sm font-semibold text-gray-700" style={{width: hasDefinitions ? '22%' : '28%'}}>{t.context}</th>
+                <th className="px-2 py-3 text-center text-sm font-semibold text-gray-700" style={{width: '100px'}}>{t.actions}</th>
               </tr>
             </thead>
           <tbody>
@@ -811,6 +815,66 @@ export default function TerminologyTable({
                         {displayOccurrences}
                       </span>
                     </td>
+
+                    {/* Tłumaczenie (monolingual mode) */}
+                    {hasTranslations && isFirstContext && (
+                      <td className="px-3 py-3 text-sm break-words" rowSpan={term.contexts && term.contexts.length > 1 ? term.contexts.length : 1}>
+                        {editingTargetTerm?.id === term.id ? (
+                          <div className="flex gap-1">
+                            <input
+                              type="text"
+                              value={editingTargetTerm.value}
+                              onChange={(e) => setEditingTargetTerm({ id: term.id, value: e.target.value })}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => {
+                                const updated = terms.map(t =>
+                                  t.id === term.id
+                                    ? { ...t, targetTerm: editingTargetTerm.value, targetSource: 'manual' as const }
+                                    : t
+                                )
+                                onUpdate(updated)
+                                setEditingTargetTerm(null)
+                              }}
+                              className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => setEditingTargetTerm(null)}
+                              className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : term.targetTerm ? (
+                          <div className="group">
+                            <span
+                              onClick={() => setEditingTargetTerm({ id: term.id, value: term.targetTerm || '' })}
+                              className="font-medium text-teal-800 cursor-pointer hover:text-teal-600 transition-colors"
+                              title={language === 'pl' ? 'Kliknij, aby edytować' : 'Click to edit'}
+                            >
+                              {term.targetTerm}
+                            </span>
+                            {term.targetSource === 'ai' && (
+                              <span className="ml-1 text-xs inline-block px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                AI
+                              </span>
+                            )}
+                            {term.targetSource === 'manual' && (
+                              <span className="ml-1 text-xs inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                {language === 'pl' ? 'Ręcznie' : 'Manual'}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs italic">-</span>
+                        )}
+                      </td>
+                    )}
+                    {hasTranslations && !isFirstContext && null}
 
                     {/* Dokument źródłowy */}
                     <td className="px-2 py-3 text-sm text-gray-600">
