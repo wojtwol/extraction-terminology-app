@@ -1904,51 +1904,7 @@ ${entries}
 ${entries}
 </mtf>`
 
-    // XDT definition file
-    const xdt = `<?xml version="1.0" encoding="UTF-8"?>
-<Schema name="Termbase Definition">
-  <ElementType ID="1" name="mtf" content="eltOnly" order="many">
-    <ElementType ID="2" name="conceptGrp" content="eltOnly" order="many">
-      <Occurences><Level minOccurs="1" maxOccurs="*"/></Occurences>
-      <ElementType ID="3" name="concept" content="textOnly" type="ui4">
-        <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
-      </ElementType>
-      <ElementType ID="4" name="system" content="textOnly" type="ui4">
-        <Occurences><Level minOccurs="0" maxOccurs="1"/></Occurences>
-      </ElementType>
-      <ElementType ID="8" name="languageGrp" content="eltOnly" order="many">
-        <Occurences><Level minOccurs="1" maxOccurs="*"/></Occurences>
-        <ElementType ID="9" name="language" content="empty">
-          <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
-          <AttributeType name="type" type="languages" values="${src.name}|${tgt.name}"/>
-          <AttributeType name="lang" type="locales" values="${src.code}|${tgt.code}"/>
-        </ElementType>
-        <ElementType ID="10" name="termGrp" content="eltOnly" readOnly="no">
-          <Occurences><Level minOccurs="1" maxOccurs="*"/></Occurences>
-          <ElementType ID="11" name="term" content="textOnly" type="string">
-            <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
-          </ElementType>
-          <ElementType ID="15" name="descripGrp" content="eltOnly" order="many">
-            <Occurences><Level minOccurs="0" maxOccurs="*"/></Occurences>
-            <ElementType ID="16" name="descrip" content="textOnly" type="string">
-              <Occurences><Level minOccurs="1" maxOccurs="1"/></Occurences>
-              <AttributeType name="type" type="enumeration" values="Definition|Context"/>
-            </ElementType>
-          </ElementType>
-        </ElementType>
-      </ElementType>
-    </ElementType>
-  </ElementType>
-</Schema>`
-
     downloadFile(xml, `${fileName || 'glossary'}_multiterm.xml`, 'application/xml;charset=utf-8;')
-    setTimeout(() => {
-      downloadFile(xdt, `${fileName || 'glossary'}_multiterm.xdt`, 'application/xml;charset=utf-8;')
-    }, 500)
-
-    alert(language === 'pl'
-      ? `Pobrano 2 pliki:\n1. _multiterm.xml — dane (${termsWithTranslation.length} terminów)\n2. _multiterm.xdt — definicja schematu\n\nW MultiTerm Convert: wybierz .xml → .xdt → utwórz .sdltb`
-      : `Downloaded 2 files:\n1. _multiterm.xml — data (${termsWithTranslation.length} terms)\n2. _multiterm.xdt — schema definition\n\nIn MultiTerm Convert: select .xml → .xdt → create .sdltb`)
   }
 
   // Eksport SDLTB-compatible MultiTerm XML (format identyczny z wnętrzem pliku .sdltb)
@@ -2154,7 +2110,10 @@ ${entries}
             <option value="tbx">📋 TBX (TermBase eXchange)</option>
           )}
           {(hasTranslations || isBilingual) && (
-            <option value="multiterm-xml">📋 MultiTerm (XML + XDT)</option>
+            <option value="multiterm-xml">📋 MultiTerm XML</option>
+          )}
+          {(hasTranslations || isBilingual) && (
+            <option value="sdltb">📋 MultiTerm XML + XDT</option>
           )}
           <option disabled>──────────</option>
           <option value="export-project">📦 {language === 'pl' ? 'Eksportuj projekt (.gtextt)' : 'Export project (.gtextt)'}</option>
