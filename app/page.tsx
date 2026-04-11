@@ -1076,7 +1076,11 @@ export default function Home() {
               ...term,
               sourceDocument: term.sourceDocument || loadedFileName
             }))
-            allTerms = [...allTerms, ...newTerms]
+            // Deduplikacja — nie dodawaj terminów które już mamy
+            const existingSet = new Set(allTerms.map(t => t.term.toLowerCase()))
+            const uniqueNewTerms = newTerms.filter((t: Term) => !existingSet.has(t.term.toLowerCase()))
+            allTerms = [...allTerms, ...uniqueNewTerms]
+            console.log(`   Deduplikacja: ${newTerms.length} → ${uniqueNewTerms.length} nowych (pominięto ${newTerms.length - uniqueNewTerms.length} duplikatów)`)
 
             // Zapisz wyniki partiami — wyświetlaj na bieżąco
             const description = `Ekstrakcja runda ${round}: +${newTerms.length} terminów (łącznie ${allTerms.length})`
