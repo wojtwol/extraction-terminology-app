@@ -863,7 +863,13 @@ export default function TerminologyTable({
                             )}
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-xs italic">-</span>
+                          <button
+                            onClick={() => setEditingTargetTerm({ id: term.id, value: '' })}
+                            className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded hover:bg-teal-200 transition-colors"
+                            title={language === 'pl' ? 'Dodaj tłumaczenie' : 'Add translation'}
+                          >
+                            + {language === 'pl' ? 'Dodaj' : 'Add'}
+                          </button>
                         )}
                       </td>
                     )}
