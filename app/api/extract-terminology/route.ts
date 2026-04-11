@@ -97,8 +97,12 @@ export async function POST(request: NextRequest) {
     let chunks: string[] = []
     let chunkInfo = ''
 
-    if (text.length > CHUNK_THRESHOLD) {
-      // Oblicz liczbę chunków
+    // Dziel na chunki: albo gdy dokument jest duży, albo gdy żądanych terminów >250
+    // (>250 terminów z kontekstem może przekroczyć output limit nawet przy 64k)
+    const needsTermSplit = maxTerms > 250 && text.length <= CHUNK_THRESHOLD
+    const needsDocSplit = text.length > CHUNK_THRESHOLD
+
+    if (needsDocSplit) {
       const numChunks = Math.ceil(text.length / CHUNK_THRESHOLD)
       const chunkSize = Math.floor(text.length / numChunks)
 
@@ -112,6 +116,14 @@ export async function POST(request: NextRequest) {
       }
 
       chunkInfo = ` (Część dokumentu)`
+    } else if (needsTermSplit) {
+      // Dużo terminów ale normalny dokument — wyślij ten sam tekst 2x z różnymi zakresami
+      const numChunks = Math.ceil(maxTerms / 250)
+      console.log(`📊 Dużo terminów (${maxTerms}) - dzielę na ${numChunks} rund ekstrakcji`)
+      for (let i = 0; i < numChunks; i++) {
+        chunks.push(text)
+      }
+      chunkInfo = ` (Runda ekstrakcji)`
     } else {
       chunks = [text]
       console.log(`📊 Dokument standardowy (${text.length} znaków) - przetwarzanie jednorazowe`)
@@ -386,12 +398,11 @@ TEXT:`
         : maxTerms
 
       // Dynamiczny max_tokens w zależności od liczby terminów
-      // Zwiększony estimatedTokensPerTerm żeby uniknąć obcinania JSON
       const estimatedTokensPerTerm = 200 // ~200 tokenów na termin (term + context + JSON structure)
       const baseTokens = 3000 // Bazowe tokeny na strukturę JSON i overhead
       const calculatedMaxTokens = Math.min(
         baseTokens + (termsForThisChunk * estimatedTokensPerTerm),
-        16384 // Maksymalny limit dla Claude Sonnet 4 (16K output tokens)
+        64000 // Claude Sonnet 4.6 obsługuje do 64K output tokens
       )
 
       console.log(`   Ekstrahuję do ${termsForThisChunk} terminów (max_tokens: ${calculatedMaxTokens})`)
