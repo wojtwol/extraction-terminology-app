@@ -2497,11 +2497,25 @@ export default function Home() {
 
     try {
       const CHUNK_SIZE = 120
-      const termsToTranslate = terms.map(t => ({ term: t.term, context: t.context }))
+
+      // Wyślij do API TYLKO terminy bez tłumaczenia (nowe po Rozbuduj)
+      const untranslatedTerms = terms.filter(t => !t.targetTerm)
+      const alreadyTranslatedCount = terms.length - untranslatedTerms.length
+
+      if (untranslatedTerms.length === 0) {
+        alert(language === 'pl'
+          ? 'Wszystkie terminy są już przetłumaczone.'
+          : 'All terms are already translated.')
+        setIsLoading(false)
+        setProgress(0)
+        return
+      }
+
+      const termsToTranslate = untranslatedTerms.map(t => ({ term: t.term, context: t.context }))
       const totalChunks = Math.ceil(termsToTranslate.length / CHUNK_SIZE)
       const allTranslations: Array<{ sourceTerm: string, targetTerm: string, targetContext: string }> = []
 
-      console.log(`🌐 Tłumaczenie ${terms.length} terminów na ${selectedTargetLang} (${totalChunks} chunków)`)
+      console.log(`🌐 Tłumaczenie ${untranslatedTerms.length} nowych terminów na ${selectedTargetLang} (${alreadyTranslatedCount} już przetłumaczonych, ${totalChunks} chunków)`)
 
       for (let i = 0; i < totalChunks; i++) {
         const chunk = termsToTranslate.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
@@ -2524,7 +2538,6 @@ export default function Home() {
           let errorMsg = `Błąd ${response.status}`
           try { const d = await response.json(); errorMsg = d.error || errorMsg } catch {}
           console.error(`   ❌ Chunk ${i + 1} error: ${errorMsg}`)
-          // Dodaj puste tłumaczenia i kontynuuj
           chunk.forEach(t => allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: '' }))
           continue
         }
@@ -2538,8 +2551,7 @@ export default function Home() {
 
       setProgress(95)
 
-      // Aktualizuj terminy z tłumaczeniami - dopasowanie po sourceTerm (priorytet), potem po indeksie
-      // Buduj mapę sourceTerm -> translation dla szybkiego wyszukiwania
+      // Buduj mapę sourceTerm -> translation dla dopasowania po nazwie
       const translationMap = new Map<string, { targetTerm: string, targetContext: string }>()
       for (const t of allTranslations) {
         if (t.sourceTerm && t.targetTerm) {
@@ -2547,17 +2559,17 @@ export default function Home() {
         }
       }
 
-      const updatedTerms = terms.map((term, index) => {
-        // 1. Dokładne dopasowanie po sourceTerm
-        const byName = translationMap.get(term.term.toLowerCase().trim())
+      // Aktualizuj TYLKO terminy bez tłumaczenia — istniejące tłumaczenia zostają nienaruszone
+      let newlyTranslated = 0
+      const updatedTerms = terms.map((term) => {
+        // Zachowaj istniejące tłumaczenie
+        if (term.targetTerm) return term
 
-        // 2. Fallback po indeksie — tylko jeśli nie znaleziono po nazwie
-        const byIndex = !byName && allTranslations[index]?.targetTerm
-          ? allTranslations[index] : null
-
-        const translation = byName || byIndex
+        // Dopasuj nowe tłumaczenie po sourceTerm
+        const translation = translationMap.get(term.term.toLowerCase().trim())
 
         if (translation && translation.targetTerm) {
+          newlyTranslated++
           return {
             ...term,
             targetTerm: translation.targetTerm,
@@ -2577,11 +2589,11 @@ export default function Home() {
       refreshGlossary()
 
       setProgress(100)
-      const translatedCount = updatedTerms.filter(t => t.targetTerm).length
-      console.log(`✅ Przetłumaczono ${translatedCount}/${terms.length} terminów`)
+      const totalTranslated = updatedTerms.filter(t => t.targetTerm).length
+      console.log(`✅ Przetłumaczono ${newlyTranslated} nowych (łącznie ${totalTranslated}/${terms.length})`)
       alert(language === 'pl'
-        ? `Przetłumaczono ${translatedCount} z ${terms.length} terminów na ${selectedTargetLang}.`
-        : `Translated ${translatedCount} of ${terms.length} terms to ${selectedTargetLang}.`)
+        ? `Przetłumaczono ${newlyTranslated} nowych terminów na ${selectedTargetLang}.${alreadyTranslatedCount > 0 ? ` (${alreadyTranslatedCount} już miało tłumaczenie)` : ''} Łącznie: ${totalTranslated}/${terms.length}.`
+        : `Translated ${newlyTranslated} new terms to ${selectedTargetLang}.${alreadyTranslatedCount > 0 ? ` (${alreadyTranslatedCount} already had translations)` : ''} Total: ${totalTranslated}/${terms.length}.`)
 
       setTimeout(() => setProgress(0), 1000)
     } catch (error) {
