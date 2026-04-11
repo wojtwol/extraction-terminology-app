@@ -638,6 +638,10 @@ export default function TerminologyTable({
                           type="text"
                           value={editingTargetTerm.value}
                           onChange={(e) => setEditingTargetTerm({ id: term.id, value: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveTargetTerm()
+                            if (e.key === 'Escape') setEditingTargetTerm(null)
+                          }}
                           className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
                           autoFocus
                         />
@@ -770,6 +774,10 @@ export default function TerminologyTable({
                             type="text"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit(term.id)
+                              if (e.key === 'Escape') handleCancelEdit()
+                            }}
                             className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
                             autoFocus
                           />
@@ -818,6 +826,18 @@ export default function TerminologyTable({
                               type="text"
                               value={editingTargetTerm.value}
                               onChange={(e) => setEditingTargetTerm({ id: term.id, value: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const updated = terms.map(t =>
+                                    t.id === term.id
+                                      ? { ...t, targetTerm: editingTargetTerm.value, targetSource: 'manual' as const }
+                                      : t
+                                  )
+                                  onUpdate(updated)
+                                  setEditingTargetTerm(null)
+                                }
+                                if (e.key === 'Escape') setEditingTargetTerm(null)
+                              }}
                               className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
                               autoFocus
                             />
@@ -949,6 +969,10 @@ export default function TerminologyTable({
                           <textarea
                             value={editingDefinition.value}
                             onChange={(e) => setEditingDefinition({ id: term.id, value: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSaveDefinition()
+                              if (e.key === 'Escape') setEditingDefinition(null)
+                            }}
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded h-20 resize-none"
                             placeholder={language === 'pl' ? 'Wprowadź definicję...' : 'Enter definition...'}
                             autoFocus
