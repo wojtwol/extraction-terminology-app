@@ -1010,128 +1010,122 @@ export default function Home() {
     setIsLoading(true)
     setDocumentText(loadedText)
     setFileName(loadedFileName)
-    setExtractionSuggestion(null) // Wyczyść poprzednią sugestię
+    setExtractionSuggestion(null)
     setProgress(0)
 
     try {
-      console.log(`📤 Wysyłam do API: ${loadedText.length} znaków`)
+      console.log(`📤 Wysyłam do API: ${loadedText.length} znaków, maxTerms: ${maxTerms}`)
 
-      // Symulowany progress bar
-      setProgress(10)
+      let allTerms: Term[] = []
+      let round = 0
+      let keepGoing = true
+      const totalRounds = Math.max(1, Math.ceil(maxTerms / 100))
 
-      const progressInterval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 90) return prev
-          return prev + 5
-        })
-      }, 500)
+      while (keepGoing) {
+        round++
+        const progressBase = ((round - 1) / totalRounds) * 90
+        setProgress(Math.round(progressBase + 5))
 
-      const response = await fetch('/api/extract-terminology', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: loadedText,
-          apiKey,
-          minTerms,
-          maxTerms,
-          minLength,
-          minOccurrences,
-          detectedLanguage, // Przekazuj wykryty język dokumentu
-          caseSensitive: false
-        }),
-      })
+        console.log(`📦 Runda ${round}/${totalRounds}, zebrano dotąd: ${allTerms.length} terminów`)
 
-      clearInterval(progressInterval)
-      setProgress(95)
+        const progressInterval = setInterval(() => {
+          setProgress(prev => {
+            const roundEnd = (round / totalRounds) * 90
+            return prev >= roundEnd ? prev : prev + 2
+          })
+        }, 1000)
 
-      console.log(`📥 Status odpowiedzi: ${response.status}`)
+        try {
+          const response = await fetch('/api/extract-terminology', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: loadedText,
+              apiKey,
+              minTerms: round === 1 ? minTerms : 10,
+              maxTerms,
+              minLength,
+              minOccurrences,
+              detectedLanguage,
+              caseSensitive: false,
+              existingTerms: allTerms.map(t => t.term)
+            }),
+          })
 
-      // Sprawdź czy odpowiedź to JSON
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text()
-        console.error('❌ Odpowiedź nie jest JSON:', textResponse.substring(0, 1000))
+          clearInterval(progressInterval)
 
-        // Sprawdź czy to błąd timeout lub limit rozmiaru
-        if (textResponse.includes('FUNCTION_INVOCATION_TIMEOUT') || textResponse.includes('timed out')) {
-          throw new Error(language === 'pl'
-            ? 'Dokument jest zbyt długi - przekroczono limit czasu przetwarzania. Spróbuj z krótszym dokumentem lub podziel go na mniejsze części.'
-            : 'Document is too long - processing timeout exceeded. Try with a shorter document or split it into smaller parts.')
+          const contentType = response.headers.get('content-type')
+          if (!contentType || !contentType.includes('application/json')) {
+            const textResponse = await response.text()
+            if (textResponse.includes('FUNCTION_INVOCATION_TIMEOUT') || textResponse.includes('timed out')) {
+              console.warn(`⚠️ Timeout w rundzie ${round}, kontynuuję z tym co mam`)
+              keepGoing = false
+              continue
+            }
+            throw new Error(`Błąd serwera (status ${response.status})`)
+          }
+
+          const data = await response.json()
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Błąd ekstrakcji')
+          }
+
+          if (data.terms && data.terms.length > 0) {
+            const newTerms = data.terms.map((term: Term) => ({
+              ...term,
+              sourceDocument: term.sourceDocument || loadedFileName
+            }))
+            allTerms = [...allTerms, ...newTerms]
+
+            // Zapisz wyniki partiami — wyświetlaj na bieżąco
+            const description = `Ekstrakcja runda ${round}: +${newTerms.length} terminów (łącznie ${allTerms.length})`
+            projectStorage.addVersion(
+              currentProject.id,
+              currentGlossary.id,
+              allTerms,
+              description,
+              { minTerms, maxTerms, minLength, minOccurrences },
+              false
+            )
+            const updatedProject = projectStorage.getById(currentProject.id)
+            if (updatedProject) setCurrentProject(updatedProject)
+            refreshGlossary()
+
+            console.log(`✅ Runda ${round}: +${newTerms.length} terminów (łącznie ${allTerms.length})`)
+          }
+
+          // Czy potrzebna kolejna runda?
+          keepGoing = data.needsMoreRounds && allTerms.length < maxTerms && (data.terms?.length || 0) > 10
+        } catch (roundError) {
+          clearInterval(progressInterval)
+          if (allTerms.length > 0) {
+            console.warn(`⚠️ Błąd w rundzie ${round}, ale mam ${allTerms.length} terminów`)
+            keepGoing = false
+          } else {
+            throw roundError
+          }
         }
-
-        throw new Error(`${language === 'pl' ? 'Błąd parsowania odpowiedzi' : 'Response parsing error'} (status ${response.status}). ${language === 'pl' ? 'Dokument może być zbyt długi.' : 'Document may be too long.'}`)
       }
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        // Wyświetl szczegółowy błąd z API
-        const errorMessage = data.error || 'Nieznany błąd podczas ekstrakcji'
-        console.error('❌ Błąd API:', errorMessage)
-        throw new Error(errorMessage)
-      }
-
-      if (!data.terms || data.terms.length === 0) {
-        alert('Nie znaleziono terminów w dokumencie. Spróbuj z innym dokumentem.')
+      if (allTerms.length === 0) {
+        alert(language === 'pl' ? 'Nie znaleziono terminów w dokumencie.' : 'No terms found in document.')
         setProgress(0)
         return
       }
 
-      // Zapisz wyniki jako nową wersję glosariusza
-      const extractionParams = { minTerms, maxTerms, minLength, minOccurrences }
-      const description = `Ekstrakcja: ${minTerms}-${maxTerms} terminów`
-
-      // Dodaj sourceDocument do każdego terminu
-      const termsWithSource = data.terms.map((term: Term) => ({
-        ...term,
-        sourceDocument: term.sourceDocument || loadedFileName
-      }))
-
-      projectStorage.addVersion(
-        currentProject.id,
-        currentGlossary.id,
-        termsWithSource,
-        description,
-        extractionParams,
-        false // nie jest snapshotem
-      )
-
-      // Odśwież projekt
-      const updatedProject = projectStorage.getById(currentProject.id)
-      if (updatedProject) {
-        setCurrentProject(updatedProject)
-      }
-      refreshGlossary()
-
       setProgress(100)
-      console.log(`✅ Wyekstrahowano ${termsWithSource.length} terminów`)
+      console.log(`✅ Ekstrakcja zakończona: ${allTerms.length} terminów w ${round} rundach`)
 
-      // Zapisz sugestię jeśli istnieje
-      if (data.suggestion) {
-        setExtractionSuggestion(data.suggestion)
-        console.log(`💡 Sugestia: ${data.suggestion}`)
+      if (generateDefinitions && allTerms.length > 0) {
+        setTimeout(() => handleBulkGenerateDefinitions(allTerms), 500)
       } else {
-        setExtractionSuggestion(null)
-      }
-
-      // Generuj definicje jeśli opcja została zaznaczona
-      if (generateDefinitions && termsWithSource.length > 0) {
-        setTimeout(() => {
-          handleBulkGenerateDefinitions(termsWithSource)
-        }, 500)
-      } else {
-        // Reset progress po 1 sekundzie
         setTimeout(() => setProgress(0), 1000)
       }
 
     } catch (error) {
       console.error('❌ Błąd ekstrakcji:', error)
-
       const errorMessage = error instanceof Error ? error.message : 'Nieznany błąd'
-
-      // Wyświetl przyjazny komunikat błędu
       alert(`❌ Błąd ekstrakcji:\n\n${errorMessage}\n\nSprawdź:\n• Czy klucz API jest poprawny\n• Czy masz aktywną subskrypcję Anthropic\n• Czy dokument zawiera tekst\n• Konsolę przeglądarki (F12) dla szczegółów`)
       setProgress(0)
     } finally {

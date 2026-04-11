@@ -97,10 +97,15 @@ export async function POST(request: NextRequest) {
     let chunks: string[] = []
     let chunkInfo = ''
 
-    // Dziel na chunki: albo gdy dokument jest duży, albo gdy żądanych terminów >100
-    // Każda runda musi zmieścić się w ~4-5 min (Vercel timeout 600s łącznie)
-    const TERMS_PER_ROUND = 100
-    const needsTermSplit = maxTerms > TERMS_PER_ROUND && text.length <= CHUNK_THRESHOLD
+    // Cap maxTerms na 100 per request żeby zmieścić się w Vercel timeout 600s.
+    // Frontend wysyła wiele requestów z existingTerms do pominięcia.
+    const TERMS_PER_REQUEST = 100
+    const effectiveMaxTerms = Math.min(maxTerms, TERMS_PER_REQUEST)
+    const needsMoreRounds = maxTerms > TERMS_PER_REQUEST
+    if (needsMoreRounds) {
+      console.log(`📊 maxTerms=${maxTerms}, ta runda: ${effectiveMaxTerms}, existingTerms: ${existingTerms?.length || 0}`)
+    }
+
     const needsDocSplit = text.length > CHUNK_THRESHOLD
 
     if (needsDocSplit) {
@@ -117,14 +122,6 @@ export async function POST(request: NextRequest) {
       }
 
       chunkInfo = ` (Część dokumentu)`
-    } else if (needsTermSplit) {
-      // Dużo terminów ale normalny dokument — wyślij ten sam tekst 2x z różnymi zakresami
-      const numChunks = Math.ceil(maxTerms / TERMS_PER_ROUND)
-      console.log(`📊 Dużo terminów (${maxTerms}) - dzielę na ${numChunks} rund po ~${TERMS_PER_ROUND}`)
-      for (let i = 0; i < numChunks; i++) {
-        chunks.push(text)
-      }
-      chunkInfo = ` (Runda ekstrakcji)`
     } else {
       chunks = [text]
       console.log(`📊 Dokument standardowy (${text.length} znaków) - przetwarzanie jednorazowe`)
@@ -392,11 +389,9 @@ TEXT:`
 
       console.log(`\n📦 Przetwarzam część ${chunkNumber}/${totalChunks}...`)
 
-      // Dla chunków: dzielimy maxTerms przez liczbę chunków
-      // Zmniejszamy mnożnik żeby uniknąć obcinania odpowiedzi przez max_tokens
       const termsForThisChunk = chunks.length > 1
-        ? Math.ceil(maxTerms / chunks.length)
-        : maxTerms
+        ? Math.ceil(effectiveMaxTerms / chunks.length)
+        : effectiveMaxTerms
 
       // Dynamiczny max_tokens w zależności od liczby terminów
       const estimatedTokensPerTerm = 200 // ~200 tokenów na termin (term + context + JSON structure)
@@ -732,7 +727,10 @@ TEXT:`
 
     return NextResponse.json({
       terms: finalTerms,
-      suggestion: suggestion
+      suggestion: suggestion,
+      needsMoreRounds: needsMoreRounds && finalTerms.length >= effectiveMaxTerms * 0.5,
+      requestedMaxTerms: maxTerms,
+      effectiveMaxTerms: effectiveMaxTerms
     })
 
   } catch (error: any) {
