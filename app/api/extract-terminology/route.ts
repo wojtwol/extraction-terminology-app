@@ -97,9 +97,10 @@ export async function POST(request: NextRequest) {
     let chunks: string[] = []
     let chunkInfo = ''
 
-    // Dziel na chunki: albo gdy dokument jest duży, albo gdy żądanych terminów >250
-    // (>250 terminów z kontekstem może przekroczyć output limit nawet przy 64k)
-    const needsTermSplit = maxTerms > 250 && text.length <= CHUNK_THRESHOLD
+    // Dziel na chunki: albo gdy dokument jest duży, albo gdy żądanych terminów >100
+    // Każda runda musi zmieścić się w ~4-5 min (Vercel timeout 600s łącznie)
+    const TERMS_PER_ROUND = 100
+    const needsTermSplit = maxTerms > TERMS_PER_ROUND && text.length <= CHUNK_THRESHOLD
     const needsDocSplit = text.length > CHUNK_THRESHOLD
 
     if (needsDocSplit) {
@@ -118,8 +119,8 @@ export async function POST(request: NextRequest) {
       chunkInfo = ` (Część dokumentu)`
     } else if (needsTermSplit) {
       // Dużo terminów ale normalny dokument — wyślij ten sam tekst 2x z różnymi zakresami
-      const numChunks = Math.ceil(maxTerms / 250)
-      console.log(`📊 Dużo terminów (${maxTerms}) - dzielę na ${numChunks} rund ekstrakcji`)
+      const numChunks = Math.ceil(maxTerms / TERMS_PER_ROUND)
+      console.log(`📊 Dużo terminów (${maxTerms}) - dzielę na ${numChunks} rund po ~${TERMS_PER_ROUND}`)
       for (let i = 0; i < numChunks; i++) {
         chunks.push(text)
       }
@@ -402,7 +403,7 @@ TEXT:`
       const baseTokens = 3000 // Bazowe tokeny na strukturę JSON i overhead
       const calculatedMaxTokens = Math.min(
         baseTokens + (termsForThisChunk * estimatedTokensPerTerm),
-        64000 // Claude Sonnet 4.6 obsługuje do 64K output tokens
+        32000 // Ograniczone żeby zmieścić się w Vercel timeout (600s)
       )
 
       console.log(`   Ekstrahuję do ${termsForThisChunk} terminów (max_tokens: ${calculatedMaxTokens})`)
