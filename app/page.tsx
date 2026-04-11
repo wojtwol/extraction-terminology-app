@@ -2551,22 +2551,46 @@ export default function Home() {
 
       setProgress(95)
 
+      // Normalizacja do porównywania — lowercase, trim, usuń cudzysłowy i podwójne spacje
+      const normalizeTerm = (s: string) => s.toLowerCase().trim()
+        .replace(/["""''„"«»]/g, '')
+        .replace(/\s+/g, ' ')
+
       // Buduj mapę sourceTerm -> translation dla dopasowania po nazwie
       const translationMap = new Map<string, { targetTerm: string, targetContext: string }>()
       for (const t of allTranslations) {
         if (t.sourceTerm && t.targetTerm) {
-          translationMap.set(t.sourceTerm.toLowerCase().trim(), t)
+          translationMap.set(normalizeTerm(t.sourceTerm), t)
         }
       }
 
-      // Aktualizuj TYLKO terminy bez tłumaczenia — istniejące tłumaczenia zostają nienaruszone
+      // Indeks w ramach nieprzetłumaczonych terminów (dla fallbacku)
+      let untranslatedIdx = 0
       let newlyTranslated = 0
+      let mismatches: string[] = []
+
       const updatedTerms = terms.map((term) => {
         // Zachowaj istniejące tłumaczenie
         if (term.targetTerm) return term
 
-        // Dopasuj nowe tłumaczenie po sourceTerm
-        const translation = translationMap.get(term.term.toLowerCase().trim())
+        const idx = untranslatedIdx++
+        const normalizedTerm = normalizeTerm(term.term)
+
+        // 1. Dokładne dopasowanie po sourceTerm
+        const byName = translationMap.get(normalizedTerm)
+
+        // 2. Fallback po indeksie w ramach NIEPRZETŁUMACZONYCH (bezpieczny — wysłaliśmy w tej kolejności)
+        const byIndex = allTranslations[idx]
+        // Waliduj fallback: czy sourceTerm z API pasuje do naszego terminu?
+        const byIndexValid = byIndex?.targetTerm && normalizeTerm(byIndex.sourceTerm || '') === normalizedTerm
+          ? byIndex : null
+
+        const translation = byName || byIndexValid
+
+        if (!translation && byIndex?.targetTerm) {
+          // Loguj niedopasowanie dla debugowania
+          mismatches.push(`"${term.term}" ≠ API[${idx}] "${byIndex.sourceTerm}" → "${byIndex.targetTerm}"`)
+        }
 
         if (translation && translation.targetTerm) {
           newlyTranslated++
@@ -2579,6 +2603,10 @@ export default function Home() {
         }
         return term
       })
+
+      if (mismatches.length > 0) {
+        console.warn(`⚠️ ${mismatches.length} niedopasowanych tłumaczeń (pominięte):`, mismatches.slice(0, 10))
+      }
 
       const description = `Tłumaczenie: ${detectedLanguage} → ${selectedTargetLang}`
       projectStorage.addVersion(currentProject.id, currentGlossary.id, updatedTerms, description, undefined, false)
