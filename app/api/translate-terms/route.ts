@@ -73,17 +73,36 @@ Return ONLY valid JSON:
 Return ALL ${chunk.length} translations in input order.`
 
       try {
-        // Streaming - wymagane dla dlugich operacji
-        const stream = client.messages.stream({
-          model,
-          max_tokens: 16000,
-          messages: [{ role: 'user', content: prompt }]
-        })
-
-        const message = await stream.finalMessage()
         let responseText = ''
-        for (const block of message.content) {
-          if (block.type === 'text') responseText += block.text
+
+        // Probuj z web_search + streaming
+        try {
+          const stream = client.messages.stream({
+            model,
+            max_tokens: 16000,
+            tools: [{
+              type: 'web_search_20250305',
+              name: 'web_search',
+              max_uses: 3
+            } as any],
+            messages: [{ role: 'user', content: prompt }]
+          })
+          const message = await stream.finalMessage()
+          for (const block of message.content) {
+            if (block.type === 'text') responseText += block.text
+          }
+          console.log(`   ✅ Web search + streaming OK`)
+        } catch (wsError: any) {
+          console.log(`   ⚠️ Web search fallback: ${wsError.message?.substring(0, 60)}`)
+          const stream = client.messages.stream({
+            model,
+            max_tokens: 16000,
+            messages: [{ role: 'user', content: prompt }]
+          })
+          const message = await stream.finalMessage()
+          for (const block of message.content) {
+            if (block.type === 'text') responseText += block.text
+          }
         }
 
         console.log(`   Odpowiedz: ${responseText.length} znakow`)
