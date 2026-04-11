@@ -843,21 +843,28 @@ export default function TerminologyTable({
                             </button>
                           </div>
                         ) : term.targetTerm ? (
-                          <div className="group">
+                          <div className="group flex items-start gap-1">
                             <span
                               onClick={() => setEditingTargetTerm({ id: term.id, value: term.targetTerm || '' })}
-                              className="font-medium text-teal-800 cursor-pointer hover:text-teal-600 transition-colors"
+                              className="font-medium text-teal-800 cursor-pointer hover:text-teal-600 hover:underline transition-colors"
                               title={language === 'pl' ? 'Kliknij, aby edytować' : 'Click to edit'}
                             >
                               {term.targetTerm}
                             </span>
+                            <button
+                              onClick={() => setEditingTargetTerm({ id: term.id, value: term.targetTerm || '' })}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-teal-600 flex-shrink-0"
+                              title={language === 'pl' ? 'Edytuj tłumaczenie' : 'Edit translation'}
+                            >
+                              ✎
+                            </button>
                             {term.targetSource === 'ai' && (
-                              <span className="ml-1 text-xs inline-block px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
+                              <span className="ml-0.5 text-xs inline-block px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded flex-shrink-0">
                                 AI
                               </span>
                             )}
                             {term.targetSource === 'manual' && (
-                              <span className="ml-1 text-xs inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                              <span className="ml-0.5 text-xs inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded flex-shrink-0">
                                 {language === 'pl' ? 'Ręcznie' : 'Manual'}
                               </span>
                             )}
