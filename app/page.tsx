@@ -1014,133 +1014,92 @@ export default function Home() {
     setProgress(0)
 
     try {
-      console.log(`📤 Wysyłam do API: ${loadedText.length} znaków, maxTerms: ${maxTerms}`)
+      console.log(`📤 Wysyłam do API: ${loadedText.length} znaków`)
 
-      let allTerms: Term[] = []
-      let round = 0
-      let keepGoing = true
-      const totalRounds = Math.max(1, Math.ceil(maxTerms / 100))
+      setProgress(10)
 
-      while (keepGoing) {
-        round++
-        const progressBase = ((round - 1) / totalRounds) * 90
-        setProgress(Math.round(progressBase + 5))
+      const progressInterval = setInterval(() => {
+        setProgress(prev => prev >= 90 ? prev : prev + 5)
+      }, 500)
 
-        console.log(`📦 Runda ${round}/${totalRounds}, zebrano dotąd: ${allTerms.length} terminów`)
+      const response = await fetch('/api/extract-terminology', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: loadedText,
+          apiKey,
+          minTerms,
+          maxTerms,
+          minLength,
+          minOccurrences,
+          detectedLanguage,
+          caseSensitive: false
+        }),
+      })
 
-        const progressInterval = setInterval(() => {
-          setProgress(prev => {
-            const roundEnd = (round / totalRounds) * 90
-            return prev >= roundEnd ? prev : prev + 2
-          })
-        }, 1000)
+      clearInterval(progressInterval)
+      setProgress(95)
 
-        try {
-          const response = await fetch('/api/extract-terminology', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: loadedText,
-              apiKey,
-              minTerms: round === 1 ? minTerms : 10,
-              maxTerms,
-              minLength,
-              minOccurrences,
-              detectedLanguage,
-              caseSensitive: false,
-              existingTerms: allTerms.map(t => t.term)
-            }),
-          })
+      console.log(`📥 Status odpowiedzi: ${response.status}`)
 
-          clearInterval(progressInterval)
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text()
+        console.error('❌ Odpowiedź nie jest JSON:', textResponse.substring(0, 1000))
 
-          const contentType = response.headers.get('content-type')
-          if (!contentType || !contentType.includes('application/json')) {
-            const textResponse = await response.text()
-            if (textResponse.includes('FUNCTION_INVOCATION_TIMEOUT') || textResponse.includes('timed out')) {
-              console.warn(`⚠️ Timeout w rundzie ${round}, kontynuuję z tym co mam`)
-              keepGoing = false
-              continue
-            }
-            throw new Error(`Błąd serwera (status ${response.status})`)
-          }
-
-          const data = await response.json()
-
-          if (!response.ok) {
-            throw new Error(data.error || 'Błąd ekstrakcji')
-          }
-
-          if (data.terms && data.terms.length > 0) {
-            const newTerms = data.terms.map((term: Term) => ({
-              ...term,
-              sourceDocument: term.sourceDocument || loadedFileName
-            }))
-            // Deduplikacja — nie dodawaj terminów które już mamy
-            const existingSet = new Set(allTerms.map(t => t.term.toLowerCase().trim()))
-            const uniqueNewTerms: Term[] = []
-            const skippedDuplicates: string[] = []
-            for (const t of newTerms as Term[]) {
-              const key = t.term.toLowerCase().trim()
-              if (existingSet.has(key)) {
-                skippedDuplicates.push(t.term)
-                // Zaktualizuj liczbę wystąpień istniejącego terminu jeśli nowa jest wyższa
-                const existing = allTerms.find(e => e.term.toLowerCase().trim() === key)
-                if (existing && t.occurrences > existing.occurrences) {
-                  existing.occurrences = t.occurrences
-                  existing.positions = t.positions
-                }
-              } else {
-                existingSet.add(key)
-                uniqueNewTerms.push(t)
-              }
-            }
-            allTerms = [...allTerms, ...uniqueNewTerms]
-            if (skippedDuplicates.length > 0) {
-              console.log(`   Deduplikacja: pominięto ${skippedDuplicates.length} duplikatów: ${skippedDuplicates.slice(0, 5).join(', ')}...`)
-            }
-
-            // Zapisz wyniki partiami — wyświetlaj na bieżąco
-            const description = `Ekstrakcja runda ${round}: +${newTerms.length} terminów (łącznie ${allTerms.length})`
-            projectStorage.addVersion(
-              currentProject.id,
-              currentGlossary.id,
-              allTerms,
-              description,
-              { minTerms, maxTerms, minLength, minOccurrences },
-              false
-            )
-            const updatedProject = projectStorage.getById(currentProject.id)
-            if (updatedProject) setCurrentProject(updatedProject)
-            refreshGlossary()
-
-            console.log(`✅ Runda ${round}: +${newTerms.length} terminów (łącznie ${allTerms.length})`)
-          }
-
-          // Czy potrzebna kolejna runda?
-          keepGoing = data.needsMoreRounds && allTerms.length < maxTerms && (data.terms?.length || 0) > 10
-        } catch (roundError) {
-          clearInterval(progressInterval)
-          if (allTerms.length > 0) {
-            console.warn(`⚠️ Błąd w rundzie ${round}, ale mam ${allTerms.length} terminów`)
-            keepGoing = false
-          } else {
-            throw roundError
-          }
+        if (textResponse.includes('FUNCTION_INVOCATION_TIMEOUT') || textResponse.includes('timed out')) {
+          throw new Error(language === 'pl'
+            ? 'Przekroczono limit czasu. Spróbuj z mniejszą liczbą terminów (np. 100-200).'
+            : 'Processing timeout. Try with fewer terms (e.g. 100-200).')
         }
+
+        throw new Error(`Błąd serwera (status ${response.status})`)
       }
 
-      if (allTerms.length === 0) {
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Nieznany błąd podczas ekstrakcji')
+      }
+
+      if (!data.terms || data.terms.length === 0) {
         alert(language === 'pl' ? 'Nie znaleziono terminów w dokumencie.' : 'No terms found in document.')
         setProgress(0)
         return
       }
 
-      setProgress(100)
-      console.log(`✅ Ekstrakcja zakończona: ${allTerms.length} terminów w ${round} rundach`)
+      const extractionParams = { minTerms, maxTerms, minLength, minOccurrences }
+      const description = `Ekstrakcja: ${minTerms}-${maxTerms} terminów`
 
-      if (generateDefinitions && allTerms.length > 0) {
-        setTimeout(() => handleBulkGenerateDefinitions(allTerms), 500)
+      const termsWithSource = data.terms.map((term: Term) => ({
+        ...term,
+        sourceDocument: term.sourceDocument || loadedFileName
+      }))
+
+      projectStorage.addVersion(
+        currentProject.id,
+        currentGlossary.id,
+        termsWithSource,
+        description,
+        extractionParams,
+        false
+      )
+
+      const updatedProject = projectStorage.getById(currentProject.id)
+      if (updatedProject) setCurrentProject(updatedProject)
+      refreshGlossary()
+
+      setProgress(100)
+      console.log(`✅ Wyekstrahowano ${termsWithSource.length} terminów`)
+
+      if (data.suggestion) {
+        setExtractionSuggestion(data.suggestion)
+      } else {
+        setExtractionSuggestion(null)
+      }
+
+      if (generateDefinitions && termsWithSource.length > 0) {
+        setTimeout(() => handleBulkGenerateDefinitions(termsWithSource), 500)
       } else {
         setTimeout(() => setProgress(0), 1000)
       }

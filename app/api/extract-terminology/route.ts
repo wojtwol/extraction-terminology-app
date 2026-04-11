@@ -97,14 +97,9 @@ export async function POST(request: NextRequest) {
     let chunks: string[] = []
     let chunkInfo = ''
 
-    // Cap maxTerms na 100 per request żeby zmieścić się w Vercel timeout 600s.
-    // Frontend wysyła wiele requestów z existingTerms do pominięcia.
-    const TERMS_PER_REQUEST = 100
-    const effectiveMaxTerms = Math.min(maxTerms, TERMS_PER_REQUEST)
-    const needsMoreRounds = maxTerms > TERMS_PER_REQUEST
-    if (needsMoreRounds) {
-      console.log(`📊 maxTerms=${maxTerms}, ta runda: ${effectiveMaxTerms}, existingTerms: ${existingTerms?.length || 0}`)
-    }
+    // Bez podziału na rundy — jeden request z pełnym maxTerms + streaming
+    const effectiveMaxTerms = maxTerms
+    const needsMoreRounds = false
 
     const needsDocSplit = text.length > CHUNK_THRESHOLD
 
@@ -128,10 +123,8 @@ export async function POST(request: NextRequest) {
     }
 
     // KROK 3: Tworzenie prompta w języku dokumentu
-    // WAŻNE: w prompcie używamy effectiveMaxTerms (max 100), NIE maxTerms (może być 500)
-    // żeby Claude nie próbował wypisać 500 terminów na raz
-    const promptMinTerms = Math.min(minTerms, effectiveMaxTerms)
-    const promptMaxTerms = effectiveMaxTerms
+    const promptMinTerms = minTerms
+    const promptMaxTerms = maxTerms
 
     let promptInstructions = ''
 
@@ -403,7 +396,7 @@ TEXT:`
       const baseTokens = 3000 // Bazowe tokeny na strukturę JSON i overhead
       const calculatedMaxTokens = Math.min(
         baseTokens + (termsForThisChunk * estimatedTokensPerTerm),
-        32000 // Ograniczone żeby zmieścić się w Vercel timeout (600s)
+        64000 // Claude Sonnet 4.6 — streaming obsługuje długie odpowiedzi
       )
 
       console.log(`   Ekstrahuję do ${termsForThisChunk} terminów (max_tokens: ${calculatedMaxTokens})`)
