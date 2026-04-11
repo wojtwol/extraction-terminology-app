@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
 export const runtime = 'nodejs'
-export const maxDuration = 600 // 10 minutes for large glossaries
+export const maxDuration = 600
 
 interface TranslateTermsRequest {
   apiKey: string
@@ -14,33 +14,21 @@ interface TranslateTermsRequest {
   targetLanguage: string
 }
 
-const CHUNK_SIZE = 80 // Duzy chunk - same terminy bez kontekstu zajmuja malo tokenow
+const CHUNK_SIZE = 120 // Terminy sa krotkie - 120 na chunk miesci sie w limicie
 
 export async function POST(request: NextRequest) {
   try {
     const body: TranslateTermsRequest = await request.json()
     const { apiKey, terms, sourceLanguage, targetLanguage } = body
 
-    // Walidacja
     if (!apiKey || !apiKey.startsWith('sk-ant-')) {
-      return NextResponse.json(
-        { error: 'Nieprawidlowy klucz API' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Nieprawidlowy klucz API' }, { status: 400 })
     }
-
     if (!terms || terms.length === 0) {
-      return NextResponse.json(
-        { error: 'Brak terminow do tlumaczenia' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Brak terminow do tlumaczenia' }, { status: 400 })
     }
-
     if (!sourceLanguage || !targetLanguage) {
-      return NextResponse.json(
-        { error: 'Wymagany jezyk zrodlowy i docelowy' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Wymagany jezyk zrodlowy i docelowy' }, { status: 400 })
     }
 
     console.log(`🌐 Tlumaczenie ${terms.length} terminow: ${sourceLanguage} -> ${targetLanguage}`)
@@ -48,13 +36,12 @@ export async function POST(request: NextRequest) {
     const client = new Anthropic({ apiKey })
     const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 
-    // Podziel terminy na chunki
     const chunks: Array<typeof terms> = []
     for (let i = 0; i < terms.length; i += CHUNK_SIZE) {
       chunks.push(terms.slice(i, i + CHUNK_SIZE))
     }
 
-    console.log(`   Podzielono na ${chunks.length} chunk(ow) po max ${CHUNK_SIZE}`)
+    console.log(`   ${chunks.length} chunk(ow) po max ${CHUNK_SIZE}`)
 
     const allTranslations: Array<{
       sourceTerm: string
@@ -66,75 +53,41 @@ export async function POST(request: NextRequest) {
       const chunk = chunks[chunkIndex]
       console.log(`   Chunk ${chunkIndex + 1}/${chunks.length}: ${chunk.length} terminow`)
 
-      // Kompaktowa lista - tylko termin i krotki kontekst
       const termsList = chunk.map((t, i) =>
-        `${i + 1}. "${t.term}"${t.context ? ` [${t.context.substring(0, 80).replace(/\n/g, ' ')}]` : ''}`
+        `${i + 1}. "${t.term}"${t.context ? ` [${t.context.substring(0, 60).replace(/\n/g, ' ')}]` : ''}`
       ).join('\n')
 
-      const prompt = `You are a professional translator specializing in technical and domain-specific terminology.
-
-Translate these ${chunk.length} terms from ${sourceLanguage} to ${targetLanguage}.
+      const prompt = `Translate these ${chunk.length} terms from ${sourceLanguage} to ${targetLanguage}.
 
 Rules:
 - Use officially established translations for technical/legal/domain terms
-- Maintain technical precision and formality
-- For acronyms, provide target language equivalent if it exists, otherwise keep original
-- Context in brackets [] helps determine the correct domain meaning
+- For acronyms, keep original if no established translation exists
+- Context in brackets [] helps determine domain meaning
 
 TERMS:
 ${termsList}
 
-Return ONLY valid JSON (no markdown):
-{"translations":[{"sourceTerm":"original","targetTerm":"translation","targetContext":"brief note about translation choice, 30-60 chars"}]}
+Return ONLY valid JSON:
+{"translations":[{"sourceTerm":"original","targetTerm":"translation","targetContext":"brief note, 30-60 chars"}]}
 
 Return ALL ${chunk.length} translations in input order.`
 
       try {
+        // Streaming - wymagane dla dlugich operacji
+        const stream = client.messages.stream({
+          model,
+          max_tokens: 16000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+
+        const message = await stream.finalMessage()
         let responseText = ''
-
-        // Probuj z web_search, fallback bez niego
-        try {
-          const response = await client.messages.create({
-            model,
-            max_tokens: 8192,
-            tools: [{
-              type: 'web_search_20250305',
-              name: 'web_search',
-              max_uses: 3
-            } as any],
-            messages: [{
-              role: 'user',
-              content: prompt
-            }]
-          })
-
-          for (const block of response.content) {
-            if (block.type === 'text') {
-              responseText += block.text
-            }
-          }
-          console.log(`   ✅ Web search OK, odpowiedz: ${responseText.length} znakow`)
-        } catch (wsError: any) {
-          console.log(`   ⚠️ Web search fallback (${wsError.message?.substring(0, 60)}), tlumacze bez web search...`)
-          const response = await client.messages.create({
-            model,
-            max_tokens: 8192,
-            messages: [{
-              role: 'user',
-              content: prompt
-            }]
-          })
-
-          for (const block of response.content) {
-            if (block.type === 'text') {
-              responseText += block.text
-            }
-          }
+        for (const block of message.content) {
+          if (block.type === 'text') responseText += block.text
         }
 
         console.log(`   Odpowiedz: ${responseText.length} znakow`)
 
-        // Wyczysc i parsuj JSON
         let cleanedResponse = responseText.trim()
         if (cleanedResponse.startsWith('```json')) {
           cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '')
@@ -144,10 +97,9 @@ Return ALL ${chunk.length} translations in input order.`
 
         const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
         if (!jsonMatch) {
-          console.error(`   Nie znaleziono JSON w odpowiedzi chunk ${chunkIndex + 1}`)
-          console.error(`   Pierwsze 300 znakow: ${responseText.substring(0, 300)}`)
+          console.error(`   Brak JSON w chunk ${chunkIndex + 1}`)
           chunk.forEach(t => {
-            allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: 'Blad: brak JSON w odpowiedzi' })
+            allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: 'Blad: brak JSON' })
           })
           continue
         }
@@ -156,15 +108,14 @@ Return ALL ${chunk.length} translations in input order.`
 
         if (parsed.translations && Array.isArray(parsed.translations)) {
           allTranslations.push(...parsed.translations)
-          console.log(`   ✅ Przetlumaczono ${parsed.translations.length} terminow`)
+          console.log(`   ✅ ${parsed.translations.length} terminow`)
         } else {
-          console.error(`   Nieprawidlowy format JSON chunk ${chunkIndex + 1}`)
           chunk.forEach(t => {
             allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: 'Blad formatu' })
           })
         }
       } catch (chunkError: any) {
-        console.error(`   ❌ Blad chunk ${chunkIndex + 1}:`, chunkError.message)
+        console.error(`   ❌ Chunk ${chunkIndex + 1}:`, chunkError.message)
         chunk.forEach(t => {
           allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: `Blad: ${chunkError.message?.substring(0, 50)}` })
         })
@@ -172,27 +123,14 @@ Return ALL ${chunk.length} translations in input order.`
     }
 
     const successCount = allTranslations.filter(t => t.targetTerm).length
-    console.log(`✅ Tlumaczenie zakonczone: ${successCount}/${terms.length} terminow`)
+    console.log(`✅ Tlumaczenie: ${successCount}/${terms.length}`)
 
-    return NextResponse.json({
-      translations: allTranslations,
-      sourceLanguage,
-      targetLanguage
-    })
+    return NextResponse.json({ translations: allTranslations, sourceLanguage, targetLanguage })
 
   } catch (error: any) {
-    console.error('❌ Blad tlumaczenia:', error)
-
-    if (error.status === 401) {
-      return NextResponse.json({ error: 'Nieprawidlowy klucz API.' }, { status: 401 })
-    }
-    if (error.status === 429) {
-      return NextResponse.json({ error: 'Przekroczono limit API. Poczekaj chwile.' }, { status: 429 })
-    }
-
-    return NextResponse.json(
-      { error: 'Blad tlumaczenia: ' + (error.message || 'Nieznany blad') },
-      { status: 500 }
-    )
+    console.error('❌ Blad:', error)
+    if (error.status === 401) return NextResponse.json({ error: 'Nieprawidlowy klucz API.' }, { status: 401 })
+    if (error.status === 429) return NextResponse.json({ error: 'Przekroczono limit API.' }, { status: 429 })
+    return NextResponse.json({ error: 'Blad tlumaczenia: ' + (error.message || 'Nieznany') }, { status: 500 })
   }
 }
