@@ -426,7 +426,8 @@ TEXT:`
       console.log(`   📝 Długość odpowiedzi: ${responseText.length} znaków`)
 
       // Sprawdź czy odpowiedź została obcięta (stop_reason)
-      if (message.stop_reason === 'max_tokens') {
+      const wasTruncated = message.stop_reason === 'max_tokens'
+      if (wasTruncated) {
         console.warn(`   ⚠️  UWAGA: Odpowiedź Claude została obcięta (max_tokens) dla części ${chunkNumber}`)
       }
 
