@@ -2493,54 +2493,55 @@ export default function Home() {
 
     setShowTranslateDialog(false)
     setIsLoading(true)
-    setProgress(10)
+    setProgress(5)
 
     try {
-      console.log(`🌐 Tłumaczenie ${terms.length} terminów na ${selectedTargetLang}`)
+      const CHUNK_SIZE = 120
+      const termsToTranslate = terms.map(t => ({ term: t.term, context: t.context }))
+      const totalChunks = Math.ceil(termsToTranslate.length / CHUNK_SIZE)
+      const allTranslations: Array<{ sourceTerm: string, targetTerm: string, targetContext: string }> = []
 
-      const progressInterval = setInterval(() => {
-        setProgress(prev => prev >= 90 ? prev : prev + 3)
-      }, 1000)
+      console.log(`🌐 Tłumaczenie ${terms.length} terminów na ${selectedTargetLang} (${totalChunks} chunków)`)
 
-      const response = await fetch('/api/translate-terms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey,
-          terms: terms.map(t => ({ term: t.term, context: t.context })),
-          sourceLanguage: detectedLanguage || 'Unknown',
-          targetLanguage: selectedTargetLang
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = termsToTranslate.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+        setProgress(Math.round(((i) / totalChunks) * 85) + 5)
+
+        console.log(`   Chunk ${i + 1}/${totalChunks}: ${chunk.length} terminów`)
+
+        const response = await fetch('/api/translate-terms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            apiKey,
+            terms: chunk,
+            sourceLanguage: detectedLanguage || 'Unknown',
+            targetLanguage: selectedTargetLang
+          })
         })
-      })
 
-      clearInterval(progressInterval)
-      setProgress(95)
-
-      if (!response.ok) {
-        let errorMsg = `Błąd ${response.status}`
-        try {
-          const data = await response.json()
-          errorMsg = data.error || errorMsg
-        } catch {
-          if (response.status === 504) {
-            errorMsg = 'Timeout - zbyt wiele terminów. Spróbuj z mniejszą liczbą.'
-          } else {
-            errorMsg = `Serwer zwrócił błąd ${response.status}`
-          }
+        if (!response.ok) {
+          let errorMsg = `Błąd ${response.status}`
+          try { const d = await response.json(); errorMsg = d.error || errorMsg } catch {}
+          console.error(`   ❌ Chunk ${i + 1} error: ${errorMsg}`)
+          // Dodaj puste tłumaczenia i kontynuuj
+          chunk.forEach(t => allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: '' }))
+          continue
         }
-        throw new Error(errorMsg)
+
+        const data = await response.json()
+        if (data.translations) {
+          allTranslations.push(...data.translations)
+          console.log(`   ✅ Chunk ${i + 1}: ${data.translations.filter((t: any) => t.targetTerm).length}/${chunk.length}`)
+        }
       }
 
-      const data = await response.json()
-
-      if (!data.translations || data.translations.length === 0) {
-        throw new Error('Brak tłumaczeń w odpowiedzi')
-      }
+      setProgress(95)
 
       // Aktualizuj terminy z tłumaczeniami
       const updatedTerms = terms.map((term, index) => {
-        const translation = data.translations[index] ||
-          data.translations.find((t: any) => t.sourceTerm?.toLowerCase() === term.term.toLowerCase())
+        const translation = allTranslations[index] ||
+          allTranslations.find((t: any) => t.sourceTerm?.toLowerCase() === term.term.toLowerCase())
 
         if (translation && translation.targetTerm) {
           return {
@@ -2553,27 +2554,15 @@ export default function Home() {
         return term
       })
 
-      // Zapisz jako nową wersję
       const description = `Tłumaczenie: ${detectedLanguage} → ${selectedTargetLang}`
-      projectStorage.addVersion(
-        currentProject.id,
-        currentGlossary.id,
-        updatedTerms,
-        description,
-        undefined,
-        false
-      )
+      projectStorage.addVersion(currentProject.id, currentGlossary.id, updatedTerms, description, undefined, false)
 
-      // Zapisz język docelowy w stanie
       setTargetLanguage(selectedTargetLang)
-
-      // Odśwież
       const updatedProject = projectStorage.getById(currentProject.id)
       if (updatedProject) setCurrentProject(updatedProject)
       refreshGlossary()
 
       setProgress(100)
-
       const translatedCount = updatedTerms.filter(t => t.targetTerm).length
       console.log(`✅ Przetłumaczono ${translatedCount}/${terms.length} terminów`)
       alert(language === 'pl'

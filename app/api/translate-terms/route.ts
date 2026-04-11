@@ -14,7 +14,9 @@ interface TranslateTermsRequest {
   targetLanguage: string
 }
 
-const CHUNK_SIZE = 120 // Terminy sa krotkie - 120 na chunk miesci sie w limicie
+// API przetwarza max 120 terminow na request.
+// Frontend dzieli na chunki i wysyla wiele requestow.
+const MAX_TERMS_PER_REQUEST = 120
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,33 +33,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Wymagany jezyk zrodlowy i docelowy' }, { status: 400 })
     }
 
-    console.log(`🌐 Tlumaczenie ${terms.length} terminow: ${sourceLanguage} -> ${targetLanguage}`)
+    // Ogranicz do MAX_TERMS_PER_REQUEST
+    const termsToProcess = terms.slice(0, MAX_TERMS_PER_REQUEST)
+    console.log(`🌐 Tlumaczenie ${termsToProcess.length} terminow: ${sourceLanguage} -> ${targetLanguage}`)
 
     const client = new Anthropic({ apiKey })
     const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 
-    const chunks: Array<typeof terms> = []
-    for (let i = 0; i < terms.length; i += CHUNK_SIZE) {
-      chunks.push(terms.slice(i, i + CHUNK_SIZE))
-    }
+    const termsList = termsToProcess.map((t, i) =>
+      `${i + 1}. "${t.term}"${t.context ? ` [${t.context.substring(0, 60).replace(/\n/g, ' ')}]` : ''}`
+    ).join('\n')
 
-    console.log(`   ${chunks.length} chunk(ow) po max ${CHUNK_SIZE}`)
-
-    const allTranslations: Array<{
-      sourceTerm: string
-      targetTerm: string
-      targetContext: string
-    }> = []
-
-    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-      const chunk = chunks[chunkIndex]
-      console.log(`   Chunk ${chunkIndex + 1}/${chunks.length}: ${chunk.length} terminow`)
-
-      const termsList = chunk.map((t, i) =>
-        `${i + 1}. "${t.term}"${t.context ? ` [${t.context.substring(0, 60).replace(/\n/g, ' ')}]` : ''}`
-      ).join('\n')
-
-      const prompt = `Translate these ${chunk.length} terms from ${sourceLanguage} to ${targetLanguage}.
+    const prompt = `Translate these ${termsToProcess.length} terms from ${sourceLanguage} to ${targetLanguage}.
 
 Rules:
 - Use officially established translations for technical/legal/domain terms
@@ -70,81 +57,65 @@ ${termsList}
 Return ONLY valid JSON:
 {"translations":[{"sourceTerm":"original","targetTerm":"translation","targetContext":"brief note, 30-60 chars"}]}
 
-Return ALL ${chunk.length} translations in input order.`
+Return ALL ${termsToProcess.length} translations in input order.`
 
-      try {
-        let responseText = ''
+    let responseText = ''
 
-        // Probuj z web_search + streaming
-        try {
-          const stream = client.messages.stream({
-            model,
-            max_tokens: 16000,
-            tools: [{
-              type: 'web_search_20250305',
-              name: 'web_search',
-              max_uses: 3
-            } as any],
-            messages: [{ role: 'user', content: prompt }]
-          })
-          const message = await stream.finalMessage()
-          for (const block of message.content) {
-            if (block.type === 'text') responseText += block.text
-          }
-          console.log(`   ✅ Web search + streaming OK`)
-        } catch (wsError: any) {
-          console.log(`   ⚠️ Web search fallback: ${wsError.message?.substring(0, 60)}`)
-          const stream = client.messages.stream({
-            model,
-            max_tokens: 16000,
-            messages: [{ role: 'user', content: prompt }]
-          })
-          const message = await stream.finalMessage()
-          for (const block of message.content) {
-            if (block.type === 'text') responseText += block.text
-          }
-        }
-
-        console.log(`   Odpowiedz: ${responseText.length} znakow`)
-
-        let cleanedResponse = responseText.trim()
-        if (cleanedResponse.startsWith('```json')) {
-          cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '')
-        } else if (cleanedResponse.startsWith('```')) {
-          cleanedResponse = cleanedResponse.replace(/```\n?/g, '')
-        }
-
-        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) {
-          console.error(`   Brak JSON w chunk ${chunkIndex + 1}`)
-          chunk.forEach(t => {
-            allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: 'Blad: brak JSON' })
-          })
-          continue
-        }
-
-        const parsed = JSON.parse(jsonMatch[0])
-
-        if (parsed.translations && Array.isArray(parsed.translations)) {
-          allTranslations.push(...parsed.translations)
-          console.log(`   ✅ ${parsed.translations.length} terminow`)
-        } else {
-          chunk.forEach(t => {
-            allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: 'Blad formatu' })
-          })
-        }
-      } catch (chunkError: any) {
-        console.error(`   ❌ Chunk ${chunkIndex + 1}:`, chunkError.message)
-        chunk.forEach(t => {
-          allTranslations.push({ sourceTerm: t.term, targetTerm: '', targetContext: `Blad: ${chunkError.message?.substring(0, 50)}` })
-        })
+    // Probuj z web_search + streaming, fallback bez web_search
+    try {
+      const stream = client.messages.stream({
+        model,
+        max_tokens: 16000,
+        tools: [{
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 3
+        } as any],
+        messages: [{ role: 'user', content: prompt }]
+      })
+      const message = await stream.finalMessage()
+      for (const block of message.content) {
+        if (block.type === 'text') responseText += block.text
+      }
+      console.log(`   ✅ Web search + streaming OK, ${responseText.length} znakow`)
+    } catch (wsError: any) {
+      console.log(`   ⚠️ Fallback bez web_search: ${wsError.message?.substring(0, 60)}`)
+      const stream = client.messages.stream({
+        model,
+        max_tokens: 16000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+      const message = await stream.finalMessage()
+      for (const block of message.content) {
+        if (block.type === 'text') responseText += block.text
       }
     }
 
-    const successCount = allTranslations.filter(t => t.targetTerm).length
-    console.log(`✅ Tlumaczenie: ${successCount}/${terms.length}`)
+    // Parsuj JSON
+    let cleanedResponse = responseText.trim()
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '')
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/```\n?/g, '')
+    }
 
-    return NextResponse.json({ translations: allTranslations, sourceLanguage, targetLanguage })
+    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.error(`   Brak JSON w odpowiedzi`)
+      return NextResponse.json({
+        translations: termsToProcess.map(t => ({ sourceTerm: t.term, targetTerm: '', targetContext: 'Blad: brak JSON' })),
+        sourceLanguage, targetLanguage
+      })
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
+    const translations = parsed.translations && Array.isArray(parsed.translations)
+      ? parsed.translations
+      : termsToProcess.map(t => ({ sourceTerm: t.term, targetTerm: '', targetContext: 'Blad formatu' }))
+
+    console.log(`✅ Przetlumaczono ${translations.filter((t: any) => t.targetTerm).length}/${termsToProcess.length}`)
+
+    return NextResponse.json({ translations, sourceLanguage, targetLanguage })
 
   } catch (error: any) {
     console.error('❌ Blad:', error)
