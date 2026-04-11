@@ -2538,10 +2538,24 @@ export default function Home() {
 
       setProgress(95)
 
-      // Aktualizuj terminy z tłumaczeniami
+      // Aktualizuj terminy z tłumaczeniami - dopasowanie po sourceTerm (priorytet), potem po indeksie
+      // Buduj mapę sourceTerm -> translation dla szybkiego wyszukiwania
+      const translationMap = new Map<string, { targetTerm: string, targetContext: string }>()
+      for (const t of allTranslations) {
+        if (t.sourceTerm && t.targetTerm) {
+          translationMap.set(t.sourceTerm.toLowerCase().trim(), t)
+        }
+      }
+
       const updatedTerms = terms.map((term, index) => {
-        const translation = allTranslations[index] ||
-          allTranslations.find((t: any) => t.sourceTerm?.toLowerCase() === term.term.toLowerCase())
+        // 1. Dokładne dopasowanie po sourceTerm
+        const byName = translationMap.get(term.term.toLowerCase().trim())
+
+        // 2. Fallback po indeksie — tylko jeśli nie znaleziono po nazwie
+        const byIndex = !byName && allTranslations[index]?.targetTerm
+          ? allTranslations[index] : null
+
+        const translation = byName || byIndex
 
         if (translation && translation.targetTerm) {
           return {

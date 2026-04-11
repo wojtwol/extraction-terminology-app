@@ -50,14 +50,16 @@ Rules:
 - Use officially established translations for technical/legal/domain terms
 - For acronyms, keep original if no established translation exists
 - Context in brackets [] helps determine domain meaning
+- CRITICAL: "sourceTerm" must be the EXACT original term as given (copy-paste it exactly, do not modify)
+- Maintain the EXACT same order as the input
 
 TERMS:
 ${termsList}
 
 Return ONLY valid JSON:
-{"translations":[{"sourceTerm":"original","targetTerm":"translation","targetContext":"brief note, 30-60 chars"}]}
+{"translations":[{"sourceTerm":"exact original term","targetTerm":"translation","targetContext":"brief note, 30-60 chars"}]}
 
-Return ALL ${termsToProcess.length} translations in input order.`
+Return ALL ${termsToProcess.length} translations. Keep exact input order and exact sourceTerm spelling.`
 
     let responseText = ''
 
