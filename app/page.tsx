@@ -1077,10 +1077,28 @@ export default function Home() {
               sourceDocument: term.sourceDocument || loadedFileName
             }))
             // Deduplikacja — nie dodawaj terminów które już mamy
-            const existingSet = new Set(allTerms.map(t => t.term.toLowerCase()))
-            const uniqueNewTerms = newTerms.filter((t: Term) => !existingSet.has(t.term.toLowerCase()))
+            const existingSet = new Set(allTerms.map(t => t.term.toLowerCase().trim()))
+            const uniqueNewTerms: Term[] = []
+            const skippedDuplicates: string[] = []
+            for (const t of newTerms as Term[]) {
+              const key = t.term.toLowerCase().trim()
+              if (existingSet.has(key)) {
+                skippedDuplicates.push(t.term)
+                // Zaktualizuj liczbę wystąpień istniejącego terminu jeśli nowa jest wyższa
+                const existing = allTerms.find(e => e.term.toLowerCase().trim() === key)
+                if (existing && t.occurrences > existing.occurrences) {
+                  existing.occurrences = t.occurrences
+                  existing.positions = t.positions
+                }
+              } else {
+                existingSet.add(key)
+                uniqueNewTerms.push(t)
+              }
+            }
             allTerms = [...allTerms, ...uniqueNewTerms]
-            console.log(`   Deduplikacja: ${newTerms.length} → ${uniqueNewTerms.length} nowych (pominięto ${newTerms.length - uniqueNewTerms.length} duplikatów)`)
+            if (skippedDuplicates.length > 0) {
+              console.log(`   Deduplikacja: pominięto ${skippedDuplicates.length} duplikatów: ${skippedDuplicates.slice(0, 5).join(', ')}...`)
+            }
 
             // Zapisz wyniki partiami — wyświetlaj na bieżąco
             const description = `Ekstrakcja runda ${round}: +${newTerms.length} terminów (łącznie ${allTerms.length})`
