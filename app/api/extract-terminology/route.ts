@@ -407,7 +407,11 @@ TEXT:`
 
       console.log(`   Ekstrahuję do ${termsForThisChunk} terminów (max_tokens: ${calculatedMaxTokens})`)
 
-      const message = await anthropic.messages.create({
+      // Użyj streaming (wymagane przez SDK przy dużych max_tokens >10 min)
+      let responseText = ''
+      let stopReason = ''
+
+      const stream = anthropic.messages.stream({
         model,
         max_tokens: calculatedMaxTokens,
         messages: [
@@ -418,15 +422,15 @@ TEXT:`
         ]
       })
 
+      const message = await stream.finalMessage()
+      responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+      stopReason = message.stop_reason || ''
+
       console.log(`   ✅ Otrzymano odpowiedź dla części ${chunkNumber}/${totalChunks}`)
-
-      // Ekstrakcja JSON z odpowiedzi
-      const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-
       console.log(`   📝 Długość odpowiedzi: ${responseText.length} znaków`)
 
       // Sprawdź czy odpowiedź została obcięta (stop_reason)
-      const wasTruncated = message.stop_reason === 'max_tokens'
+      const wasTruncated = stopReason === 'max_tokens'
       if (wasTruncated) {
         console.warn(`   ⚠️  UWAGA: Odpowiedź Claude została obcięta (max_tokens) dla części ${chunkNumber}`)
       }
