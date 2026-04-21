@@ -2110,21 +2110,35 @@ ${entries}
           <option value="csv">📊 CSV{isBilingual ? ` - ${is2Column ? (language === 'pl' ? '2 kolumny' : '2 columns') : (language === 'pl' ? '4 kolumny' : '4 columns')}` : ''}</option>
           <option value="html">🌐 HTML{isBilingual ? ` - ${is2Column ? (language === 'pl' ? '2 kolumny' : '2 columns') : (language === 'pl' ? '4 kolumny' : '4 columns')}` : ''}</option>
           <option value="json">💾 JSON</option>
-          {(hasTranslations || isBilingual) && (
-            <option value="xml-bilingual">📋 XML ({language === 'pl' ? 'dwujęzyczny' : 'bilingual'})</option>
-          )}
-          {(hasTranslations || isBilingual) && (
-            <option value="tbx">📋 TBX (TermBase eXchange)</option>
-          )}
-          {(hasTranslations || isBilingual) && (
-            <option value="multiterm-xml">📋 MultiTerm XML</option>
-          )}
-          {(hasTranslations || isBilingual) && (
-            <option value="sdltb">📋 MultiTerm XML + XDT</option>
-          )}
+          <option disabled>
+            ────── {language === 'pl' ? 'Formaty CAT / TMS (wymagają tłumaczeń)' : 'CAT / TMS formats (require translations)'} ──────
+          </option>
+          <option value="xml-bilingual" disabled={!(hasTranslations || isBilingual)}>
+            📋 XML ({language === 'pl' ? 'dwujęzyczny' : 'bilingual'})
+            {!(hasTranslations || isBilingual) ? (language === 'pl' ? ' — dodaj tłumaczenia' : ' — add translations') : ''}
+          </option>
+          <option value="tbx" disabled={!(hasTranslations || isBilingual)}>
+            📋 TBX (TermBase eXchange)
+            {!(hasTranslations || isBilingual) ? (language === 'pl' ? ' — dodaj tłumaczenia' : ' — add translations') : ''}
+          </option>
+          <option value="multiterm-xml" disabled={!(hasTranslations || isBilingual)}>
+            📋 MultiTerm XML (SDL Trados)
+            {!(hasTranslations || isBilingual) ? (language === 'pl' ? ' — dodaj tłumaczenia' : ' — add translations') : ''}
+          </option>
+          <option value="sdltb" disabled={!(hasTranslations || isBilingual)}>
+            📋 MultiTerm XML + XDT (SDLTB-compatible)
+            {!(hasTranslations || isBilingual) ? (language === 'pl' ? ' — dodaj tłumaczenia' : ' — add translations') : ''}
+          </option>
           <option disabled>──────────</option>
           <option value="export-project">📦 {language === 'pl' ? 'Eksportuj projekt (.gtextt)' : 'Export project (.gtextt)'}</option>
         </select>
+        {!(hasTranslations || isBilingual) && hasTerms && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-2">
+            {language === 'pl'
+              ? '💡 Formaty TBX / MultiTerm / SDLTB (dla SDL Trados, memoQ, Across) są dostępne po przetłumaczeniu terminów. Użyj akcji „Przetłumacz terminy" lub zaimportuj dwujęzyczny XLSX.'
+              : '💡 TBX / MultiTerm / SDLTB formats (for SDL Trados, memoQ, Across) become available after terms are translated. Use "Translate terms" action or import a bilingual XLSX.'}
+          </p>
+        )}
         {isBilingual ? (
           <p className="text-xs text-gray-500 mt-2">
             {is2Column ? (
