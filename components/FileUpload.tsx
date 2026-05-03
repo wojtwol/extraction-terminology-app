@@ -106,20 +106,35 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
     }
   }
 
+  const handleMultipleFiles = async (files: FileList | File[]) => {
+    const fileArr = Array.from(files)
+    if (fileArr.length === 0) return
+    // Sekwencyjnie — uniknij race condition na currentProject w trybie multi-document
+    for (const file of fileArr) {
+      try {
+        await handleFile(file)
+      } catch (err) {
+        console.error(`Błąd przy ładowaniu ${file.name}:`, err)
+      }
+    }
+  }
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0])
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleMultipleFiles(e.dataTransfer.files)
     }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0])
+    if (e.target.files && e.target.files.length > 0) {
+      handleMultipleFiles(e.target.files)
     }
+    // Reset value, żeby ponowny wybór tego samego pliku odpalał onChange
+    e.target.value = ''
   }
 
   const handleTextSubmit = async () => {
@@ -322,6 +337,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
           <input
             ref={fileInputRef}
             type="file"
+            multiple
             className="hidden"
             accept=".txt,.html,.docx,.xlsx,.xls,.xml"
             onChange={handleChange}

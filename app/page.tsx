@@ -257,18 +257,16 @@ export default function Home() {
     const language = await detectLanguageAPI(text)
 
     // Jeśli projekt jest wielodokumentowy, dodaj dokument do listy
-    if (currentProject?.isMultiDocument) {
-      const doc = projectStorage.addDocument(currentProject.id, filename, text, language)
+    // Czytaj zawsze świeży stan ze storage — closure currentProject może być nieaktualny przy szybkich uploadach
+    const freshProject = currentProject ? projectStorage.getById(currentProject.id) : null
+    if (freshProject?.isMultiDocument) {
+      const doc = projectStorage.addDocument(freshProject.id, filename, text, language)
       if (doc) {
-        console.log(`📄 Dodano dokument: ${filename}, ${text.length} znaków, język: ${language}`)
-        alert(
-          (language === 'pl' ? 'pl' : 'en') === 'pl'
-            ? `Dokument "${filename}" został dodany.\n\nDokumenty: ${(currentProject.documents?.length || 0) + 1}\nJęzyk: ${language}`
-            : `Document "${filename}" has been added.\n\nDocuments: ${(currentProject.documents?.length || 0) + 1}\nLanguage: ${language}`
-        )
-        const updatedProject = projectStorage.getById(currentProject.id)
-        if (updatedProject) {
-          setCurrentProject(updatedProject)
+        const refreshedProject = projectStorage.getById(freshProject.id)
+        const docCount = refreshedProject?.documents?.length || 0
+        console.log(`📄 Dodano dokument [${docCount}]: ${filename}, ${text.length} znaków, język: ${language}`)
+        if (refreshedProject) {
+          setCurrentProject(refreshedProject)
         }
       }
     } else {
