@@ -20,6 +20,7 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
   const [pastedText, setPastedText] = useState('')
   const [urlInput, setUrlInput] = useState('')
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
+  const [batchProgress, setBatchProgress] = useState<{ current: number, total: number, fileName: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Ustaw zapisany klucz API jeśli jest dostępny
@@ -110,13 +111,18 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
     const fileArr = Array.from(files)
     if (fileArr.length === 0) return
     // Sekwencyjnie — uniknij race condition na currentProject w trybie multi-document
-    for (const file of fileArr) {
+    for (let i = 0; i < fileArr.length; i++) {
+      const file = fileArr[i]
+      if (fileArr.length > 1) {
+        setBatchProgress({ current: i + 1, total: fileArr.length, fileName: file.name })
+      }
       try {
         await handleFile(file)
       } catch (err) {
         console.error(`Błąd przy ładowaniu ${file.name}:`, err)
       }
     }
+    setBatchProgress(null)
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -359,11 +365,21 @@ export default function FileUpload({ onExtract, isLoading, savedApiKey, clearTri
           </svg>
 
           <p className="text-lg text-gray-700 mb-2">
-            {isLoading ? t.analyzing : t.dragDropFile}
+            {batchProgress
+              ? (language === 'pl'
+                  ? `Ładowanie ${batchProgress.current}/${batchProgress.total}: ${batchProgress.fileName}`
+                  : `Loading ${batchProgress.current}/${batchProgress.total}: ${batchProgress.fileName}`)
+              : isLoading ? t.analyzing : t.dragDropFile}
           </p>
 
           <p className="text-sm text-gray-500">
             {t.supportedFormats}
+          </p>
+
+          <p className="text-xs text-blue-600 mt-2 font-medium">
+            {language === 'pl'
+              ? '✨ Możesz przeciągnąć lub wybrać kilka plików jednocześnie'
+              : '✨ You can drag or select multiple files at once'}
           </p>
         </div>
       )}
